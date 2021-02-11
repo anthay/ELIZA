@@ -1,4 +1,4 @@
-#A Simulation in C++ of Joseph Weizenbaum’s 1966 ELIZA
+# A Simulation in C++ of Joseph Weizenbaum’s 1966 ELIZA
 
 I’ve made in C++ what I think is an accurate simulation of the original ELIZA. It is a console application that takes as input the original format script file, which looks like a series of S-expressions, and then waits for the user to type a line of text before responding with a line of text of its own.
 
@@ -7,7 +7,7 @@ I believe it to be an accurate simulation of the original because I followed clo
 
 That’s it. Read on for fluf.
 
---
+---
 
 I believe I first read about ELIZA in 1978. My favourite teacher at secondary school was Alfred Nussbaum, who taught us physics. He knew of my interest in computers and suggested I read Joseph Weizenbaum’s book *Computer Power and Human Reason*.
 
@@ -17,7 +17,7 @@ Craig, Stuart and me with Alfred Nussbaum in the physics lab in Hengrove Compreh
 
 I recently found my copy of Mr. Weizenbaum’s book and reread it. He seemed to have a strong feelings about people who find computers fascinating.
 
->“How may the compulsive programmer be distinguished from a merely dedicated, hard-working professional programmer? First, by the fact that the ordinary professional programmer addresses himself to the problem to be solved, whereas the compulsive programmer sees the problem mainly as an opportunity to interact with the computer. The ordinary computer programmer will usually discuss both his substantive and his technical programming problem with others. He will generally do lengthy preparatory work, such as writing and flow diagramming, before beginning work with the computer itself. His sessions with the computer may be comparatively short. He may even let others do the actual console work. He develops his program slowly and systematically. When something doesn’t work, he may spend considerable time away from the computer, framing careful hypotheses to account for the malfunction and designing crucial experiments to test them. Again, he may leave the actual running of the computer to others. He is able, while waiting for results from the computer, to attend to other aspects of his work, such as documenting what he has already done. When he has finally composed the program he set out to produce, he is able to complete a sensible description of it and to turn his attention to other things. The professional regards programming as a means toward an end, not as an end in itself. His satisfaction comes from having solved a substantive problem, not from having bent a computer to his will.”
+>How may the compulsive programmer be distinguished from a merely dedicated, hard-working professional programmer? First, by the fact that the ordinary professional programmer addresses himself to the problem to be solved, whereas the compulsive programmer sees the problem mainly as an opportunity to interact with the computer. The ordinary computer programmer will usually discuss both his substantive and his technical programming problem with others. He will generally do lengthy preparatory work, such as writing and flow diagramming, before beginning work with the computer itself. His sessions with the computer may be comparatively short. He may even let others do the actual console work. He develops his program slowly and systematically. When something doesn’t work, he may spend considerable time away from the computer, framing careful hypotheses to account for the malfunction and designing crucial experiments to test them. Again, he may leave the actual running of the computer to others. He is able, while waiting for results from the computer, to attend to other aspects of his work, such as documenting what he has already done. When he has finally composed the program he set out to produce, he is able to complete a sensible description of it and to turn his attention to other things. The professional regards programming as a means toward an end, not as an end in itself. His satisfaction comes from having solved a substantive problem, not from having bent a computer to his will.
 
 The book contains many pages in this vein.
 
@@ -33,7 +33,7 @@ Having now read the book twice, 40-odd years apart, I’m sorry to say I had to 
 
 I presume the distinction between deciding and choosing relates to the very old question about freewill and determinism. I don't believe in magic; I think we are subject to the laws of nature, and so we are deterministic. Choice maybe the product of judgment, but I think judgement must be the product of calculation (i.e. the deterministic behaviour of the particles that constitute our world).
 
---
+---
 
 Rediscovering the book set me off looking for the original 1966 CACM article about ELIZA. Having found and read the article I thought, in the spirit of exploration,  it would be fun to recreate ELIZA for myself. 
 
