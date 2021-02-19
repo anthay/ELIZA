@@ -17,7 +17,7 @@ Craig, Stuart and me with Alfred Nussbaum in the physics lab in Hengrove Compreh
 
 I recently found my copy of Mr. Weizenbaum’s book and reread it. He seemed to have a strong feelings about people who find computers fascinating.
 
->How may the compulsive programmer be distinguished from a merely dedicated, hard-working professional programmer? First, by the fact that the ordinary professional programmer addresses himself to the problem to be solved, whereas the compulsive programmer sees the problem mainly as an opportunity to interact with the computer. The ordinary computer programmer will usually discuss both his substantive and his technical programming problem with others. He will generally do lengthy preparatory work, such as writing and flow diagramming, before beginning work with the computer itself. His sessions with the computer may be comparatively short. He may even let others do the actual console work. He develops his program slowly and systematically. When something doesn’t work, he may spend considerable time away from the computer, framing careful hypotheses to account for the malfunction and designing crucial experiments to test them. Again, he may leave the actual running of the computer to others. He is able, while waiting for results from the computer, to attend to other aspects of his work, such as documenting what he has already done. When he has finally composed the program he set out to produce, he is able to complete a sensible description of it and to turn his attention to other things. The professional regards programming as a means toward an end, not as an end in itself. His satisfaction comes from having solved a substantive problem, not from having bent a computer to his will.
+>How may the compulsive programmer be distinguished from a merely dedicated, hard-working professional programmer? First, by the fact that the ordinary professional programmer addresses himself to the problem to be solved, whereas the compulsive programmer sees the problem mainly as an opportunity to interact with the computer. The ordinary computer programmer will usually discuss both his substantive and his technical programming problem with others. He will generally do lengthy preparatory work, such as writing and flow diagramming, before beginning work with the computer itself. His sessions with the computer may be comparatively short. He may even let others do the actual console work. He develops his program slowly and systematically. When something doesn’t work, he may spend considerable time away from the computer, framing careful hypotheses to account for the malfunction and designing crucial experiments to test them. Again, he may leave the actual running of the computer to others. He is able, while waiting for results from the computer, to attend to other aspects of his work, such as documenting what he has already done. When he has finally composed the program he set out to produce, he is able to complete a sensible description of it and to turn his attention to other things. The professional regards programming as a means toward an end, not as an end in itself. His satisfaction comes from having solved a substantive problem, not from having bent a computer to his will. [Computer Power and Human Reason, page 116]
 
 The book contains many pages in this vein.
 
@@ -27,11 +27,27 @@ On reflection, I’ve never solved a substantive problem in my life. I do get en
 
 People play and express themselves in many different mediums. Paint, clay, words, sound, theatre... I don’t see the harm in code being another medium in which one might immerse oneself.
 
-Having now read the book twice, 40-odd years apart, I’m sorry to say I had to look it up in Wikipedia to see what it was supposed to be about.
+Wikipedia says this is what Computer power and Human Reason is about:
 
 >...while Artificial Intelligence may be possible, we should never allow computers to make important decisions because computers will always lack human qualities such as compassion and wisdom. Weizenbaum makes the crucial distinction between deciding and choosing. Deciding is a computational activity, something that can ultimately be programmed. Choice, however, is the product of judgment, not calculation. It is the capacity to choose that ultimately makes us human. Comprehensive human judgment is able to include non-mathematical factors, such as emotions. Judgment can compare apples and oranges, and can do so without quantifying each fruit type and then reductively quantifying each to factors necessary for comparison. [Wikipedia (11 Feb 2021)](https://en.wikipedia.org/wiki/Joseph_Weizenbaum)
 
 I presume the distinction between deciding and choosing relates to the very old question about freewill and determinism. I don't believe in magic; I think we are subject to the laws of nature, and so we are deterministic. Choice maybe the product of judgment, but I think judgement must be the product of calculation (i.e. the deterministic behaviour of the particles that constitute our world).
+
+I'm not 100% sure, but I think Weizenbaum would agree with this. For example, he says:
+
+>Still, the extreme or hardcore wing of the artificial intelligentsia will insist that the whole man, to again use Simon's expression, is after all an information processor, and that an information-processing theory of man must therefore be adequate to account for his behavior in its entirety. We may agree with the major premise without necessarily drawing the indicated conclusion. We have already observed that a portion of the information the human "processes" is kinesthetic, that it is "stored" in his muscles and joints. It is simply not clear that such information, and the processing associated with it, can be represented in the form of computer programs and data structures at all.
+>
+>It may, of course, be argued that it is in principle possible for a computer to simulate the entire network of cells that constitutes the human body. But that would introduce a theory of information processing entirely different from any which has so far been advanced. Besides, such a simulation would result in "behavior" on such an incredibly long-time scale that no robot built on such principles could possibly interact with human beings. Finally, there appears to be no prospect whatever that mankind will know enough neurophysiology within the next several hundred years to have the intellectual basis for designing such a machine. We may therefore dismiss such arguments. [Computer Power and Human Reason, page 213]
+
+(This reminds me of the project to [simulate a worm at the cellular level](https://en.wikipedia.org/wiki/OpenWorm).)
+
+At other times I think Weizenbaum is saying it will never happen:
+
+> But, and this is the saving grace of which an insolent and arrogant scientism attempts to rob us, we come to know and understand not only by way of the mechanisms of the conscious. We are capable of listening with the third ear, of sensing living truth that is truth beyond any standards of provability. It is *that* kind of understanding, and the kind of intelligence that is derived from it, which I claim is beyond the abilities of computers to simulate. [Computer Power and Human Reason, page 222]
+
+So I think Weizenbaum does believe in magic.
+
+(One thing about the book this critic didn't like was the constant name calling, of which the above quotes give a small flavour.)
 
 ---
 
@@ -182,7 +198,7 @@ C:\Eliza>
 ```
 
 
-As I mentioned before, my ELIZA simulation reproduces the exact conversation shown in the 1966 CACM article. To remind you, this is the conversation. ELIZA output in all caps.
+As I mentioned before, my ELIZA simulation reproduces the exact conversation shown in both the 1966 CACM article, and reproduced ten years later in Computer Power and Human Reason. To remind you, this is that conversation. ELIZA output in all caps.
 
 ```html
 Men are all alike.
