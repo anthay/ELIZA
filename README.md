@@ -202,7 +202,7 @@ C:\Eliza>
 
 As I mentioned before, my ELIZA simulation reproduces the exact conversation shown in both the 1966 CACM article, and reproduced ten years later in Computer Power and Human Reason. To remind you, this is that conversation. ELIZA output in all caps.
 
-```html
+```text
 Men are all alike.
 IN WHAT WAY
 They're always bugging us about something or other.
@@ -237,7 +237,7 @@ DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HE
 
 Having fed in the above prompts and received the expected responses, I thought I’d try to play the part of the “young lady” and continue this original 1966 conversation.
 
-```html
+```text
 I know my boyfriend loves me and is just trying to help.
 WHY DO YOU SAY YOUR BOYFRIEND LOVES YOU AND IS JUST TRYING TO HELP
 I didn't really come here because my boyfriend is a bully.
