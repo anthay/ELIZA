@@ -45,7 +45,7 @@ At other times I think Weizenbaum is saying it will never happen:
 
 > But, and this is the saving grace of which an insolent and arrogant scientism attempts to rob us, we come to know and understand not only by way of the mechanisms of the conscious. We are capable of listening with the third ear, of sensing living truth that is truth beyond any standards of provability. It is *that* kind of understanding, and the kind of intelligence that is derived from it, which I claim is beyond the abilities of computers to simulate. [Computer Power and Human Reason, page 222]
 
-I think Weizenbaum is saying science can never fully model what it is to be a human being and "there are objectives that are not appropriately assignable to machines” [page 210]. This critic would not disagree. But I would have preferred him to have made this central point more straightforwardly and spent less time waffling and calling people names.
+I think Weizenbaum is saying science can never fully model what it is to be a human being and "there are objectives that are not appropriately assignable to machines” [page 210]. This critic would not disagree. But I would have preferred him to have made this central point more straightforwardly and spent less time waffling and calling people names. (Please note that I don't claim to know what "listening with the third ear, of sensing living truth that is truth beyond any standards of provability" means.)
 
 Also, it seems like an important, but not very interesting point. Sure, we shouldn't let a computer sit in judgement over people, even if people can't agree on even the simplist ethical choices, such as whether it is right to eat animals. But holy shit, my AI just found a cure for cancer!
 
