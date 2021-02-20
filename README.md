@@ -39,15 +39,17 @@ I'm not 100% sure, but I think Weizenbaum would agree with this. For example, he
 >
 >It may, of course, be argued that it is in principle possible for a computer to simulate the entire network of cells that constitutes the human body. But that would introduce a theory of information processing entirely different from any which has so far been advanced. Besides, such a simulation would result in "behavior" on such an incredibly long-time scale that no robot built on such principles could possibly interact with human beings. Finally, there appears to be no prospect whatever that mankind will know enough neurophysiology within the next several hundred years to have the intellectual basis for designing such a machine. We may therefore dismiss such arguments. [Computer Power and Human Reason, page 213]
 
-(This reminds me of the project to [simulate a worm at the cellular level](https://en.wikipedia.org/wiki/OpenWorm).)
+Cf. [the project to simulate a worm at the cellular level](https://en.wikipedia.org/wiki/OpenWorm).
 
 At other times I think Weizenbaum is saying it will never happen:
 
 > But, and this is the saving grace of which an insolent and arrogant scientism attempts to rob us, we come to know and understand not only by way of the mechanisms of the conscious. We are capable of listening with the third ear, of sensing living truth that is truth beyond any standards of provability. It is *that* kind of understanding, and the kind of intelligence that is derived from it, which I claim is beyond the abilities of computers to simulate. [Computer Power and Human Reason, page 222]
 
-So I think Weizenbaum does believe in magic.
+I think Weizenbaum is saying science can never fully model what it is to be a human being and "there are objectives that are not appropriately assignable to machines” [page 210]. This critic would not disagree. But I would have preferred him to have made this central point more straightforwardly and spent less time waffling and calling people names.
 
-(One thing about the book this critic didn't like was the constant name calling, of which the above quotes give a small flavour.)
+Also, it seems like an important, but not very interesting point. Sure, we shouldn't let a computer sit in judgement over people, even if people can't agree on even the simplist ethical choices, such as whether it is right to eat animals. But holy shit, my AI just found a cure for cancer!
+
+Cf. [James Lovelock's Novacene](https://en.wikipedia.org/wiki/Novacene).
 
 ---
 
