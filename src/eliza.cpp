@@ -665,13 +665,9 @@ public:
         if (keyword != keyword_)
             return;
 
-        // the CACM article says rules are selected at random [page 41 (f)],
-        // but we'll just cycle through them, starting with the last rule so
-        // that this simulations gives the same response to the "Bullies"
-        // input as the original ELIZA gave
-        const auto & transformation = trans_[memory_rule_index_++];
-        if (memory_rule_index_ > 3)
-            memory_rule_index_ = 0;
+        assert(trans_.size() == num_transformations);
+        const auto & transformation = trans_[memory_rule_index_];
+        memory_rule_index_ = rand() % num_transformations; // rules are selected at random [page 41 (f)]
 
         stringlist constituents;
         if (!match(tags, transformation.decomposition, words, constituents))
@@ -706,8 +702,15 @@ public:
         return sexp;
     }
 
+    // the MEMORY rule must have this number of transformations
+    static constexpr int num_transformations = 4;
+
 private:
-    int memory_rule_index_{ 3 }; // (3 first so that the conversation matches the original)
+    int memory_rule_index_{ num_transformations - 1 };
+        // the CACM article says rules are selected at random [page 41 (f)],
+        // but we'll make sure the first time we select a rule we select
+        // the last rule so that this simulations gives the same response
+        // to the "Bullies" input as the original ELIZA gave
     stringlist memories_;
     int a_certain_counting_mechanism_{ 0 };
  };
@@ -1296,7 +1299,7 @@ private:
             throw std::runtime_error("expected keyword");
         auto r = std::make_shared<elizalogic::rule_memory>(t.value);
 
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < elizalogic::rule_memory::num_transformations; ++i) {
             stringlist decomposition;
             std::vector<stringlist> reassembly_rules;
 
@@ -1976,7 +1979,7 @@ void writeln(const std::string & s)
         // N.B. this idea is NOT authentic to the 1966 ELIZA
 
         auto sleep = [](long ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
-        auto chance = [](int n) { return rand() % n == 1; };
+        auto chance = [](int n) { return rand() % n == 0; };
         static char fatfingers[] = { "SVVFRDFJUHJKNBIOWTAYICEZTX" };
         using std::cout; using std::flush; using std::endl;
 
