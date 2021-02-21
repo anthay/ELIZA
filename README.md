@@ -282,7 +282,7 @@ Eliza always has the last word.
 
 
 
-```html
+```text
 ;
 ; APPENDIX. An Eliza Script
 ;
