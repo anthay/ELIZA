@@ -839,6 +839,6 @@ START
 
 Anthony Hay, February 2021.
 
-There is more information about ELIZA [here](https://sites.google.com/view/elizagen-org/).
+There is more information about ELIZA [here](http://elizagen.org/).
 
 
