@@ -29,7 +29,7 @@ People play and express themselves in many different mediums. Paint, clay, words
 
 Wikipedia says this is what Computer power and Human Reason is about:
 
->...while Artificial Intelligence may be possible, we should never allow computers to make important decisions because computers will always lack human qualities such as compassion and wisdom. Weizenbaum makes the crucial distinction between deciding and choosing. Deciding is a computational activity, something that can ultimately be programmed. Choice, however, is the product of judgment, not calculation. It is the capacity to choose that ultimately makes us human. Comprehensive human judgment is able to include non-mathematical factors, such as emotions. Judgment can compare apples and oranges, and can do so without quantifying each fruit type and then reductively quantifying each to factors necessary for comparison. [Wikipedia (11 Feb 2021)](https://en.wikipedia.org/wiki/Joseph_Weizenbaum)
+>...while Artificial Intelligence may be possible, we should never allow computers to make important decisions because computers will always lack human qualities such as compassion and wisdom. Weizenbaum makes the crucial distinction between deciding and choosing. Deciding is a computational activity, something that can ultimately be programmed. Choice, however, is the product of judgment, not calculation. It is the capacity to choose that ultimately makes us human. Comprehensive human judgment is able to include non-mathematical factors, such as emotions. Judgment can compare apples and oranges, and can do so without quantifying each fruit type and then reductively quantifying each to factors necessary for comparison. \[[Wikipedia (11 Feb 2021)](https://en.wikipedia.org/wiki/Joseph_Weizenbaum)\]
 
 I presume the distinction between deciding and choosing relates to the very old question about freewill and determinism. I don't believe in magic; I think we are subject to the laws of nature, and so we are deterministic. Choice maybe the product of judgment, but I think judgement must be the product of calculation (i.e. the deterministic behaviour of the particles that constitute our world).
 
@@ -39,7 +39,7 @@ I'm not 100% sure, but I think Weizenbaum would agree with this. For example, he
 >
 >It may, of course, be argued that it is in principle possible for a computer to simulate the entire network of cells that constitutes the human body. But that would introduce a theory of information processing entirely different from any which has so far been advanced. Besides, such a simulation would result in "behavior" on such an incredibly long-time scale that no robot built on such principles could possibly interact with human beings. Finally, there appears to be no prospect whatever that mankind will know enough neurophysiology within the next several hundred years to have the intellectual basis for designing such a machine. We may therefore dismiss such arguments. [Computer Power and Human Reason, page 213]
 
-Cf. the project to simulate a worm at the cellular level [Wikipedia](https://en.wikipedia.org/wiki/OpenWorm).
+Cf. the project to simulate a worm at the cellular level \[[Wikipedia](https://en.wikipedia.org/wiki/OpenWorm)\].
 
 At other times I think Weizenbaum is saying it will never happen:
 
@@ -47,9 +47,9 @@ At other times I think Weizenbaum is saying it will never happen:
 
 I think Weizenbaum is saying science can never fully model what it is to be a human being and "there are objectives that are not appropriately assignable to machines” [page 210]. This critic would not disagree. But I would have preferred him to have made this central point more straightforwardly and spent less time waffling and calling people names. (Please note that I don't claim to know what "listening with the third ear, of sensing living truth that is truth beyond any standards of provability" means.)
 
-Whether we can simulate human intelligence or not, computers are powerful tools that can be used by people to solve difficult problems we almost certainly couldn't solve without them. Some of these solutions will be good for humanity and all life on Earth. Others, maybe not so much...
+Whether we can simulate human intelligence or not, computers are powerful tools that can be used by people to solve difficult problems we almost certainly couldn't solve without them. Some of these solutions will be good for humanity and all life on Earth. Others, maybe not so much... This puts me in mind of the very old quip: *to err is human; to really foul things up requires a computer*.
 
-Cf. James Lovelock's Novacene [Wikipedia](https://en.wikipedia.org/wiki/Novacene).
+Cf. James Lovelock's Novacene \[[Wikipedia](https://en.wikipedia.org/wiki/Novacene)\].
 
 ---
 
