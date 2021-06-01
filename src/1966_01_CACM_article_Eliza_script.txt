@@ -498,13 +498,14 @@ START
         (SHOULD YOU 5 YOURSELF)
         (YOU WANT ME TO 5)
         (=WHAT))
+; duplicate line removed: (=WHAT))
     ((0 WHY CAN'T YOU 0)
         (DO YOU THINK YOU SHOULD BE ABLE TO 5)
         (DO YOU WANT TO BE ABLE TO 5)
         (DO YOU BELIEVE THIS WILL HELP YOU TO 5)
         (HAVE YOU ANY IDEA WHY YOU CAN'T 5)
         (=WHAT)))
-; duplicate line removed: (=WHAT))
+; extraneous (=WHAT)) removed
 ; and missing final ')' added
 
 (EVERYONE 2
