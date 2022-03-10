@@ -32,10 +32,9 @@
 ; composition. (Weizenbaum says "An ELIZA script consists mainly of a set
 ; of list structures...", but nowhere in the article are S-expressions or
 ; LISP mentioned. Perhaps it was too obvious to be noted.) Weizenbaum says
-; ELIZA was written in MAD-Slip. It seems his original source code has
-; been lost. Weizenbaum developed a library of FORTRAN functions for
-; manipulating doubly-linked lists, which he called Slip (for Symmetric
-; list processor).
+; ELIZA was written in MAD-Slip. He didn't publish it at the time, but a
+; version of the source code has now been found in the Weizenbaum archives
+; at MIT. See elizagen.org.
 ;
 ; The most common transformation rule has the form:
 ;
