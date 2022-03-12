@@ -2,7 +2,7 @@
 
 This is an update to a previous project: [A Simulation in C++ of Joseph Weizenbaum’s 1966 ELIZA](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_1.md).
 
-In April 2021 Jeff Shrager located a listing of Joseph Weizenbaum's ELIZA program in the MIT archives. The listing appears to be dated 03/06 and was in a folder labeled "COMPUTER CONVERSATIONS (1965)". Jeff wrote about this on [elizagen.org](https://sites.google.com/view/elizagen-org/the-original-eliza). It is now in the public domain and for the first time anyone who cares to can read the code for the program Weizenbaum describes in his 1966 CACM paper[^CACM-paper].
+In April 2021 Jeff Shrager located a listing of Joseph Weizenbaum's ELIZA program in the MIT archives. The listing appears to be dated 03/06 and was in a folder labeled "COMPUTER CONVERSATIONS (1965)". Jeff wrote about this on [elizagen.org](https://sites.google.com/view/elizagen-org/the-original-eliza). It is now in the public domain and for the first time anyone who cares to can read the code for the program Weizenbaum describes in his 1966 CACM paper[^1].
 
 I've read it and discovered a few things about how ELIZA works that were not (or not fully) described in the CACM paper. I updated my C++ simulation of Eliza to take account of what I learned. That code is here: [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp)
 
@@ -56,12 +56,15 @@ In the CACM article on page 41 Weizenbaum says
 
 >Consider the following structure:
 >
-```    (MEMORY MY       (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
+```
+    (MEMORY MY
+       (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
        (0 YOUR 0 = EARLIER YOU SAID YOUR 3)
         :
 ```
 >The word "MY" (which must be an ordinary keyword as well) has been selected to serve a special function. Whenever it is the highest ranking keyword of a text one of the transformations on the MEMORY list is randomly selected, and a copy of the text is transformed accordingly. This transformation is stored on a first-in-first-out stack for later use. The ordinary processes already described are then carried out. When a text without keywords is encountered later and a certain counting mechanism is in a particular state and the stack in question is not empty, then the transformed text is printed out as the reply. It is, of course, also deleted from the stack of such transformations.
->The current version of ELIZA requires that one keyword be associated with MEMORY and that exactly four transformations accompany that word in that context.
+
+>The current version of ELIZA requires that one keyword be associated with MEMORY and that exactly four transformations accompany that word in that context.
 
 No further information is given in the paper about _a certain counting mechanism_ or _a particular state_.
 
@@ -139,7 +142,7 @@ Rather than display a message such as "script error", Weizenbaum chooses to hide
 
 ### 1. Reading the original source code
 
-Weizenbaum says ELIZA is written in a language called MAD-SLIP for the IBM 7094.[^CACM-paper-ibid] MAD is a language designed in 1959 and called The Michigan Algorithm Decoder. In the early 1960s Weizenbaum developed a system for managing linked lists, which he called Symetric List Processor, or SLIP. ELIZA makes heavy use of this system.
+Weizenbaum says ELIZA is written in a language called MAD-SLIP for the IBM 7094.[^2] MAD is a language designed in 1959 and called The Michigan Algorithm Decoder. In the early 1960s Weizenbaum developed a system for managing linked lists, which he called Symetric List Processor, or SLIP. ELIZA makes heavy use of this system.
 
 Photographs of the ELIZA source code listing and reference material about MAD and SLIP can be found on the [elizagen.org](https://sites.google.com/view/elizagen-org/the-original-eliza) website.
 
@@ -285,6 +288,6 @@ Anthony Hay, March 2022, Devon.
 
 
 
-[^CACM-paper]: ELIZA: A computer program for the study of natural language communication between man and machine. Communications of the ACM, 9, 36-45. Currently available here: <https://web.stanford.edu/class/linguist238/p36-weizenabaum.pdf>
+[^1]: ELIZA: A computer program for the study of natural language communication between man and machine. Communications of the ACM, 9, 36-45. Currently available here: <https://web.stanford.edu/class/linguist238/p36-weizenabaum.pdf>
 
-[^CACM-paper-ibid]: Ibid. page 36
+[^2]: Ibid. page 36
