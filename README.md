@@ -4,4 +4,4 @@ I’ve made in C++ what I think is an accurate simulation of the original ELIZA.
 
 I made this before the ELIZA source code had been found, and wrote about it in [part 1](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_1.md).
 
-After the source was found I updated my code and wrote about it in [part 2](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_2.md)
+After the source was found I updated my code and wrote about it in [part 2](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_2.md).

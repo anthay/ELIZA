@@ -9,6 +9,16 @@
     or, if you prefer, I release it under either CC0 1.0 Universal or the
     MIT License.
     -- Anthony Hay, 2021, Devon, UK
+
+    Update: In April 2021 Jeff Shrager obtained a listing of ELIZA from
+    Weizenbaum's MIT archive. In May 2021 he got permission from
+    Weizenbaum's estate to open source the code under CC0 1.0. Seeing
+    his original code clarified some behavior that was not fully
+    documented in the CACM paper. (Although the listing was not dated
+    and appears to differ from the functionality described in the CACM
+    paper.) I made changes to this code to reflect what I learned. These
+    changes are documented in the code.
+    -- Anthony Hay, 2022, Devon, UK
 */
 
 
@@ -135,9 +145,14 @@ bool punctuation(char c)
     return c == ',' || c == '.'; // [page 37 (c)]
 }
 
-bool punctuation(const std::string & s)
+bool delimeter(const std::string & s)
 {
-    return s.size() == 1 && punctuation(s[0]);
+    // In the 1966 CACM artical on page 37 Weizenbaum says "the procedure
+    // recognizes a comma or a period as a delimiter." However, in the
+    // MAD-Slip source code the relavent code is
+    //    W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR. WORD .E. $BUT$
+    // (W'R means WHENEVER). So "BUT" is also a delimiter.
+    return s == "BUT" || (s.size() == 1 && punctuation(s[0]));
 }
 
 
@@ -306,7 +321,34 @@ stringlist reassemble(const stringlist & reassembly_rule, const stringlist & com
     return result;
 }
 
+/*  
+    "N1 : HASH.(D,N2)
 
+    This function classifies D according to a pseudo-random scheme. The number
+    of classes is 2^N2 where N2 is the second argument of the function. The
+    value of the function is a pseudo-random number N1 in the range of
+    0 to 2^N2-1."
+
+    -- Documentation from University of Michigan Executive System for the
+       IBM 7090, SLIP section, page 30
+*/
+int hash(const std::string & s, int n)
+{
+    // We haven't yet found the source code for Weizenbaum's hash algorithm.
+    // So this is a fix to make Eliza behave as expected for the
+    // published conversations.
+
+    if (n == 2 && s == "HERE")
+        return 3;
+    if (n == 2 && s == "KIDS")
+        return 1;
+    if (n == 2 && s == "TIME")
+        return 0;
+    if (n == 7 && s == "ALWAYS")
+        return 14;
+
+    return  std::hash<std::string>{}(s) % (1ull << n);
+}
 
 
 
@@ -434,6 +476,8 @@ public:
     rule_base(const std::string & keyword, const std::string & word_substitution, int precedence)
         : keyword_(keyword), word_substitution_(word_substitution), precedence_(precedence)
     {}
+
+    virtual ~rule_base() {}
 
 
     void add_transformation_rule(const stringlist & decomposition,
@@ -665,26 +709,27 @@ public:
         if (keyword != keyword_)
             return;
 
+        // JW says rules are selected at random [page 41 (f)]
+        // But the ELIZA code shows that rules are actually selected via a HASH
+        // function on the last word of the user's input text.
         assert(trans_.size() == num_transformations);
-        const auto & transformation = trans_[memory_rule_index_];
-        memory_rule_index_ = rand() % num_transformations; // rules are selected at random [page 41 (f)]
+        const auto & transformation = trans_[hash(words.back(), 2)];
 
         stringlist constituents;
         if (!match(tags, transformation.decomposition, words, constituents))
             return;
 
+        //std::cout << "Making memory[" << words.back() << "]: " << join(reassemble(transformation.reassembly_rules[0], constituents)) << "\n";
         memories_.push_back(join(reassemble(transformation.reassembly_rules[0], constituents)));
     }
 
-    bool is_time_for_recollection()
+    // return true iff we have at least one saved memory
+    bool memory_exists() const
     {
-        // is "a certain counting mechanism in a particular state?" [page 41 (f)]
-        // with nothing further to go on, guess; use MEMORY every third call
-        if (!memories_.empty())
-            return a_certain_counting_mechanism_++ % 3 == 0;
-        return false;
+        return !memories_.empty();
     }
 
+    // return the next saved memory in the queue; remove it from the queue
     std::string recall_memory()
     {
         return memories_.empty() ? "" : pop_front(memories_);
@@ -706,13 +751,7 @@ public:
     static constexpr int num_transformations = 4;
 
 private:
-    int memory_rule_index_{ num_transformations - 1 };
-        // the CACM article says rules are selected at random [page 41 (f)],
-        // but we'll make sure the first time we select a rule we select
-        // the last rule so that this simulations gives the same response
-        // to the "Bullies" input as the original ELIZA gave
     stringlist memories_;
-    int a_certain_counting_mechanism_{ 0 };
  };
 
 
@@ -834,101 +873,146 @@ auto get_rule(rulemap & rules, const std::string & keyword)
 
 
 
+                //////// //       //// ////////    ///                    
+                //       //        //       //    // //                   
+                //       //        //      //    //   //                  
+///////////     //////   //        //     //    //     //     /////////// 
+                //       //        //    //     /////////                 
+                //       //        //   //      //     //                 
+                //////// //////// //// //////// //     //                 
 
-// produce a response to the given 'input' using the given 'rules'
-std::string eliza(rulemap & rules, const std::string & input)
-{
-    // for simplicity, convert the given input string to a list of uppercase words
-    // e.g. "Hello, world!" -> (HELLO , WORLD !)
-    stringlist words(split(to_upper(input)));
+class eliza {
+public:
+    eliza(const rulemap & rules)
+        : rules_(rules), tags_(collect_tags(rules_))
+    {}
+
+    eliza(rulemap && rules)
+        : rules_(std::move(rules)), tags_(collect_tags(rules_))
+    {}
 
 
-    // scan for keywords [page 38 (c)]; build the keystack; apply word substitutions
-    stringlist keystack;
-    int top_rank = 0;
-    for (auto word = words.begin(); word != words.end(); ) {
-        if (punctuation(*word)) {
-            // keep only the first clause to contain a keyword [page 37 (c)]
-            if (keystack.empty()) {
-                // discard left of punctuation, continue scanning what remains
-                word = words.erase(words.begin(), ++word);
-                continue;
-            }
-            else {
-                // discard right of punctuation, scan is complete
-                word = words.erase(word, words.end());
-                break;
-            }
-        }
+    // produce a response to the given 'input' using the given 'rules'
+    std::string response(const std::string & input)
+    {
+        // for simplicity, convert the given input string to a list of uppercase words
+        // e.g. "Hello, world!" -> (HELLO , WORLD !)
+        stringlist words(split(to_upper(input)));
 
-        const auto r = rules.find(*word);
-        if (r != rules.end()) {
-            const auto & rule = r->second;
-            if (rule->has_transformation()) {
-                if (rule->precedence() > top_rank) {
-                    // *word is a keyword with precedence higher than the highest
-                    // keyword found previously: it goes top of the keystack [page 39 (d)]
-                    keystack.push_front(*word);
-                    top_rank = rule->precedence();
+        // JW's "a certain counting mechanism" is updated for each response
+        limit_ = limit_ % 4 + 1;
+
+        // scan for keywords [page 38 (c)]; build the keystack; apply word substitutions
+        stringlist keystack;
+        int top_rank = 0;
+        for (auto word = words.begin(); word != words.end(); ) {
+            if (delimeter(*word)) {
+                // keep only the first clause to contain a keyword [page 37 (c)]
+                if (keystack.empty()) {
+                    // discard left of punctuation, continue scanning what remains
+                    word = words.erase(words.begin(), ++word);
+                    continue;
                 }
                 else {
-                    // *word is a keyword with precedence lower than the highest
-                    // keyword found previously: it goes bottom of the keystack
-                    keystack.push_back(*word);
+                    // discard right of punctuation, scan is complete
+                    word = words.erase(word, words.end());
+                    break;
                 }
             }
-            rule->apply_word_substitution(*word); // [page 39 (a)]
+
+            const auto r = rules_.find(*word);
+            if (r != rules_.end()) {
+                const auto & rule = r->second;
+                if (rule->has_transformation()) {
+                    if (rule->precedence() > top_rank) {
+                        // *word is a keyword with precedence higher than the highest
+                        // keyword found previously: it goes top of the keystack [page 39 (d)]
+                        keystack.push_front(*word);
+                        top_rank = rule->precedence();
+                    }
+                    else {
+                        // *word is a keyword with precedence lower than the highest
+                        // keyword found previously: it goes bottom of the keystack
+                        keystack.push_back(*word);
+                    }
+                }
+                rule->apply_word_substitution(*word); // [page 39 (a)]
+            }
+
+            ++word;
         }
 
-        ++word;
+        auto memory_rule = get_rule<rule_memory>(rules_, SPECIAL_RULE_MEMORY);
+        if (keystack.empty()) {
+            /*  a text without keywords; can we recall a MEMORY ? [page 41 (f)]
+                JW's 1966 CACM paper refers to this decision as "a certain counting
+                mechanism is in a particular state." The ELIZA code shows that the
+                memory is recalled only when LIMIT has the value 4 */
+            if (limit_ == 4 && memory_rule->memory_exists())
+                return memory_rule->recall_memory();
+        }
+
+        // the keystack contains all keywords that occur in the given 'input';
+        // apply transformation associated with the top keyword [page 39 (d)]
+        while (!keystack.empty()) {
+            const std::string top_keyword = pop_front(keystack);
+
+            auto rule = rules_.find(top_keyword);
+            if (rule == rules_.end()) {
+                // e.g. could happen if a rule links to a non-existent keyword
+                return nomatch_msgs_[limit_ - 1];
+            }
+
+            // try to lay down a memory for future use
+            memory_rule->create_memory(top_keyword, words, tags_);
+
+            // perform the transformation for this rule
+            std::string link_keyword;
+            auto act = rule->second->apply_transformation(words, tags_, link_keyword);
+
+            if (act == rule_base::complete)
+                return join(words); // decomposition/reassembly successfully applied
+
+            if (act == rule_base::inapplicable) {
+                // no decomposition rule matched the input words; script error?
+                return nomatch_msgs_[limit_ - 1];
+            }
+
+            if (act == rule_base::linkkey)
+                keystack.push_front(link_keyword); // rule links to another; loop
+
+            // (rule_base::newkey -> rule wants to try next highest keyword, if any)
+            assert(act == rule_base::linkkey || act == rule_base::newkey);
+        }
+
+
+        // last resort: the NONE rule never fails to produce a response [page 41 (d)]
+        auto none_rule = get_rule<rule_vanilla>(rules_, SPECIAL_RULE_NONE);
+        std::string discard;
+        none_rule->apply_transformation(words, tags_, discard);
+        return join(words);
     }
 
-    auto memory_rule = get_rule<rule_memory>(rules, SPECIAL_RULE_MEMORY);
-    if (keystack.empty()) {
-        // a text without keywords; can we recall a MEMORY? [page 41 (f)]
-        if (memory_rule->is_time_for_recollection())
-            return memory_rule->recall_memory();
-    }
+private:
+    // JW's "a certain counting mechanism," LIMIT, cycles through 1..4, then back to 1
+    int limit_{ 1 };
 
-    // build tag mapping so that e.g. tags[BELIEF] -> (BELIEVE FEEL THINK WISH)
-    const tagmap tags(collect_tags(rules));
+    // the ELIZA script in 'rulemap' form
+    rulemap rules_;
 
-    // the keystack contains all keywords that occur in the given 'input';
-    // apply transformation associated with the top keyword [page 39 (d)]
-    while (!keystack.empty()) {
-        const std::string top_keyword = pop_front(keystack);
+    // e.g. tags[BELIEF] -> (BELIEVE FEEL THINK WISH)
+    // (This is derived from rules_. It's a member so we only need derive it once.)
+    const tagmap tags_;
 
-        auto rule = rules.find(top_keyword);
-        if (rule == rules.end())
-            break; // e.g. could happen if a rule links to a non-existent keyword
+    // script error messages hard-coded in JW's ELIZA, selected by LIMIT (our limit_)
+    const char * const nomatch_msgs_[4] = {
+        "PLEASE CONTINUE",
+        "HMMM",
+        "GO ON, PLEASE",
+        "I SEE"
+    };
+};
 
-        // try to lay down a memory for future use
-        memory_rule->create_memory(top_keyword, words, tags);
-
-        // perform the transformation for this rule
-        std::string link_keyword;
-        auto act = rule->second->apply_transformation(words, tags, link_keyword);
-
-        if (act == rule_base::complete)
-            return join(words); // decomposition/reassembly successfully applied
-
-        if (act == rule_base::inapplicable)
-            break; // no decomposition rule matched the input words
-
-        if (act == rule_base::linkkey)
-            keystack.push_front(link_keyword); // rule links to another; loop
-
-        // (rule_base::newkey -> rule wants to try next highest keyword, if any)
-        assert(act == rule_base::linkkey || act == rule_base::newkey);
-    }
-
-
-    // last resort: the NONE rule never fails to produce a response [page 41 (d)]
-    auto none_rule = get_rule<rule_vanilla>(rules, SPECIAL_RULE_NONE);
-    std::string discard;
-    none_rule->apply_transformation(words, tags, discard);
-    return join(words);
-}
 
 }//namespace elizalogic
 
@@ -1429,6 +1513,565 @@ void read(T & script_file, script & s)
 }
 
 
+
+const char * CACM_1966_01_DOCTOR_script =
+    ";\n"
+    "; APPENDIX. An Eliza Script\n"
+    ";\n"
+    "; Transcribed from Joseph Weizenbaum's article on page 36 of the January\n"
+    "; 1966 edition of Communications of the ACM titled 'ELIZA - A Computer\n"
+    "; Program For the Study of Natural Language Communication Between Man And\n"
+    "; Machine'.\n"
+    ";\n"
+    "; \"Keywords and their associated transformation rules constitute the\n"
+    "; SCRIPT for a particular class of conversation. An important property of\n"
+    "; ELIZA is that a script is data; i.e., it is not part of the program\n"
+    "; itself.\" -- From the above mentioned article.\n"
+    ";\n"
+    "; Transcribed by Anthony Hay, December 2020\n"
+    ";\n"
+    ";\n"
+    "; Notes\n"
+    ";\n"
+    "; This is a verbatim transcription of the ELIZA script in the above\n"
+    "; mentioned CACM article, with the following caveats:\n"
+    "; a) Whitespace has been added to help reveal the structure of the\n"
+    ";    script.\n"
+    "; b) In the appendix six lines were printed twice adjacent to each other\n"
+    ";    (with exactly 34 lines between each duplicate), making the structure\n"
+    ";    nonsensical. These duplicates have been commented out of this\n"
+    ";    transcription.\n"
+    "; c) One closing bracket has been added and noted in a comment.\n"
+    "; d) There were no comments in the script in the CACM article.\n"
+    ";\n"
+    ";\n"
+    "; The script has the form of a series of S-expressions of varying\n"
+    "; composition. (Weizenbaum says \"An ELIZA script consists mainly of a set\n"
+    "; of list structures...\", but nowhere in the article are S-expressions or\n"
+    "; LISP mentioned. Perhaps it was too obvious to be noted.) Weizenbaum says\n"
+    "; ELIZA was written in MAD-Slip. It seems his original source code has\n"
+    "; been lost. Weizenbaum developed a library of FORTRAN functions for\n"
+    "; manipulating doubly-linked lists, which he called Slip (for Symmetric\n"
+    "; list processor).\n"
+    ";\n"
+    "; The most common transformation rule has the form:\n"
+    ";\n"
+    ";   (keyword [= replacement-keyword] [precedence]\n"
+    ";     [ ((decomposition-rule-0) (reassembly-rule-00) (reassembly-rule-01) ...)\n"
+    ";       ((decomposition-rule-1) (reassembly-rule-10) (reassembly-rule-11) ...)\n"
+    ";       ... ] )\n"
+    ";\n"
+    "; where [] denotes optional parts. Initially, ELIZA tries to match the\n"
+    "; decomposition rules against the input text only for the highest ranked\n"
+    "; keyword found in the input text. If a decomposition rule matches the\n"
+    "; input text the first associated reassembly rule is used to generate\n"
+    "; the output text. If there is more than one reassembly rule they are\n"
+    "; used in turn on successive matches.\n"
+    ";\n"
+    "; In the decomposition rules '0' matches zero or more words in the input.\n"
+    "; So (0 IF 0) matches \"IF POSSIBLE\" and \"WHAT IF YOU DIE\". Numbers in\n"
+    "; the reassembly rules refer to the parts of the decomposition rule\n"
+    "; match. 1 <empty>, 2 \"IF\", 3 \"POSSIBLE\" and 1 \"WHAT\", 2 \"IF\", 3 \"YOU DIE\"\n"
+    "; in the above examples. If the selected reassembly rule was (DO YOU THINK\n"
+    "; ITS LIKELY THAT 3) the text output would be \"DO YOU THINK ITS LIKELY\n"
+    "; THAT YOU DIE\".\n"
+    ";\n"
+    ";\n"
+    "; Each rule has one of the following six forms:\n"
+    ";\n"
+    "; R1. Plain vanilla transformation rule. [page 38 (a)]\n"
+    ";     (keyword [= keyword_substitution] [precedence]\n"
+    ";         [ ((decomposition_pattern) (reassembly_rule) (reassembly_rule) ... )\n"
+    ";            (decomposition_pattern) (reassembly_rule) (reassembly_rule) ... )\n"
+    ";            :\n"
+    ";            (decomposition_pattern) (reassembly_rule) (reassembly_rule) ... )) ] )\n"
+    ";   e.g.\n"
+    ";     (MY = YOUR 2\n"
+    ";         ((0 YOUR 0 (/FAMILY) 0)\n"
+    ";             (TELL ME MORE ABOUT YOUR FAMILY)\n"
+    ";             (WHO ELSE IN YOUR FAMILY 5)\n"
+    ";             (=WHAT)\n"
+    ";             (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))\n"
+    ";         ((0 YOUR 0 (*SAD UNHAPPY DEPRESSED SICK ) 0)\n"
+    ";             (CAN YOU EXPLAIN WHAT MADE YOU 5))\n"
+    ";         ((0)\n"
+    ";             (NEWKEY)))\n"
+    ";\n"
+    ";\n"
+    "; R2. Simple word substitution with no further transformation rules. [page 39 (a)]\n"
+    ";     (keyword = keyword_substitution)\n"
+    ";   e.g.\n"
+    ";     (DONT = DON'T)\n"
+    ";     (ME = YOU)\n"
+    ";\n"
+    ";\n"
+    "; R3. Allow words to be given tags, with optional word substitution. [page 41 (j)]\n"
+    ";     (keyword [= keyword_substitution]\n"
+    ";         DLIST (/ <word> ... <word>))\n"
+    ";   e.g.\n"
+    ";         (FEEL               DLIST(/BELIEF))\n"
+    ";         (MOTHER             DLIST(/NOUN FAMILY))\n"
+    ";         (MOM = MOTHER       DLIST(/ FAMILY))\n"
+    ";\n"
+    ";\n"
+    "; R4. Link to another keyword transformation rule. [page 40 (c)]\n"
+    ";     (keyword [= keyword_substitution] [precedence]\n"
+    ";         (= equivalence_class))\n"
+    ";   e.g.\n"
+    ";         (HOW                (=WHAT))\n"
+    ";         (WERE = WAS         (=WAS))\n"
+    ";         (DREAMED = DREAMT 4 (=DREAMT))\n"
+    ";         (ALIKE 10           (=DIT))\n"
+    ";\n"
+    ";\n"
+    "; R5. As for R4 but allow pre-transformation before link. [page 40 (f)]\n"
+    ";     (keyword [= keyword_substitution]\n"
+    ";         ((decomposition_pattern)\n"
+    ";             (PRE (reassembly_rule) (=equivalence_class))))\n"
+    ";   e.g.\n"
+    ";     (YOU'RE = I'M\n"
+    ";         ((0 I'M 0)\n"
+    ";             (PRE (I ARE 3) (=YOU))))\n"
+    ";\n"
+    ";\n"
+    "; R6. Rule to 'pre-record' responses for later use. [page 41 (f)]\n"
+    ";     (MEMORY keyword\n"
+    ";         (decomposition_pattern_1 = reassembly_rule_1)\n"
+    ";         (decomposition_pattern_2 = reassembly_rule_2)\n"
+    ";         (decomposition_pattern_3 = reassembly_rule_3)\n"
+    ";         (decomposition_pattern_4 = reassembly_rule_4))\n"
+    ";   e.g.\n"
+    ";     (MEMORY MY\n"
+    ";         (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)\n"
+    ";         (0 YOUR 0 = EARLIER YOU SAID YOUR 3)\n"
+    ";         (0 YOUR 0 = BUT YOUR 3)\n"
+    ";         (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n"
+    ";\n"
+    ";\n"
+    "; In addition, there must be a NONE rule with the same form as R1. [page 41 (d)]\n"
+    ";     (NONE\n"
+    ";         ((0)\n"
+    ";             (reassembly_rule)\n"
+    ";             (reassembly_rule)\n"
+    ";             :\n"
+    ";             (reassembly_rule)) )\n"
+    ";   e.g.\n"
+    ";     (NONE\n"
+    ";         ((0)\n"
+    ";             (I AM NOT SURE I UNDERSTAND YOU FULLY)\n"
+    ";             (PLEASE GO ON)\n"
+    ";             (WHAT DOES THAT SUGGEST TO YOU)\n"
+    ";             (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))\n"
+    ";\n"
+    ";\n"
+    "; For further details see Weizenbaum's article, or look at eliza.cpp.\n"
+    ";\n"
+    "\n"
+    "\n"
+    "(HOW DO YOU DO.  PLEASE TELL ME YOUR PROBLEM)\n"
+    "\n"
+    "START\n"
+    "\n"
+    "(SORRY\n"
+    "    ((0)\n"
+    "        (PLEASE DON'T APOLIGIZE)\n"
+    "        (APOLOGIES ARE NOT NECESSARY)\n"
+    "        (WHAT FEELINGS DO YOU HAVE WHEN YOU APOLOGIZE)\n"
+    "        (I'VE TOLD YOU THAT APOLOGIES ARE NOT REQUIRED)))\n"
+    "\n"
+    "(DONT = DON'T)\n"
+    "(CANT = CAN'T)\n"
+    "(WONT = WON'T)\n"
+    "\n"
+    "(REMEMBER 5\n"
+    "    ((0 YOU REMEMBER 0)\n"
+    "         (DO YOU OFTEN THINK OF 4)\n"
+    "         (DOES THINKING OF 4 BRING ANYTHING ELSE TO MIND)\n"
+    "         (WHAT ELSE DO YOU REMEMBER)\n"
+    "         (WHY DO YOU REMEMBER 4 JUST NOW)\n"
+    "         (WHAT IN THE PRESENT SITUATION REMINDS YOU OF 4)\n"
+    "         (WHAT IS THE CONNECTION BETWEEN ME AND 4))\n"
+    "    ((0 DO I REMEMBER 0)\n"
+    "         (DID YOU THINK I WOULD FORGET 5)\n"
+    "         (WHY DO YOU THINK I SHOULD RECALL 5 NOW)\n"
+    "         (WHAT ABOUT 5)\n"
+    "         (=WHAT)\n"
+    "         (YOU MENTIONED 5))\n"
+    "    ((0)\n"
+    "         (NEWKEY)))\n"
+    "\n"
+    "(IF 3\n"
+    "    ((0 IF 0)\n"
+    "        (DO YOU THINK ITS LIKELY THAT 3)\n"
+    "        (DO YOU WISH THAT 3)\n"
+    "        (WHAT DO YOU THINK ABOUT 3)\n"
+    "        (REALLY, 2 3)))\n"
+    "; duplicate line removed: (WHAT DO YOU THINK ABOUT 3) (REALLY, 2 3)))\n"
+    "\n"
+    "(DREAMT 4\n"
+    "    ((0 YOU DREAMT 0)\n"
+    "        (REALLY, 4)\n"
+    "        (HAVE YOU EVER FANTASIED 4 WHILE YOU WERE AWAKE)\n"
+    "        (HAVE YOU DREAMT 4 BEFORE)\n"
+    "        (=DREAM)\n"
+    "        (NEWKEY)))\n"
+    "\n"
+    "(DREAMED = DREAMT 4 (=DREAMT))\n"
+    "\n"
+    "(DREAM 3\n"
+    "    ((0)\n"
+    "        (WHAT DOES THAT DREAM SUGGEST TO YOU)\n"
+    "        (DO YOU DREAM OFTEN)\n"
+    "        (WHAT PERSONS APPEAR IN YOUR DREAMS)\n"
+    "        (DON'T YOU BELIEVE THAT DREAM HAS SOMETHING TO DO WITH YOUR PROBLEM)\n"
+    "        (NEWKEY)))\n"
+    "\n"
+    "(DREAMS = DREAM 3 (=DREAM))\n"
+    "\n"
+    "(HOW (=WHAT))\n"
+    "(WHEN (=WHAT))\n"
+    "(ALIKE 10 (=DIT))\n"
+    "(SAME 10 (=DIT))\n"
+    "(CERTAINLY (=YES))\n"
+    "\n"
+    "(FEEL DLIST(/BELIEF))\n"
+    "(THINK DLIST(/BELIEF))\n"
+    "(BELIEVE DLIST(/BELIEF))\n"
+    "(WISH DLIST(/BELIEF))\n"
+    "\n"
+    "(MEMORY MY\n"
+    "    (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)\n"
+    "    (0 YOUR 0 = EARLIER YOU SAID YOUR 3)\n"
+    "    (0 YOUR 0 = BUT YOUR 3)\n"
+    "    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n"
+    "\n"
+    "(NONE\n"
+    "    ((0)\n"
+    "        (I AM NOT SURE I UNDERSTAND YOU FULLY)\n"
+    "        (PLEASE GO ON)\n"
+    "        (WHAT DOES THAT SUGGEST TO YOU)\n"
+    "        (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))\n"
+    "\n"
+    "(PERHAPS\n"
+    "    ((0)\n"
+    "        (YOU DON'T SEEM QUITE CERTAIN)\n"
+    "        (WHY THE UNCERTAIN TONE)\n"
+    "        (CAN'T YOU BE MORE POSITIVE)\n"
+    "        (YOU AREN'T SURE)\n"
+    "        (DON'T YOU KNOW)))\n"
+    "\n"
+    "(MAYBE (=PERHAPS))\n"
+    "\n"
+    "(NAME 15\n"
+    "    ((0)\n"
+    "        (I AM NOT INTERESTED IN NAMES)\n"
+    "        (I'VE TOLD YOU BEFORE, I DON'T CARE ABOUT NAMES - PLEASE CONTINUE)))\n"
+    "; duplicate line removed: PLEASE CONTINUE)) )\n"
+    "\n"
+    "(DEUTSCH (=XFREMD))\n"
+    "(FRANCAIS (=XFREMD))\n"
+    "(ITALIANO (=XFREMD))\n"
+    "(ESPANOL (=XFREMD))\n"
+    "\n"
+    "(XFREMD\n"
+    "    ((0)\n"
+    "        (I AM SORRY, I SPEAK ONLY ENGLISH)))\n"
+    "\n"
+    "(HELLO\n"
+    "    ((0)\n"
+    "        (HOW DO YOU DO.  PLEASE STATE YOUR PROBLEM)))\n"
+    "\n"
+    "(COMPUTER 50\n"
+    "    ((0)\n"
+    "        (DO COMPUTERS WORRY YOU)\n"
+    "        (WHY DO YOU MENTION COMPUTERS)\n"
+    "        (WHAT DO YOU THINK MACHINES HAVE TO DO WITH YOUR PROBLEM)\n"
+    "        (DON'T YOU THINK COMPUTERS CAN HELP PEOPLE)\n"
+    "        (WHAT ABOUT MACHINES WORRIES YOU)\n"
+    "        (WHAT DO YOU THINK ABOUT MACHINES)))\n"
+    "\n"
+    "(MACHINE 50 (=COMPUTER))\n"
+    "(MACHINES 50 (=COMPUTER))\n"
+    "(COMPUTERS 50 (=COMPUTER))\n"
+    "\n"
+    "(AM = ARE\n"
+    "    ((0 ARE YOU 0)\n"
+    "        (DO YOU BELIEVE YOU ARE 4)\n"
+    "        (WOULD YOU WANT TO BE 4)\n"
+    "        (YOU WISH I WOULD TELL YOU YOU ARE 4)\n"
+    "        (WHAT WOULD IT MEAN IF YOU WERE 4)\n"
+    "        (=WHAT))\n"
+    "    ((0)\n"
+    "        (WHY DO YOU SAY 'AM')\n"
+    "        (I DON'T UNDERSTAND THAT)))\n"
+    "\n"
+    "(ARE\n"
+    "    ((0 ARE I 0)\n"
+    "        (WHY ARE YOU INTERESTED IN WHETHER I AM 4 OR NOT)\n"
+    "        (WOULD YOU PREFER IF I WEREN'T 4)\n"
+    "        (PERHAPS I AM 4 IN YOUR FANTASIES)\n"
+    "        (DO YOU SOMETIMES THINK I AM 4)\n"
+    "        (=WHAT))\n"
+    "    ((0 ARE 0)\n"
+    "        (DID YOU THINK THEY MIGHT NOT BE 3)\n"
+    "        (WOULD YOU LIKE IT IF THEY WERE NOT 3)\n"
+    "        (WHAT IF THEY WERE NOT 3)\n"
+    "        (POSSIBLY THEY ARE 3)))\n"
+    "\n"
+    "(YOUR = MY\n"
+    "    ((0 MY 0)\n"
+    "        (WHY ARE YOU CONCERNED OVER MY 3)\n"
+    "        (WHAT ABOUT YOUR OWN 3)\n"
+    "        (ARE YOU WORRIED ABOUT SOMEONE ELSES 3)\n"
+    "        (REALLY, MY 3)))\n"
+    "\n"
+    "(WAS 2\n"
+    "    ((0 WAS YOU 0)\n"
+    "        (WHAT IF YOU WERE 4)\n"
+    "        (DO YOU THINK YOU WERE 4)\n"
+    "        (WERE YOU 4)\n"
+    "        (WHAT WOULD IT MEAN IF YOU WERE 4)\n"
+    "        (WHAT DOES ' 4 ' SUGGEST TO YOU)\n"
+    "        (=WHAT))\n"
+    "    ((0 YOU WAS 0)\n"
+    "        (WERE YOU REALLY)\n"
+    "        (WHY DO YOU TELL ME YOU WERE 4 NOW)\n"
+    "; duplicate line removed: (WERE YOU REALLY) (WHY DO YOU TELL ME YOU WERE 4 NOW)\n"
+    "        (PERHAPS I ALREADY KNEW YOU WERE 4))\n"
+    "    ((0 WAS I 0)\n"
+    "        (WOULD YOU LIKE TO BELIEVE I WAS 4)\n"
+    "        (WHAT SUGGESTS THAT I WAS 4)\n"
+    "        (WHAT DO YOU THINK)\n"
+    "        (PERHAPS I WAS 4)\n"
+    "        (WHAT IF I HAD BEEN 4))\n"
+    "    ((0)\n"
+    "        (NEWKEY)))\n"
+    "\n"
+    "(WERE = WAS (=WAS))\n"
+    "(ME = YOU)\n"
+    "\n"
+    "(YOU'RE = I'M\n"
+    "    ((0 I'M 0)\n"
+    "        (PRE (I ARE 3) (=YOU))))\n"
+    "\n"
+    "(I'M = YOU'RE\n"
+    "    ((0 YOU'RE 0)\n"
+    "        (PRE (YOU ARE 3) (=I))))\n"
+    "\n"
+    "(MYSELF = YOURSELF)\n"
+    "(YOURSELF = MYSELF)\n"
+    "\n"
+    "(MOTHER DLIST(/NOUN FAMILY))\n"
+    "(MOM = MOTHER DLIST(/ FAMILY))\n"
+    "(DAD = FATHER DLIST(/ FAMILY))\n"
+    "(FATHER DLIST(/NOUN FAMILY))\n"
+    "(SISTER DLIST(/FAMILY))\n"
+    "(BROTHER DLIST(/FAMILY))\n"
+    "(WIFE DLIST(/FAMILY))\n"
+    "(CHILDREN DLIST(/FAMILY))\n"
+    "\n"
+    "(I = YOU\n"
+    "    ((0 YOU (* WANT NEED) 0)\n"
+    "        (WHAT WOULD IT MEAN TO YOU IF YOU GOT 4)\n"
+    "        (WHY DO YOU WANT 4)\n"
+    "        (SUPPOSE YOU GOT 4 SOON)\n"
+    "        (WHAT IF YOU NEVER GOT 4)\n"
+    "        (WHAT WOULD GETTING 4 MEAN TO YOU)\n"
+    "        (WHAT DOES WANTING 4 HAVE TO DO WITH THIS DISCUSSION))\n"
+    "    ((0 YOU ARE 0 (*SAD UNHAPPY DEPRESSED SICK ) 0)\n"
+    "        (I AM SORRY TO HEAR YOU ARE 5)\n"
+    "        (DO YOU THINK COMING HERE WILL HELP YOU NOT TO BE 5)\n"
+    "        (I'M SURE ITS NOT PLEASANT TO BE 5)\n"
+    "        (CAN YOU EXPLAIN WHAT MADE YOU 5))\n"
+    "    ((0 YOU ARE 0 (*HAPPY ELATED GLAD BETTER) 0)\n"
+    "        (HOW HAVE I HELPED YOU TO BE 5)\n"
+    "        (HAS YOUR TREATMENT MADE YOU 5)\n"
+    "        (WHAT MAKES YOU 5 JUST NOW)\n"
+    "        (CAN YOU EXPLAIN WHY YOU ARE SUDDENLY 5))\n"
+    "    ((0 YOU WAS 0)\n"
+    "        (=WAS))\n"
+    "; duplicate line removed: ((0 YOU WAS 0) (=WAS))\n"
+    "    ((0 YOU (/BELIEF) YOU 0)\n"
+    "        (DO YOU REALLY THINK SO)\n"
+    "        (BUT YOU ARE NOT SURE YOU 5)\n"
+    "        (DO YOU REALLY DOUBT YOU 5))\n"
+    "    ((0 YOU 0 (/BELIEF) 0 I 0)\n"
+    "        (=YOU))\n"
+    "    ((0 YOU ARE 0)\n"
+    "        (IS IT BECAUSE YOU ARE 4 THAT YOU CAME TO ME)\n"
+    "        (HOW LONG HAVE YOU BEEN 4)\n"
+    "        (DO YOU BELIEVE IT NORMAL TO BE 4)\n"
+    "        (DO YOU ENJOY BEING 4))\n"
+    "    ((0 YOU (* CAN'T CANNOT) 0)\n"
+    "        (HOW DO YOU KNOW YOU CAN'T 4)\n"
+    "        (HAVE YOU TRIED)\n"
+    "        (PERHAPS YOU COULD 4 NOW)\n"
+    "        (DO YOU REALLY WANT TO BE ABLE TO 4))\n"
+    "    ((0 YOU DON'T 0)\n"
+    "        (DON'T YOU REALLY 4)\n"
+    "        (WHY DON'T YOU 4)\n"
+    "        (DO YOU WISH TO BE ABLE TO 4)\n"
+    "        (DOES THAT TROUBLE YOU))\n"
+    "    ((0 YOU FEEL 0)\n"
+    "        (TELL ME MORE ABOUT SUCH FEELINGS)\n"
+    "        (DO YOU OFTEN FEEL 4)\n"
+    "        (DO YOU ENJOY FEELING 4)\n"
+    "        (OF WHAT DOES FEELING 4 REMIND YOU))\n"
+    "    ((0 YOU 0 I 0)\n"
+    "        (PERHAPS IN YOUR FANTASY WE 3 EACH OTHER)\n"
+    "        (DO YOU WISH TO 3 ME)\n"
+    "        (YOU SEEM TO NEED TO 3 ME)\n"
+    "        (DO YOU 3 ANYONE ELSE))\n"
+    "    ((0)\n"
+    "        (YOU SAY 1)\n"
+    "        (CAN YOU ELABORATE ON THAT)\n"
+    "        (DO YOU SAY 1 FOR SOME SPECIAL REASON)\n"
+    "        (THAT'S QUITE INTERESTING)))\n"
+    "\n"
+    "(YOU = I\n"
+    "    ((0 I REMIND YOU OF 0)\n"
+    "        (=DIT))\n"
+    "    ((0 I ARE 0)\n"
+    "        (WHAT MAKES YOU THINK I AM 4)\n"
+    "        (DOES IT PLEASE YOU TO BELIEVE I AM 4)\n"
+    "        (DO YOU SOMETIMES WISH YOU WERE 4)\n"
+    "        (PERHAPS YOU WOULD LIKE TO BE 4))\n"
+    "    ((0 I 0 YOU)\n"
+    "        (WHY DO YOU THINK I 3 YOU)\n"
+    "        (YOU LIKE TO THINK I 3 YOU - DON'T YOU)\n"
+    "        (WHAT MAKES YOU THINK I 3 YOU)\n"
+    "        (REALLY, I 3 YOU)\n"
+    "        (DO YOU WISH TO BELIEVE I 3 YOU)\n"
+    "; duplicate line removed: (REALLY, I 3 YOU) (DO YOU WISH TO BELIEVE I 3 YOU)\n"
+    "        (SUPPOSE I DID 3 YOU - WHAT WOULD THAT MEAN)\n"
+    "        (DOES SOMEONE ELSE BELIEVE I 3 YOU))\n"
+    "    ((0 I 0)\n"
+    "        (WE WERE DISCUSSING YOU - NOT ME)\n"
+    "        (OH, I 3)\n"
+    "        (YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU)\n"
+    "        (WHAT ARE YOUR FEELINGS NOW)))\n"
+    "\n"
+    "(YES\n"
+    "    ((0)\n"
+    "        (YOU SEEM QUITE POSITIVE)\n"
+    "        (YOU ARE SURE)\n"
+    "        (I SEE)\n"
+    "        (I UNDERSTAND)))\n"
+    "\n"
+    "(NO\n"
+    "    ((0)\n"
+    "        (ARE YOU SAYING 'NO' JUST TO BE NEGATIVE)\n"
+    "        (YOU ARE BEING A BIT NEGATIVE)\n"
+    "        (WHY NOT)\n"
+    "        (WHY 'NO')))\n"
+    "\n"
+    "(MY = YOUR 2\n"
+    "    ((0 YOUR 0 (/FAMILY) 0)\n"
+    "        (TELL ME MORE ABOUT YOUR FAMILY)\n"
+    "        (WHO ELSE IN YOUR FAMILY 5)\n"
+    "        (YOUR 4)\n"
+    "        (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))\n"
+    "    ((0 YOUR 0)\n"
+    "        (YOUR 3)\n"
+    "        (WHY DO YOU SAY YOUR 3)\n"
+    "        (DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU)\n"
+    "        (IS IT IMPORTANT TO YOU THAT 2 3)))\n"
+    "\n"
+    "(CAN\n"
+    "    ((0 CAN I 0)\n"
+    "        (YOU BELIEVE I CAN 4 DON'T YOU)\n"
+    "        (=WHAT)\n"
+    "        (YOU WANT ME TO BE ABLE TO 4)\n"
+    "        (PERHAPS YOU WOULD LIKE TO BE ABLE TO 4 YOURSELF))\n"
+    "    ((0 CAN YOU 0)\n"
+    "        (WHETHER OR NOT YOU CAN 4 DEPENDS ON YOU MORE THAN ON ME)\n"
+    "        (DO YOU WANT TO BE ABLE TO 4)\n"
+    "        (PERHAPS YOU DON'T WANT TO 4)\n"
+    "        (=WHAT)))\n"
+    "\n"
+    "(WHAT\n"
+    "    ((0)\n"
+    "        (WHY DO YOU ASK)\n"
+    "        (DOES THAT QUESTION INTEREST YOU)\n"
+    "        (WHAT IS IT YOU REALLY WANT TO KNOW)\n"
+    "        (ARE SUCH QUESTIONS MUCH ON YOUR MIND)\n"
+    "        (WHAT ANSWER WOULD PLEASE YOU MOST)\n"
+    "        (WHAT DO YOU THINK)\n"
+    "        (WHAT COMES TO YOUR MIND WHEN YOU ASK THAT)\n"
+    "        (HAVE YOU ASKED SUCH QUESTIONS BEFORE)\n"
+    "        (HAVE YOU ASKED ANYONE ELSE)))\n"
+    "\n"
+    "(BECAUSE\n"
+    "    ((0)\n"
+    "        (IS THAT THE REAL REASON)\n"
+    "        (DON'T ANY OTHER REASONS COME TO MIND)\n"
+    "        (DOES THAT REASON SEEM TO EXPLAIN ANYTHING ELSE)\n"
+    "        (WHAT OTHER REASONS MIGHT THERE BE)))\n"
+    "\n"
+    "(WHY\n"
+    "    ((0 WHY DON'T I 0)\n"
+    "        (DO YOU BELIEVE I DON'T 5)\n"
+    "        (PERHAPS I WILL 5 IN GOOD TIME)\n"
+    "        (SHOULD YOU 5 YOURSELF)\n"
+    "        (YOU WANT ME TO 5)\n"
+    "        (=WHAT))\n"
+    "; duplicate line removed: (=WHAT))\n"
+    "    ((0 WHY CAN'T YOU 0)\n"
+    "        (DO YOU THINK YOU SHOULD BE ABLE TO 5)\n"
+    "        (DO YOU WANT TO BE ABLE TO 5)\n"
+    "        (DO YOU BELIEVE THIS WILL HELP YOU TO 5)\n"
+    "        (HAVE YOU ANY IDEA WHY YOU CAN'T 5)\n"
+    "        (=WHAT)))\n"
+    "; extraneous (=WHAT)) removed\n"
+    "; and missing final ')' added\n"
+    "\n"
+    "(EVERYONE 2\n"
+    "    ((0 (* EVERYONE EVERYBODY NOBODY NOONE) 0)\n"
+    "        (REALLY, 2)\n"
+    "        (SURELY NOT 2)\n"
+    "        (CAN YOU THINK OF ANYONE IN PARTICULAR)\n"
+    "        (WHO, FOR EXAMPLE)\n"
+    "        (YOU ARE THINKING OF A VERY SPECIAL PERSON)\n"
+    "        (WHO, MAY I ASK)\n"
+    "        (SOMEONE SPECIAL PERHAPS)\n"
+    "        (YOU HAVE A PARTICULAR PERSON IN MIND, DON'T YOU)\n"
+    "        (WHO DO YOU THINK YOU'RE TALKING ABOUT)))\n"
+    "\n"
+    "(EVERYBODY 2 (= EVERYONE))\n"
+    "(NOBODY 2 (= EVERYONE))\n"
+    "(NOONE 2 (= EVERYONE))\n"
+    "\n"
+    "(ALWAYS 1\n"
+    "    ((0)\n"
+    "        (CAN YOU THINK OF A SPECIFIC EXAMPLE)\n"
+    "        (WHEN)\n"
+    "        (WHAT INCIDENT ARE YOU THINKING OF)\n"
+    "        (REALLY, ALWAYS)))\n"
+    "\n"
+    "(LIKE 10\n"
+    "    ((0 (*AM IS ARE WAS) 0 LIKE 0)\n"
+    "        (=DIT))\n"
+    "    ((0)\n"
+    "        (NEWKEY)))\n"
+    "\n"
+    "(DIT\n"
+    "    ((0)\n"
+    "        (IN WHAT WAY)\n"
+    "        (WHAT RESEMBLANCE DO YOU SEE)\n"
+    "        (WHAT DOES THAT SIMILARITY SUGGEST TO YOU)\n"
+    "        (WHAT OTHER CONNECTIONS DO YOU SEE)\n"
+    "        (WHAT DO YOU SUPPOSE THAT RESEMBLANCE MEANS)\n"
+    "        (WHAT IS THE CONNECTION, DO YOU SUPPOSE)\n"
+    "        (COULD THERE REALLY BE SOME CONNECTION)\n"
+    "        (HOW)))\n"
+    "\n"
+    "()\n"
+    "\n"
+    "; --- End of ELIZA script ---\n";
+
+
+
+
 }//namespace elizascript
 
 
@@ -1447,17 +2090,19 @@ void read(T & script_file, script & s)
 
 namespace elizatest { // basic test of whether this simulation is accurate
 
+
 // return a string in ELIZA script format representing given script 's'
 std::string to_string(const elizascript::script & s)
 {
     std::string result;
     result += "(" + join(s.hello_message) + ")\n";
     result += "START\n";
-    for (const auto r : s.rules)
+    for (const auto & r : s.rules)
         result += r.second->to_string();
     result += "()\n";
     return result;
 }
+
 
 // perform basic checks on implementation
 void test()
@@ -1813,9 +2458,7 @@ void test()
         "()\n";
 
 
-    std::stringstream ss;
-    ss.str(script_text);
-
+    std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
     elizascript::script s;
     elizascript::read<std::stringstream>(ss, s);
 
@@ -1830,11 +2473,7 @@ void test()
 
 
     // test [0, YOU, (*WANT NEED), 0] matches [YOU, NEED, NICE, FOOD]
-    stringlist pattern;
-    pattern.push_back("0");
-    pattern.push_back("YOU");
-    pattern.push_back("(*WANT NEED)");
-    pattern.push_back("0");
+    stringlist pattern{ "0", "YOU", "(*WANT NEED)", "0" };
     stringlist matching_components;
     TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
         pattern,
@@ -1849,7 +2488,7 @@ void test()
     }
 
     // test [0, 0, YOU, (*WANT NEED), 0] matches [YOU, WANT, NICE, FOOD]
-    pattern.push_front("0");
+    pattern = { "0", "0", "YOU", "(*WANT NEED)", "0" };
     TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
         pattern,
         elizalogic::split("YOU WANT NICE FOOD"),
@@ -1864,9 +2503,7 @@ void test()
     }
 
     // test [1, (*WANT NEED), 0] matches [YOU, WANT, NICE, FOOD]
-    pattern.pop_front();
-    pattern.pop_front();
-    pattern[0] = "1";
+    pattern = { "1", "(*WANT NEED)", "0" };
     TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
         pattern,
         elizalogic::split("YOU WANT NICE FOOD"),
@@ -1879,14 +2516,14 @@ void test()
     }
 
     // test [1, (*WANT NEED), 1] doesn't match [YOU, WANT, NICE, FOOD]
-    pattern[2] = "1";
+    pattern = { "1", "(*WANT NEED)", "1" };
     TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
         pattern,
         elizalogic::split("YOU WANT NICE FOOD"),
         matching_components), false);
 
     // test [1, (*WANT NEED), 2] matches [YOU, WANT, NICE, FOOD]
-    pattern[2] = "2";
+    pattern = { "1", "(*WANT NEED)", "2" };
     TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
         pattern,
         elizalogic::split("YOU WANT NICE FOOD"),
@@ -1898,6 +2535,42 @@ void test()
         TEST_EQUAL(matching_components[2], "NICE FOOD");
     }
 
+    // A test pattern from the YMATCH function description in the SLIP manual
+    pattern = { "MARY", "2", "2", "ITS", "1", "0" };
+    TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
+        pattern,
+        elizalogic::split("MARY HAD A LITTLE LAMB ITS PROBABILITY WAS ZERO"),
+        matching_components), true);
+    TEST_EQUAL(matching_components.size(), (size_t)6);
+    if (matching_components.size() == 6) {
+        TEST_EQUAL(matching_components[0], "MARY");
+        TEST_EQUAL(matching_components[1], "HAD A");
+        TEST_EQUAL(matching_components[2], "LITTLE LAMB");
+        TEST_EQUAL(matching_components[3], "ITS");
+        TEST_EQUAL(matching_components[4], "PROBABILITY");
+        TEST_EQUAL(matching_components[5], "WAS ZERO");
+
+        // A test pattern from the ASSMBL function description in the SLIP manual
+        // (using above matching_components list)
+        stringlist assmbl = elizalogic::reassemble(
+            stringlist{ "DID", "1", "HAVE", "A", "3" },
+            matching_components);
+        TEST_EQUAL(assmbl.size(), (size_t)6);
+        if (assmbl.size() == 6) {
+            TEST_EQUAL(assmbl[0], "DID");
+            TEST_EQUAL(assmbl[1], "MARY");
+            TEST_EQUAL(assmbl[2], "HAVE");
+            TEST_EQUAL(assmbl[3], "A");
+            TEST_EQUAL(assmbl[4], "LITTLE");
+            TEST_EQUAL(assmbl[5], "LAMB");
+        }
+    }
+
+    // Test HASH function.
+    TEST_EQUAL(elizalogic::hash("HERE", 2), 3);     // assumed from 1966 CACM paper example conversation
+    TEST_EQUAL(elizalogic::hash("KIDS", 2), 1);     // assumed from unpublished 5 March 1965 conversation
+    TEST_EQUAL(elizalogic::hash("TIME", 2), 0);     // assumed from unpublished 5 March 1965 conversation
+    TEST_EQUAL(elizalogic::hash("ALWAYS", 7), 14);  // stated in 1966 CACM paper (7 assumed)
 
 
     struct exchange {
@@ -1940,7 +2613,12 @@ void test()
         // Without the comma, this simulation responds "WHAT MAKES YOU
         // THINK I AM NOT VERY AGGRESSIVE BUT YOU THINK I DON'T WANT YOU TO
         // NOTICE THAT". I assume the comma got lost from the CACM article.
-        { "You are not very aggressive, but I think you don't want me to notice that.",
+        //{ "You are not very aggressive, but I think you don't want me to notice that.",
+        //
+        // UPDATE: We now have a version of Weizenbaum's original MAD-Slip
+        // source code where we see that the word "BUT" is also considered
+        // to be a delimeter. So I was wrong to assume a missing comma.
+        { "You are not very aggressive but I think you don't want me to notice that.",
           "WHAT MAKES YOU THINK I AM NOT VERY AGGRESSIVE" },
 
         { "You don't argue with me.",
@@ -1962,8 +2640,9 @@ void test()
         that article, it is not unreasonable to suppose it is a fairly
         accurate simulation of the original ELIZA.
     */
+    elizalogic::eliza eliza(s.rules);
     for (const auto & exchg : conversation)
-        TEST_EQUAL(eliza(s.rules, exchg.prompt), exchg.response);
+        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
 
 }
 
@@ -1975,35 +2654,15 @@ void test()
 void writeln(const std::string & s)
 {
     if (true) {
-        // for fun, output 's' as if ELIZA was an imperfect typist
-        // N.B. this idea is NOT authentic to the 1966 ELIZA
-
+        // for fun, output 's' as if ELIZA was running on a 1966 Teletype
         auto sleep = [](long ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
-        auto chance = [](int n) { return rand() % n == 0; };
-        static char fatfingers[] = { "SVVFRDFJUHJKNBIOWTAYICEZTX" };
         using std::cout; using std::flush; using std::endl;
 
-        sleep(1000);
         for (const auto c : s) {
-            if (chance(100) && 'A' <= c && c <= 'Z') {
-                cout << fatfingers[c - 'A'] << flush;
-                if (chance(2)) {
-                    sleep(30);
-                    cout << c << flush;
-                    sleep(300);
-                    cout << "\b \b" << flush;
-                    sleep(30);
-                    cout << "\b \b" << flush;
-                }
-                else {
-                    sleep(300);
-                    cout << "\b \b" << flush;
-                }
-                sleep(200);
-            }
             cout << c << flush;
-            sleep(10 + rand() % 50 + (chance(10) ? 200 : 0));
+            sleep(100);
         }
+
         cout << endl;
     }
     else {
@@ -2014,34 +2673,90 @@ void writeln(const std::string & s)
 
 
 
+#if defined(_WIN32)
+const std::string option_escape("/");
+#else
+const std::string option_escape("--");
+#endif
+
+bool is_option(const std::string s)
+{
+    return s.compare(0, option_escape.size(), option_escape) == 0;
+}
+
+bool is_option(const std::string s, const std::string opt)
+{
+    return s.size() == option_escape.size() + opt.size()
+        && s.compare(0, option_escape.size(), option_escape) == 0
+        && s.compare(option_escape.size(), opt.size(), opt) == 0;
+}
+
+std::string as_option(std::string o)
+{
+    return option_escape + o;
+}
+
+
 int main(int argc, const char * argv[])
 {
     try {
+        std::cout <<
+            "-----------------------------------------------------------------\n"
+            "      ELIZA -- A Computer Program for the Study of Natural\n"
+            "         Language Communication Between Man and Machine\n"
+            "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
+            "This implementation by Anthony Hay, 2022  (CC0 1.0) Public Domain\n"
+            "-----------------------------------------------------------------\n";
+
         elizatest::test();
 
-        if (argc != 2) {
-            std::cerr
-                << "Usage: " << argv[0] << " <scriptfile>\n"
-                << "  where <scriptfile> is in original 1966 ELIZA script format\n";
-            return EXIT_FAILURE;
-        }
-
-        std::ifstream script_file(argv[1]);
-        if (!script_file.is_open()) {
-            std::cerr << argv[0]
-                << ": failed to open script file '" << argv[1] << "'\n";
-            return EXIT_FAILURE;
-        }
-
         elizascript::script s;
-        elizascript::read<std::ifstream>(script_file, s);
+        if (argc == 1) {
+            // use default 'internal' 1966 CACM published script
+            std::cout
+                << "ELIZA " << as_option("help") << " for usage.\n"
+                << "Using Weizenbaum's 1966 DOCTOR script.\n"
+                << "Enter a blank line to quit."
+                << "\n\n\n";
+            std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
+            elizascript::read<std::stringstream>(ss, s);
+        }
+        else if (argc == 2 && as_option("showscript") == argv[1]) {
+            // just output Weizenbaum's DOCTOR script
+            std::cout << elizascript::CACM_1966_01_DOCTOR_script;
+            return EXIT_SUCCESS;
+        }
+        else if (argc == 2 && !is_option(argv[1])) {
+            // use the named script file
+            std::ifstream script_file(argv[1]);
+            if (!script_file.is_open()) {
+                std::cerr << argv[0]
+                    << ": failed to open script file '" << argv[1] << "'\n";
+                return EXIT_FAILURE;
+            }
+            std::cout
+                << "Using given script file '" << argv[1] << "'\n\n\n";
+            elizascript::read<std::ifstream>(script_file, s);
+        }
+        else {
+            std::cerr
+                << "Usage: ELIZA [" << as_option("showscript") << " | <filename>]\n"
+                << "  where\n"
+                << "    " << as_option("showscript") << " dump Weizenbaum's 1966 DOCTOR script to stcout\n"
+                << "                e.g. ELIZA " << as_option("showscript") << " > script.txt\n"
+                << "    <filename>  use named script file\n"
+                << "                e.g. ELIZA script.txt\n";
+            return EXIT_FAILURE;
+        }
 
         writeln(join(s.hello_message));
-        for (;;) {
+        for (elizalogic::eliza eliza(std::move(s.rules));;) {
             std::cout << std::endl;
             std::string userinput;
             std::getline(std::cin, userinput);
-            writeln(eliza(s.rules, userinput));
+            if (userinput.empty())
+                break;
+            writeln(eliza.response(userinput));
         }
     }
     catch (const std::exception & e) {
