@@ -56,12 +56,14 @@ In the CACM article on page 41 Weizenbaum says
 
 >Consider the following structure:
 >
-```    (MEMORY MY       (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
+```
+    (MEMORY MY
+       (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
        (0 YOUR 0 = EARLIER YOU SAID YOUR 3)
         :
 ```
 >The word "MY" (which must be an ordinary keyword as well) has been selected to serve a special function. Whenever it is the highest ranking keyword of a text one of the transformations on the MEMORY list is randomly selected, and a copy of the text is transformed accordingly. This transformation is stored on a first-in-first-out stack for later use. The ordinary processes already described are then carried out. When a text without keywords is encountered later and a certain counting mechanism is in a particular state and the stack in question is not empty, then the transformed text is printed out as the reply. It is, of course, also deleted from the stack of such transformations.
->The current version of ELIZA requires that one keyword be associated with MEMORY and that exactly four transformations accompany that word in that context.
+>The current version of ELIZA requires that one keyword be associated with MEMORY and that exactly four transformations accompany that word in that context.
 
 No further information is given in the paper about _a certain counting mechanism_ or _a particular state_.
 
@@ -238,7 +240,7 @@ C:\>eliza
 -----------------------------------------------------------------
       ELIZA -- A Computer Program for the Study of Natural
          Language Communication Between Man and Machine
-DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain
+            DOCTOR script (c) Joseph Weizenbaum, 1966
 This implementation by Anthony Hay, 2022  (CC0 1.0) Public Domain
 -----------------------------------------------------------------
 ELIZA /help for usage.

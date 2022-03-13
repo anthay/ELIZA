@@ -2704,7 +2704,7 @@ int main(int argc, const char * argv[])
             "-----------------------------------------------------------------\n"
             "      ELIZA -- A Computer Program for the Study of Natural\n"
             "         Language Communication Between Man and Machine\n"
-            "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
+            "            DOCTOR script (c) Joseph Weizenbaum, 1966\n"
             "This implementation by Anthony Hay, 2022  (CC0 1.0) Public Domain\n"
             "-----------------------------------------------------------------\n";
 
