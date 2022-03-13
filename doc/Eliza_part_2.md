@@ -2,7 +2,7 @@
 
 This is an update to a previous project: [A Simulation in C++ of Joseph Weizenbaum’s 1966 ELIZA](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_1.md).
 
-In April 2021 Jeff Shrager located a listing of Joseph Weizenbaum's ELIZA program in the MIT archives. The listing appears to be dated 03/06 and was in a folder labeled "COMPUTER CONVERSATIONS (1965)". Jeff wrote about this on [elizagen.org](https://sites.google.com/view/elizagen-org/the-original-eliza). It is now in the public domain and for the first time anyone who cares to can read the code for the program Weizenbaum describes in his 1966 CACM paper[^CACM-paper].
+In April 2021 Jeff Shrager located a listing of Joseph Weizenbaum's ELIZA program in the MIT archives. The listing appears to be dated 03/06 and was in a folder labeled "COMPUTER CONVERSATIONS (1965)". Jeff wrote about this on [elizagen.org](https://sites.google.com/view/elizagen-org/the-original-eliza). It is now in the public domain and for the first time anyone who cares to can read the code for the program Weizenbaum describes in his 1966 CACM paper[^1].
 
 I've read it and discovered a few things about how ELIZA works that were not (or not fully) described in the CACM paper. I updated my C++ simulation of Eliza to take account of what I learned. That code is here: [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp)
 
@@ -141,7 +141,7 @@ Rather than display a message such as "script error", Weizenbaum chooses to hide
 
 ### 1. Reading the original source code
 
-Weizenbaum says ELIZA is written in a language called MAD-SLIP for the IBM 7094.[^CACM-paper-ibid] MAD is a language designed in 1959 and called The Michigan Algorithm Decoder. In the early 1960s Weizenbaum developed a system for managing linked lists, which he called Symetric List Processor, or SLIP. ELIZA makes heavy use of this system.
+Weizenbaum says ELIZA is written in a language called MAD-SLIP for the IBM 7094.[^2] MAD is a language designed in 1959 and called The Michigan Algorithm Decoder. In the early 1960s Weizenbaum developed a system for managing linked lists, which he called Symetric List Processor, or SLIP. ELIZA makes heavy use of this system.
 
 Photographs of the ELIZA source code listing and reference material about MAD and SLIP can be found on the [elizagen.org](https://sites.google.com/view/elizagen-org/the-original-eliza) website.
 
@@ -287,6 +287,6 @@ Anthony Hay, March 2022, Devon.
 
 
 
-[^CACM-paper]: ELIZA: A computer program for the study of natural language communication between man and machine. Communications of the ACM, 9, 36-45. Currently available here: <https://web.stanford.edu/class/linguist238/p36-weizenabaum.pdf>
+[^1]: ELIZA: A computer program for the study of natural language communication between man and machine. Communications of the ACM, 9, 36-45. Currently available here: <https://web.stanford.edu/class/linguist238/p36-weizenabaum.pdf>
 
-[^CACM-paper-ibid]: Ibid. page 36
+[^2]: Ibid. page 36
