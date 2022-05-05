@@ -192,13 +192,25 @@ Weizenbaum developed ELIZA on an IBM 7094, which has a 36-bit word size. Charact
 
 In the annotated ELIZA source I've noted things that do not correspond to the description in the CACM paper. 
 
-For example, the _keystack_ Weizenbaum describes on page 39 is not implemented. Instead, only the highest ranking keyword is retained. There is consequently no support for the NEWKEY mechanism.
+#### a. keystack and NEWKEY functionality is missing
 
-Another difference: on page 42 of the CACM paper
+The _keystack_ Weizenbaum describes on page 39 is not implemented. Instead, only the highest ranking keyword is retained. There is consequently no support for the NEWKEY mechanism.
+
+#### b. EDIT functionality is missing
+
+On page 42 of the CACM paper
 
 >Editing of an ELIZA script is achieved via appeal to a contextual editing program (ED) which is part of the MAC library. This program is called whenever the input text to ELIZA consists of the single word "EDIT". ELIZA then puts itself in a so-called dormant state and presents the then stored script for editing.
 
 There is no code to implement this "EDIT" functionality. Instead ELIZA recognises user input `+` to invoke a CHANGE function, and `*` to add a new transformation rule.
+
+#### c. KEY hashmap is smaller
+
+On page 38 of the CACM paper
+
+>An ELIZA script consists mainly of a set of list structures of the type shown. The actual keyword dictionary is constructed when such a script is first read into the hitherto empty program. The basic structural component of the keyword dictionary is a vector KEY of (currently) 128 contiguous computer words. As a particular key list structure is read the keyword K at its top is randomized (hashed) by a procedure that produces (currently) a 7 bit integer "i".
+
+In this code, KEY is 32 words rather than 128 and the HASH function produces a 5-bit integer rather than 7-bits.
 
 Presumably, Weizenbaum continued to work on ELIZA after this listing was printed. In his book Computer Power and Human Reason, Weizenbaum says he worked on ELIZA from 1964 to 1966.
 
