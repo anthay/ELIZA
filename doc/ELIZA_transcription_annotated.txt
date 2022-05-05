@@ -314,6 +314,10 @@ NUMBER      K=A*262144                                                          
 ; A note on MAD arrays: DIMENSION D(N) allocates N+1 machine-words of
 ; core memory, which are accessed using indexes 0..N.
 ;
+; Note that in the 1966 CACM paper, Weizenbaum says "The basic structural
+; component of the keyword dictionary is a vector KEY of (currently) 128
+; contiguous computer words." In this version, KEY contains only 32 words.
+;
             INITAS.(0)                                                          000030
 ;
 ; INITAS must be the first executable statement in any program using SLIP.
