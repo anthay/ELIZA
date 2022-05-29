@@ -19,6 +19,10 @@
     paper.) I made changes to this code to reflect what I learned. These
     changes are documented in the code.
     -- Anthony Hay, 2022, Devon, UK
+
+    Update: In April 2022 Jeff Shrager located the source code to SLIP,
+    including the HASH function. I made hash used in this code use the
+    same algorithm.
 */
 
 
@@ -37,6 +41,8 @@
 #include <deque>
 #include <cctype>
 #include <thread>
+#include <array>
+#include <cstdint>
 
 
 
@@ -140,10 +146,76 @@ namespace elizalogic { // the core ELIZA algorithm
 typedef std::map<std::string, stringlist> tagmap;
 
 
+
+// This table maps ordinary character code units to their Hollerith
+// encoding, or 0xFF if that character does not exist in the Hollerith
+// character set.
+const std::array<unsigned char, 256> char_to_hollerith_table{ []{
+
+    /*  "The 7090 BCD character codes are given in the accompanying table.
+        Six bits are used for each character. [...] The code is generally
+        termed binary-coded-decimal or BCD. For compactness, the codes are
+        generally expressed as 2-digit octal numbers, as in the table. The
+        term Hollerith is used synonomously with BCD." [1]
+
+        The following array is derrived from the above mentioned table, with
+        one exception: BCD code 14 (octal) is a single quote (prime), not a
+        double quote. See [2].
+
+        The Hollerith code is the table offset. '#' means unused code.
+
+        [1] Philip M. Sherman
+            Programming and Coding the IBM 709-7090-7094 Computers
+            John Wiley and Sons, 1963
+            Page 62
+        [2] University of Michigan Executive System for the IBM 7090 Computer
+            September 1964
+            In section THE UNIVERSITY OF MICHIGAN MONITOR
+            APPENDIX 2, page 30, TABLE OF BCD--OCTAL EQUIVALENTS
+            (Available online from Google Books. Search for PRIME.)
+
+    */
+    static constexpr unsigned char bcd[64] = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '#', '=', '\'', '#', '#', '#',
+        '+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', '#', '.', ')',  '#', '#', '#',
+        '-', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', '#', '$', '*',  '#', '#', '#',
+        ' ', '/', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '#', ',', '(',  '#', '#', '#'
+    };
+
+    static_assert(std::numeric_limits<unsigned char>::max() == 255);
+    std::array<unsigned char, 256> to_bcd;
+    to_bcd.fill(0xFFu);
+    for (unsigned char c = 0; c < 64; ++c)
+        if (bcd[c] != '#')
+            to_bcd[bcd[c]] = c;
+    return to_bcd;
+}() };
+
+
+// return given string 's' with non-Hollerith characters replaced by ' '
+std::string filter_bcd(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+        [](char c) {
+            if (c == '?' || c == '!')
+                return '.';
+
+            static_assert(std::numeric_limits<unsigned char>::min() == 0);
+            static_assert(std::numeric_limits<unsigned char>::max() == 255);
+
+            return char_to_hollerith_table[static_cast<unsigned char>(c)] == 0xFFu
+                ? ' ' : c;
+        }
+    );
+    return s;
+}
+
+
 bool punctuation(char c)
 {
     return c == ',' || c == '.'; // [page 37 (c)]
 }
+
 
 bool delimeter(const std::string & s)
 {
@@ -321,34 +393,210 @@ stringlist reassemble(const stringlist & reassembly_rule, const stringlist & com
     return result;
 }
 
-/*  
+/*
     "N1 : HASH.(D,N2)
 
     This function classifies D according to a pseudo-random scheme. The number
     of classes is 2^N2 where N2 is the second argument of the function. The
     value of the function is a pseudo-random number N1 in the range of
     0 to 2^N2-1."
-
     -- Documentation from University of Michigan Executive System for the
        IBM 7090, SLIP section, page 30
+
+
+    The FORTRAN Assembly Program implementation of Slip HASH from JW's
+    MIT archive, with my comments in lowercase (I'm using 'N' to refer
+    to the second HASH parameter rather than 'N2' in the above documentation
+    because the latter is confusing):
+
+             HASH   FAP
+            ENTRY   HASH
+    HASH    LDQ*    1,4                 load D into the MQ register
+            CLA*    2,4                 load N into the AC (accumulator)
+            STA     SHIFT               store N for later use by LLS instruction
+            ARS     1                   AC = N/2
+            STA     *+2                 store N/2 for use by next LLS instruction
+            MPY*    1,4                 AC/MQ = D * D
+            LLS     **                  shift AC/MQ left by N/2 bits
+            STA     TEMP                store bits 21-35 of hash result in TEMP
+            LDQ     =O777777777777      set all 36 bits in MQ (=O means octal)
+            ZAC                         clear all 36 bits in accumulator
+    SHIFT   LLS     **                  shift N bits from MQ into accumulator
+            ANA     TEMP                and hashed value with accumulator
+            TRA     3,4                 return to calling code; result in AC
+    TEMP    PZE                         reserve one word for temp storage
+            END
+
+    There is documentation on FAP in
+        Philip M. Sherman
+        Programming and Coding the IBM 709-7090-7094 Computers
+        John Wiley and Sons, 1963
+        (Web search for ibm709.pdf)
+    and
+        University of Michigan Executive System for the IBM 7090 Computer
+        September 1964
+        In section THE 'UNIVERSITY OF MICHIGAN ASSEMBLY PROGRAM' ('UMAP')
+        (Available online from Google Books.)
+
+    The mnemonics used in HASH
+        ANA = and to accumulator
+        ARS = accumulator right shift
+        CLA = clear AC and add (AC is the accumulator)
+        LDQ = load MQ (MQ is the multiplier-quotient register)
+        LLS = long left shift (AC/MQ shifted as if they were one register)
+        MPY = multiply bits 1-35 of MQ with bits 1-35 of specified value
+              to give a 72-bit result in AC/MQ and overflow bits P and Q
+        PZE = prefix of plus zero (assembles a single machine word with a
+              plus zero as its prefix)
+        STA = store address; copy bits 21-35 in the AC (the 15 least-
+              significant bits) to the specified location, leaving the
+              other bits in the destination unchanged
+        TRA = transfer to specified address (aka jump)
+        ZAC = zero the accumulator
+
+    Bits in an IBM 7090 instruction word are labeled
+        S 1 2 3 4 5 6 7 8 9 10 11 12 .. 20 21 22 23 .. 33 34 35
+        <--- operation code ---->          <---- address ----->
+    Where S is the sign bit and bit 1 is the most-significant data bit
+
+    FAP lines have the format
+
+            <op>    <address>,<tag>,<decrement>
+
+    In the <address> field, * means "present location," so STA *+2 means
+    store accumulator to present location + 2.
+
+    Also in the <address> field ** means value provided at run time.
+    i.e. HASH uses self-modifying code.
+
+    An <op> mnemonic followed by an asterisk indicates indirect addressing
+    is to be used. The <tag> field specifies which of the 7090's three index
+    registers, numbered 1, 2 and 4, is to be used. In this code it looks
+    like index register 4 is some kind of stack frame pointer, so the
+    parameters D and N and the return address are at offsets 1, 2 and 3
+    respectively to the address stored in this index register.
+
+    One thing to note: the datum may represent 6 6-bit characters,
+    i.e. 36 bits. But the top bit of MQ and AC is the sign bit. So the
+    top bit of the first character in the given D will be assumed to
+    be a sign bit and will not be part of the 35-bit multiplication,
+    except as a sign. The value of the HASH function is taken from the
+    bits near the middle of D squared, so while N is small the loss
+    of the top bit has no effect on the result.
 */
-int hash(const std::string & s, int n)
+
+// recreate the Slip HASH function: return an n-bit hash value for
+// the given 36-bit datum d, for values of n in range 0..15
+int hash(uint_least64_t d, int n)
 {
-    // We haven't yet found the source code for Weizenbaum's hash algorithm.
-    // So this is a fix to make Eliza behave as expected for the
-    // published conversations.
+    /*  This code implements the Slip HASH algorithm from the FAP
+        code shown above.
 
-    if (n == 2 && s == "HERE")
-        return 3;
-    if (n == 2 && s == "KIDS")
-        return 1;
-    if (n == 2 && s == "TIME")
-        return 0;
-    if (n == 7 && s == "ALWAYS")
-        return 14;
+        The function returns the middle n bits of d squared.
+        This kind of hash is known as mid-square.
 
-    return  std::hash<std::string>{}(s) % (1ull << n);
+        The IBM 7094 uses sign-magnitude representation of integers:
+        in a 36-bit integer, the most-significant bit is assumed to
+        be the sign of the integer, and the least-significant 35-bits
+        are assumed to be the magnitude of the integer. Therefore,
+        in the SLIP HASH implementation only the least-significant
+        35-bits of D are squared. When the datum holds six 6-bit
+        characters the top bit of the first character in the given D
+        will be assumed to be a sign bit and will not be part of
+        the 35-bit multiplication (except as a sign).
+
+        On the IBM 7094 multiplying two 35-bit numbers produces a
+        70-bit result. In this code that 70-bit result will be
+        truncated to 64-bits. (Unsigned arithmetic overflow is not
+        undefined behaviour, as it is for signed arithmetic.) If n
+        is 15, the middle 15 bits of a 70-bit number are bits 42-28
+        (bit 0 least significant), which is well within our 64-bit
+        calculation. */
+    assert(0 <= n && n <= 15);
+
+    d &= 0x7FFFFFFFFull;        // clear the "sign" bit
+    d *= d;                     // square it
+    d >>= 35 - n / 2;           // move middle n bits to least sig. bits
+    return d & (1ull << n) - 1; // mask off all but n least sig. bits
 }
+
+
+
+
+
+/*  last_chunk_as_bcd() -- What the heck?
+
+    Very quick overview:
+
+    Eliza was written in Slip for an IBM 7094. The character encoding
+    used on the 7094 is called Hollerith. The Hollerith encoding
+    uses 6 bits per character. The IBM 7094 machine word size is
+    36-bits.
+
+    Slip stores strings in Slip cells. A Slip cell consists of two
+    adjacent machine words. The first word contains some type bits
+    and two addresses, one pointing to the previous Slip cell and
+    the other pointing to the next Slip cell. (The IBM 7094 had a
+    32,768 word core store, so only 15 bits are required for an
+    address. So two addresses fit into one 36-bit word with 6 bits
+    spare.) The second word may carry the "datum." This is where
+    the characters are stored.
+    
+    Each Slip cell can store up to 6 6-bit Hollerith characters.
+
+    If a string has fewer than 6 characters, the string is stored left-
+    justified and space padded to the right.
+
+    So for example, the string "HERE" would be storred in one Slip cell,
+    which would have the octal value 30 25 51 25 60 60.
+
+    If a string has more than 6 characters, it is storred in successive
+    Slip cells. Each cell except the last has the sign bit set in the
+    first word to indicated the string is continued in the next cell.
+
+    So the word "INVENTED" would be storred in two Slip cells, "INVENT"
+    in the first and "ED    " in the second.
+
+    In Eliza, the user's input text is read into a Slip list, each word
+    in the sentence is in it's own cell, unless a word needs to be
+    continued in the next cell because it's more than 6 characters long.
+
+    When Eliza chooses a MEMORY rule it hashes the last cell in the
+    input sentence. That will be the last word in the sentence, or
+    the last chunk of the last word, if the last word is more than
+    6 characters long.
+
+    This code doesn't use Slip cells. A std::deque of std::string
+    provided enough functionality to manage without Slip. In this
+    code, every word is contained in one std::string, no matter
+    how long.
+
+    Given the last word in a sentence, the last_chunk_as_bcd function
+    will return the 36-bit Hollerith encoding of the word, appropriately
+    space padded, or the last chunk of the word if over 6 characters long.
+*/
+uint_least64_t last_chunk_as_bcd(std::string s)
+{
+    uint_least64_t result = 0;
+
+    auto append = [&](char c) {
+        result <<= 6;
+        result |= char_to_hollerith_table[static_cast<unsigned char>(c)];
+    };
+
+    int count = 0;
+    if (!s.empty()) {
+        for (auto c = std::next(s.begin(), ((s.length() - 1) / 6) * 6);
+                c != std::end(s); ++c, ++count) {
+            append(*c);
+        }
+    }
+    while (count++ < 6)
+        append(' ');
+
+    return result;
+}
+
 
 
 
@@ -713,7 +961,7 @@ public:
         // But the ELIZA code shows that rules are actually selected via a HASH
         // function on the last word of the user's input text.
         assert(trans_.size() == num_transformations);
-        const auto & transformation = trans_[hash(words.back(), 2)];
+        const auto & transformation = trans_[hash(last_chunk_as_bcd(words.back()), 2)];
 
         stringlist constituents;
         if (!match(tags, transformation.decomposition, words, constituents))
@@ -897,7 +1145,7 @@ public:
     {
         // for simplicity, convert the given input string to a list of uppercase words
         // e.g. "Hello, world!" -> (HELLO , WORLD !)
-        stringlist words(split(to_upper(input)));
+        stringlist words(split(filter_bcd(to_upper(input))));
 
         // JW's "a certain counting mechanism" is updated for each response
         limit_ = limit_ % 4 + 1;
@@ -2091,6 +2339,216 @@ const char * CACM_1966_01_DOCTOR_script =
 namespace elizatest { // basic test of whether this simulation is accurate
 
 
+void hash_test()
+{
+    using elizalogic::hash;
+
+    // The four real-world test cases
+
+    // 1. Weizenbaum stated this in the CACM paper
+    // text                                     "ALWAYS"
+    // left-justified, space padded to 6 chars  "ALWAYS"
+    // Hollerith encoded (octal)                21 43 66 21 70 62
+    // Test is                                  HASH(0214366217062, 7) == 14
+    // 0214366217062 (octal) =                  0x463D91E32 (hexadecimal)
+    // input                                    0x463D91E32
+    // zero bit 35 (NB: bit 35 is already 0)    0x463D91E32
+    // squared                                  0x1345BA970EE053C1C4
+    // shift left by N / 2 bits (3 bits)        0x9A2DD4B877029E0E20
+    // discard the least significant 35 bits    0x1345BA970E
+    // least dsignificant N bits (7 bits)       0xE
+    TEST_EQUAL(hash(0214366217062ull, 7), 14ull);
+
+    // 2. From published conversation in the CACM paper
+    // text                                     "HERE"
+    // left-justified, space padded to 6 chars  "HERE  "
+    // Hollerith encoded (octal)                30 25 51 25 60 60
+    // Test is                                  HASH(0302551256060, 2) == 3
+    // 0302551256060 (octal) =                  0x615A55C30 (hexadecimal)
+    // zero bit 35 (NB: bit 35 is already 0)    0x615A55C30
+    // squared                                  0x250594DE2FD7128900
+    // shift left by N / 2 bits(1 bit)          0x4A0B29BC5FAE251200
+    // discard the least significant 35 bits    0x94165378B
+    // least significant N bits(2 bits)         0x3
+    TEST_EQUAL(hash(0302551256060ull, 2), 3ull);
+
+    // 3. Assumed from unpublished conversation dated 5 March 1965
+    // text                                     "KIDS"
+    // left-justified, space padded to 6 chars  "KIDS  "
+    // Hollerith encoded (octal)                42 31 24 62 60 60
+    // Test is                                  HASH(0423124626060, 2) == 1
+    // 0423124626060 (octal) =                  0x899532C30 (hexadecimal)
+    // zero bit 35                              0x99532C30
+    // squared                                  0x5BD485D70EC08900
+    // shift left by N / 2 bits(1 bit)          0xB7A90BAE1D811200
+    // discard the least significant 35 bits    0x16F52175
+    // least significant N bits(2 bits)         0x1
+    TEST_EQUAL(hash(0423124626060ull, 2), 1ull);
+
+    // 4. Assumed from unpublished conversation dated 5 March 1965
+    // text                                     "TIME"
+    // left-justified, space padded to 6 chars  "TIME  "
+    // Hollerith encoded(octal)                 63 31 44 25 60 60
+    // Test is                                  HASH(0633144256060, 2) == 0
+    // 0633144256060 (octal) =                  0xCD9915C30 (hexadecimal)
+    // zero bit 35                              0x4D9915C30
+    // squared                                  0x178572A252EF928900
+    // shift left by N / 2 bits (1 bit)         0x2F0AE544A5DF251200
+    // discard the least significant 35 bits    0x5E15CA894
+    // least dsignificant N bits (2 bits)       0
+    TEST_EQUAL(hash(0633144256060ull, 2), 0ull);
+
+
+    // The rest are made up
+
+    // HASH(0777777777777, 7)
+    // input                                   0xFFFFFFFFF (36 significant bits)
+    // zero bit 35                             0x7FFFFFFFF (35 significant bits)
+    // squared                                 0x3FFFFFFFF000000001 (70 significant bits)
+    // shift left by N / 2 bits (3 bits)       0x1FFFFFFFF8000000008 (73 significant bits)
+    // discard the least significant 35 bits   0x3FFFFFFFF0 (38 significant bits)
+    // least significant N bits (7 bits)       0x70
+    TEST_EQUAL(hash(0777777777777ull, 7), 0x70ull);
+
+    // HASH(0777777777777, 15)
+    // input                                   0xFFFFFFFFF
+    // zero bit 35                             0x7FFFFFFFF
+    // squared                                 0x3FFFFFFFF000000001
+    // shift left by N / 2 bits (7 bits)       0X1FFFFFFFF80000000080
+    // discard the least significant 35 bits   0x3FFFFFFFF00
+    // least significant N bits (15 bits)      0x7F00
+    TEST_EQUAL(hash(0777777777777ull, 15), 0x7F00ull);
+
+    // HASH(0x555555555, 15)
+    // input                                   0x555555555
+    // zero bit 35                             0x555555555
+    // squared                                 0x1C71C71C6E38E38E39
+    // shift left by N / 2 bits (7 bits)       0xE38E38E371C71C71C80
+    // discard the least significant 35 bits   0x1C71C71C6E3
+    // least significant N bits (15 bits)      0x46E3
+    TEST_EQUAL(hash(0x555555555ull, 15), 0x46E3ull);
+
+    // HASH(0xF0F0F0F0F, 15)
+    // input                                   0xF0F0F0F0F
+    // zero bit 35                             0x70F0F0F0F
+    // squared                                 0x31D3B5977886A4C2E1
+    // shift left by N / 2 bits (7 bits)       0x18E9DACBBC4352617080
+    // discard the least significant 35 bits   0x31D3B597788
+    // least significant N bits (15 bits)      0x7788
+    TEST_EQUAL(hash(0xF0F0F0F0Full, 15), 0x7788ull);
+
+    // HASH("ALWAYS", 15) = HASH(0214366217062, 15)
+    // input                                   0x463D91E32
+    // zero bit 35 (NB: bit 35 is already 0)   0x463D91E32
+    // squared                                 0x1345BA970EE053C1C4
+    // shift left by N / 2 bits (7 bits)       0x9A2DD4B877029E0E200
+    // discard the least significant 35 bits   0x1345BA970EE
+    // least dsignificant N bits (15 bits)     0x70EE
+    TEST_EQUAL(hash(0214366217062ull, 15), 0x70EEull);
+
+    // HASH("TIME  ", 15) = HASH(0633144256060, 15)
+    // input                                   0xCD9915C30
+    // zero bit 35                             0x4D9915C30
+    // squared                                 0x178572A252EF928900
+    // shift left by N / 2 bits (7 bit)        0xBC2B9512977C9448000
+    // discard the least significant 35 bits   0x178572A252E
+    // least dsignificant N bits (15 bits)     0x252E
+    TEST_EQUAL(hash(0633144256060ull, 15), 0x252Eull);
+
+    TEST_EQUAL(hash(0ull, 7), 0);
+}
+
+
+void last_chunk_as_bcd_test()
+{
+    using elizalogic::last_chunk_as_bcd;
+                                                  //  _ _ _ _ _ _
+    TEST_EQUAL(last_chunk_as_bcd(""),             0606060606060ull);
+                                                  //  _ _ _ _ _ _
+    TEST_EQUAL(last_chunk_as_bcd("X"),            0676060606060ull);
+                                                  //  H E R E _ _
+    TEST_EQUAL(last_chunk_as_bcd("HERE"),         0302551256060ull);
+                                                  //  A L W A Y S
+    TEST_EQUAL(last_chunk_as_bcd("ALWAYS"),       0214366217062ull);
+                                                  //  E D _ _ _ _
+    TEST_EQUAL(last_chunk_as_bcd("INVENTED"),     0252460606060ull);
+                                                  //  A B C D E F
+    TEST_EQUAL(last_chunk_as_bcd("123456ABCDEF"), 0212223242526ull);
+
+
+    /*  In the CACM published script, the MEMORY S-expression is
+
+            (MEMORY MY
+                (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
+                (0 YOUR 0 = EARLIER YOU SAID YOUR 3)
+                (0 YOUR 0 = BUT YOUR 3)
+                (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))
+
+        In the CACM published conversation, the memory is formed
+        by the input sentence
+
+            "Well, my boyfriend made me come here."
+
+        In the Eliza code, these lines choose the MEMORY rule
+
+            OR W'R KEYWRD .E. MEMORY                                     001220
+             I=HASH.(BOT.(INPUT),2)+1                                    001230
+             NEWBOT.(REGEL.(MYTRAN(I),INPUT,LIST.(MINE)),MYLIST)         001240
+
+        That's the HASH of the BOT (last cell) of the user's INPUT sentence,
+        with a 2-bit result. MYTRAN (containing the 4 MEMORY rules) is indexed
+        on the value returned by HASH plus 1.
+
+        Later, Eliza says
+
+            "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HERE"
+
+        So, the value returned by HASH in this case must have been 3 in order
+        to select the correct rule...
+
+            (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3)
+
+        Hence this test: HASH of "HERE" must be 3.
+    */
+    using elizalogic::hash;
+    TEST_EQUAL(hash(last_chunk_as_bcd("HERE"), 2), 3);
+
+
+    /*  In an unpublished conversation, marked 5 March 1965, there are two memories
+        recalled for Eliza's responses
+
+            "EARLIER YOU SAID YOUR WIFE WANTS KIDS"
+        and
+            "LETS DISCUSS FURTHER WHY YOUR FATHER TALKS ABOUT GRANDCHILDREN ALL THE TIME"
+
+        The next two tests come from these via an analysis similar to the
+        above for "HERE", plus some assumptions that the script used to
+        generate these responses, which we don't have, is very similar to
+        the published script.
+    */
+    TEST_EQUAL(hash(last_chunk_as_bcd("KIDS"), 2), 1);
+    TEST_EQUAL(hash(last_chunk_as_bcd("TIME"), 2), 0);
+
+
+    /*  In the 1966 CACM paper, JW says on page 38
+
+            "As a particular key list structure is read the keyword K at its
+            top is randomized (hashed) by a procedure that produces (currently)
+            a 7 bit integer "i". The word "always", for example, yeilds the
+            integer 14."
+
+        From this I assumed the following test.
+    */
+    TEST_EQUAL(hash(last_chunk_as_bcd("ALWAYS"), 7), 14);
+
+
+    /*  Finally, I made this test up (checked by hand calculating) to test
+        the code on words longer than 6 characters. Unfortunately, I haven't
+        seen any real-world tests of words longer than 6 characters. */
+    TEST_EQUAL(hash(last_chunk_as_bcd("INVENTED"), 7), 123);
+}
+
+
 // return a string in ELIZA script format representing given script 's'
 std::string to_string(const elizascript::script & s)
 {
@@ -2107,6 +2565,9 @@ std::string to_string(const elizascript::script & s)
 // perform basic checks on implementation
 void test()
 {
+    hash_test();
+    last_chunk_as_bcd_test();
+
     // script_text is logically identical to the script in the CACM article
     // appendix, but the ordering and whitespace is different so that it can
     // be checked against the output of elizatest::to_string()
@@ -2566,12 +3027,6 @@ void test()
         }
     }
 
-    // Test HASH function.
-    TEST_EQUAL(elizalogic::hash("HERE", 2), 3);     // assumed from 1966 CACM paper example conversation
-    TEST_EQUAL(elizalogic::hash("KIDS", 2), 1);     // assumed from unpublished 5 March 1965 conversation
-    TEST_EQUAL(elizalogic::hash("TIME", 2), 0);     // assumed from unpublished 5 March 1965 conversation
-    TEST_EQUAL(elizalogic::hash("ALWAYS", 7), 14);  // stated in 1966 CACM paper (7 assumed)
-
 
     struct exchange {
         const char * prompt;    // input to ELIZA
@@ -2653,7 +3108,7 @@ void test()
 // write given 's' to std::cout, followed by newline
 void writeln(const std::string & s)
 {
-    if (true) {
+    if (false) {
         // for fun, output 's' as if ELIZA was running on a 1966 Teletype
         auto sleep = [](long ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
         using std::cout; using std::flush; using std::endl;
@@ -2748,6 +3203,7 @@ int main(int argc, const char * argv[])
                 << "                e.g. ELIZA script.txt\n";
             return EXIT_FAILURE;
         }
+
 
         writeln(join(s.hello_message));
         for (elizalogic::eliza eliza(std::move(s.rules));;) {
