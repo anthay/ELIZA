@@ -23,6 +23,11 @@
     Update: In April 2022 Jeff Shrager located the source code to SLIP,
     including the HASH function. I made hash used in this code use the
     same algorithm.
+
+
+    Note: In the code below there are occasional references to
+    Joseph Weizenbaum's 1966 CACM article. A reference like
+    [page X (Y)] refers to paragraph Y on page X of that publication.
 */
 
 
@@ -46,21 +51,36 @@
 
 
 
+// stringlist provides enough of the functionality present
+// in Wiezenbaum's SLIP to implement ELIZA
+typedef std::deque<std::string> stringlist;
+
+// (needed for unit test purposes only)
+std::ostream& operator<<(std::ostream & os, const stringlist & list)
+{
+    os << '(';
+    for (auto s : list)
+        os << '"' << s << '"' << ' ';
+    os << ')';
+    return os;
+}
+
+
+
 namespace micro_test_library {
 
-unsigned g_test_count;      // total number of tests executed
-unsigned g_fault_count;     // total number of tests that fail
+unsigned test_count;      // total number of tests executed
+unsigned fault_count;     // total number of tests that fail
 
 
 // write a message to std::cout if !(value == expected_value)
-// (this is a function so that value and expected_value are evaluated only once)
 template<typename A, typename B>
 void test_equal(const A & value, const B & expected_value,
     const char * filename, const size_t linenum, const char * functionname)
 {
-    ++g_test_count;
+    ++test_count;
     if (!(value == expected_value)) {
-        ++g_fault_count;
+        ++fault_count;
         // e.g. love.cpp(2021) : in proposal() expected 'Yes!', but got 'Hahaha'
         std::cout
             << filename << '(' << linenum
@@ -73,24 +93,36 @@ void test_equal(const A & value, const B & expected_value,
 
 #define TEST_EQUAL(value, expected_value)                   \
 {                                                           \
-    micro_test_library::test_equal(value, expected_value,    \
+    micro_test_library::test_equal(value, expected_value,   \
         __FILE__, __LINE__, __FUNCTION__);                  \
 }
 
-} //namespace mico_test_library
+
+std::vector<void (*)()> test_routines;
+
+size_t add_test(void (*f)())
+{
+    test_routines.push_back(f);
+    return test_routines.size();
+}
+
+#define DEF_TEST_FUNC(test_func)                                   \
+void test_func();                                                        \
+size_t micro_test_##test_func = micro_test_library::add_test(test_func); \
+void test_func()
+
+void run_tests()
+{
+    for (auto t : test_routines)
+        t();
+}
+#define RUN_TESTS() micro_test_library::run_tests()
+
+} //namespace micro_test_library
 
 
 
 
-
-
-
-/*  In the code below there are occasional references to Joseph
-    Weizenbaum's 1966 CACM article. A reference like [page X (Y)] refers
-    to paragraph Y on page X of that publication.
-*/
-
-typedef std::deque<std::string> stringlist; // (stands in for Wiezenbaum's Slip)
 
 
 // remove front element of given 'container' and return it
@@ -111,14 +143,14 @@ auto pop_front(std::string & container)
 }
 
 
-// join given 'words' into one space separated string; punctuation is attached
-// to previous word e.g. join(["one", "two", ",", "3", "?"]) -> "one two, 3?"
+// join given words into one space separated string
+// e.g. join(["one", "two", ",", "3", "."]) -> "one two , 3 ."
+// (ELIZA doesn't output punctuation)
 std::string join(const stringlist & words)
 {
     std::string result;
     for (const auto & word : words) {
         if (!word.empty()) {
-            //if (!result.empty() && (std::isalnum(word[0]) || word[0] == '\''))
             if (!result.empty())
                 result += ' ';
             result += word;
@@ -127,7 +159,10 @@ std::string join(const stringlist & words)
     return result;
 }
 
-
+DEF_TEST_FUNC(join_test)
+{
+    TEST_EQUAL(join(stringlist{ "one", "", "two", ",", "3", "." }), "one two , 3 .");
+}
 
 
 
@@ -146,11 +181,12 @@ namespace elizalogic { // the core ELIZA algorithm
 typedef std::map<std::string, stringlist> tagmap;
 
 
+constexpr unsigned char hollerith_undefined = 0xFFu; // (must be > 63)
 
 // This table maps ordinary character code units to their Hollerith
-// encoding, or 0xFF if that character does not exist in the Hollerith
-// character set.
-const std::array<unsigned char, 256> char_to_hollerith_table{ []{
+// encoding, or hollerith_undefined if that character does not exist
+// in the Hollerith character set.
+const std::array<unsigned char, 256> hollerith_encoding{ []{
 
     /*  "The 7090 BCD character codes are given in the accompanying table.
         Six bits are used for each character. [...] The code is generally
@@ -162,7 +198,7 @@ const std::array<unsigned char, 256> char_to_hollerith_table{ []{
         one exception: BCD code 14 (octal) is a single quote (prime), not a
         double quote. See [2].
 
-        The Hollerith code is the table offset. '#' means unused code.
+        The Hollerith code is the table offset. 0 means unused code.
 
         [1] Philip M. Sherman
             Programming and Coding the IBM 709-7090-7094 Computers
@@ -176,39 +212,57 @@ const std::array<unsigned char, 256> char_to_hollerith_table{ []{
 
     */
     static constexpr unsigned char bcd[64] = {
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '#', '=', '\'', '#', '#', '#',
-        '+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', '#', '.', ')',  '#', '#', '#',
-        '-', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', '#', '$', '*',  '#', '#', '#',
-        ' ', '/', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '#', ',', '(',  '#', '#', '#'
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0, '=', '\'', 0, 0, 0,
+        '+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 0, '.', ')',  0, 0, 0,
+        '-', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 0, '$', '*',  0, 0, 0,
+        ' ', '/', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 0, ',', '(',  0, 0, 0
     };
 
     static_assert(std::numeric_limits<unsigned char>::max() == 255);
     std::array<unsigned char, 256> to_bcd;
-    to_bcd.fill(0xFFu);
+    to_bcd.fill(hollerith_undefined);
     for (unsigned char c = 0; c < 64; ++c)
-        if (bcd[c] != '#')
+        if (bcd[c])
             to_bcd[bcd[c]] = c;
     return to_bcd;
 }() };
 
 
-// return given string 's' with non-Hollerith characters replaced by ' '
+// return true iff given c is in the Hollerith character set
+bool hollerith_defined(char c)
+{
+    static_assert(std::numeric_limits<unsigned char>::min() == 0);
+    static_assert(std::numeric_limits<unsigned char>::max() == 255);
+
+    return hollerith_encoding[static_cast<unsigned char>(c)] != hollerith_undefined;
+}
+
+
+// return given string s with non-Hollerith characters replaced
+// by space, and '?' and '!' replaced by '.'
 std::string filter_bcd(std::string s)
 {
     std::transform(s.begin(), s.end(), s.begin(),
         [](char c) {
             if (c == '?' || c == '!')
                 return '.';
-
-            static_assert(std::numeric_limits<unsigned char>::min() == 0);
-            static_assert(std::numeric_limits<unsigned char>::max() == 255);
-
-            return char_to_hollerith_table[static_cast<unsigned char>(c)] == 0xFFu
-                ? ' ' : c;
+            return hollerith_defined(c) ? c : ' ';
         }
     );
     return s;
 }
+
+DEF_TEST_FUNC(filter_bcd_test)
+{
+    TEST_EQUAL(filter_bcd(""), "");
+    TEST_EQUAL(filter_bcd("HELLO"), "HELLO");
+    TEST_EQUAL(filter_bcd("Hello! How are you?"), "H    . H          .");
+    const std::string all_valid_bcd{
+        "0123456789=\'+ABCDEFGHI.)-JKLMNOPQR$* /STUVWXYZ,("
+    };
+    TEST_EQUAL(filter_bcd(all_valid_bcd), all_valid_bcd);
+}
+
 
 
 bool punctuation(char c)
@@ -228,8 +282,8 @@ bool delimeter(const std::string & s)
 }
 
 
-// split given string 's' into a list of "words"; punctuation are words
-// e.g. split("one   two, three?") -> ["one", "two", ",", "three?"]
+// split given string s into a list of "words"; punctuation are words
+// e.g. split("one   two, three.") -> ["one", "two", ",", "three", "."]
 stringlist split(std::string s)
 {
     stringlist result;
@@ -250,6 +304,13 @@ stringlist split(std::string s)
         result.push_back(word);
     return result;
 }
+
+DEF_TEST_FUNC(split_test)
+{
+    const stringlist r1{ "one", "two", ",", "three", "." };
+    TEST_EQUAL(split("one   two, three."), r1);
+}
+
 
 
 // return given string 's' in uppercase
@@ -373,6 +434,51 @@ bool match(const tagmap & tags, stringlist pattern, stringlist words, stringlist
     return false;
 }
 
+DEF_TEST_FUNC(match_test)
+{
+    // test [0, YOU, (*WANT NEED), 0] matches [YOU, NEED, NICE, FOOD]
+    stringlist words{ "YOU", "NEED", "NICE", "FOOD" };
+    stringlist pattern{ "0", "YOU", "(*WANT NEED)", "0" };
+    stringlist expected{ "", "YOU", "NEED", "NICE FOOD" };
+    stringlist matching_components;
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // test [0, 0, YOU, (*WANT NEED), 0] matches [YOU, WANT, NICE, FOOD]
+    words = { "YOU", "WANT", "NICE", "FOOD" };
+    pattern = { "0", "0", "YOU", "(*WANT NEED)", "0" };
+    expected = {"", "", "YOU", "WANT", "NICE FOOD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // test [1, (*WANT NEED), 0] matches [YOU, WANT, NICE, FOOD]
+    words = { "YOU", "WANT", "NICE", "FOOD" };
+    pattern = { "1", "(*WANT NEED)", "0" };
+    expected = { "YOU", "WANT", "NICE FOOD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // test [1, (*WANT NEED), 1] doesn't match [YOU, WANT, NICE, FOOD]
+    words = { "YOU", "WANT", "NICE", "FOOD" };
+    pattern = { "1", "(*WANT NEED)", "1" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), false);
+
+    // test [1, (*WANT NEED), 2] matches [YOU, WANT, NICE, FOOD]
+    words = { "YOU", "WANT", "NICE", "FOOD" };
+    pattern = { "1", "(*WANT NEED)", "2" };
+    expected = { "YOU", "WANT", "NICE FOOD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // A test pattern from the YMATCH function description in the SLIP manual
+    words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "WAS", "ZERO" };
+    pattern = { "MARY", "2", "2", "ITS", "1", "0" };
+    expected = { "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY", "WAS ZERO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+}
+
+
 
 // return words constructed from given 'reassembly_rule' and 'components'
 // e.g. reassemble([ARE, YOU, 1], [MAD, ABOUT YOU]) -> [ARE, YOU, MAD]
@@ -392,6 +498,22 @@ stringlist reassemble(const stringlist & reassembly_rule, const stringlist & com
     }
     return result;
 }
+
+DEF_TEST_FUNC(reassemble_test)
+{
+    // A test pattern from the ASSMBL function description in the SLIP manual
+    // (using above matching_components list)
+    stringlist matching_components {
+        "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY", "WAS ZERO"
+    };
+    stringlist reassembly_rule{ "DID", "1", "HAVE", "A", "3" };
+    stringlist expected { "DID", "MARY", "HAVE", "A", "LITTLE", "LAMB" };
+    TEST_EQUAL(reassemble(reassembly_rule, matching_components), expected);
+}
+
+
+
+
 
 /*
     "N1 : HASH.(D,N2)
@@ -520,6 +642,179 @@ int hash(uint_least64_t d, int n)
     return d & (1ull << n) - 1; // mask off all but n least sig. bits
 }
 
+DEF_TEST_FUNC(hash_test)
+{
+    // The four real-world test cases
+
+    /* 1. Weizenbaum stated this on page 38 of the 1966 CACM paper
+    
+            "As a particular key list structure is read the keyword K at its
+            top is randomized (hashed) by a procedure that produces (currently)
+            a 7 bit integer "i". The word "always", for example, yeilds the
+            integer 14."
+
+        text                                     "ALWAYS"
+        left-justified, space padded to 6 chars  "ALWAYS"
+        Hollerith encoded (octal)                21 43 66 21 70 62
+        Test is                                  HASH(0214366217062, 7) == 14
+        0214366217062 (octal) =                  0x463D91E32 (hexadecimal)
+        input                                    0x463D91E32
+        zero bit 35 (NB: bit 35 is already 0)    0x463D91E32
+        squared                                  0x1345BA970EE053C1C4
+        shift left by N / 2 bits (3 bits)        0x9A2DD4B877029E0E20
+        discard the least significant 35 bits    0x1345BA970E
+        least dsignificant N bits (7 bits)       0xE
+    */
+    TEST_EQUAL(hash(0214366217062ull, 7), 14ull);
+
+    /* 2. From published conversation in the CACM paper
+
+        In the CACM published script, the MEMORY S-expression is
+
+            (MEMORY MY
+                (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
+                (0 YOUR 0 = EARLIER YOU SAID YOUR 3)
+                (0 YOUR 0 = BUT YOUR 3)
+                (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))
+
+        In the CACM published conversation, the memory is formed
+        by the input sentence
+
+            "Well, my boyfriend made me come here."
+
+        In the Eliza code, these lines choose the MEMORY rule
+
+            OR W'R KEYWRD .E. MEMORY                                     001220
+             I=HASH.(BOT.(INPUT),2)+1                                    001230
+             NEWBOT.(REGEL.(MYTRAN(I),INPUT,LIST.(MINE)),MYLIST)         001240
+
+        That's the HASH of the BOT (last cell) of the user's INPUT sentence,
+        with a 2-bit result. MYTRAN (containing the 4 MEMORY rules) is indexed
+        on the value returned by HASH plus 1.
+
+        Later, Eliza says
+
+            "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HERE"
+
+        So, the value returned by HASH in this case must have been 3 in order
+        to select the correct rule...
+
+            (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3)
+
+        Hence this test: HASH of "HERE" must be 3.
+
+        text                                     "HERE"
+        left-justified, space padded to 6 chars  "HERE  "
+        Hollerith encoded (octal)                30 25 51 25 60 60
+        Test is                                  HASH(0302551256060, 2) == 3
+        0302551256060 (octal) =                  0x615A55C30 (hexadecimal)
+        zero bit 35 (NB: bit 35 is already 0)    0x615A55C30
+        squared                                  0x250594DE2FD7128900
+        shift left by N / 2 bits(1 bit)          0x4A0B29BC5FAE251200
+        discard the least significant 35 bits    0x94165378B
+        least significant N bits(2 bits)         0x3
+    */
+    TEST_EQUAL(hash(0302551256060ull, 2), 3ull);
+
+    /* 3. Assumed from unpublished conversation dated 5 March 1965
+
+        In an unpublished conversation, marked 5 March 1965, there are two memories
+        recalled for Eliza's responses
+
+            "EARLIER YOU SAID YOUR WIFE WANTS KIDS"
+        and
+            "LETS DISCUSS FURTHER WHY YOUR FATHER TALKS ABOUT GRANDCHILDREN ALL THE TIME"
+
+        The next two tests come from these via an analysis similar to the
+        above for "HERE", plus some assumptions that the script used to
+        generate these responses, which we don't have, is very similar to
+        the published script.
+
+        text                                     "KIDS"
+        left-justified, space padded to 6 chars  "KIDS  "
+        Hollerith encoded (octal)                42 31 24 62 60 60
+        Test is                                  HASH(0423124626060, 2) == 1
+        0423124626060 (octal) =                  0x899532C30 (hexadecimal)
+        zero bit 35                              0x99532C30
+        squared                                  0x5BD485D70EC08900
+        shift left by N / 2 bits(1 bit)          0xB7A90BAE1D811200
+        discard the least significant 35 bits    0x16F52175
+        least significant N bits(2 bits)         0x1
+
+        text                                     "TIME"
+        left-justified, space padded to 6 chars  "TIME  "
+        Hollerith encoded(octal)                 63 31 44 25 60 60
+        Test is                                  HASH(0633144256060, 2) == 0
+        0633144256060 (octal) =                  0xCD9915C30 (hexadecimal)
+        zero bit 35                              0x4D9915C30
+        squared                                  0x178572A252EF928900
+        shift left by N / 2 bits (1 bit)         0x2F0AE544A5DF251200
+        discard the least significant 35 bits    0x5E15CA894
+        least dsignificant N bits (2 bits)       0
+    */
+    TEST_EQUAL(hash(0423124626060ull, 2), 1ull);
+    TEST_EQUAL(hash(0633144256060ull, 2), 0ull);
+
+
+    // The rest are made up
+
+    // HASH(0777777777777, 7)
+    // input                                   0xFFFFFFFFF (36 significant bits)
+    // zero bit 35                             0x7FFFFFFFF (35 significant bits)
+    // squared                                 0x3FFFFFFFF000000001 (70 significant bits)
+    // shift left by N / 2 bits (3 bits)       0x1FFFFFFFF8000000008 (73 significant bits)
+    // discard the least significant 35 bits   0x3FFFFFFFF0 (38 significant bits)
+    // least significant N bits (7 bits)       0x70
+    TEST_EQUAL(hash(0777777777777ull, 7), 0x70ull);
+
+    // HASH(0777777777777, 15)
+    // input                                   0xFFFFFFFFF
+    // zero bit 35                             0x7FFFFFFFF
+    // squared                                 0x3FFFFFFFF000000001
+    // shift left by N / 2 bits (7 bits)       0X1FFFFFFFF80000000080
+    // discard the least significant 35 bits   0x3FFFFFFFF00
+    // least significant N bits (15 bits)      0x7F00
+    TEST_EQUAL(hash(0777777777777ull, 15), 0x7F00ull);
+
+    // HASH(0x555555555, 15)
+    // input                                   0x555555555
+    // zero bit 35                             0x555555555
+    // squared                                 0x1C71C71C6E38E38E39
+    // shift left by N / 2 bits (7 bits)       0xE38E38E371C71C71C80
+    // discard the least significant 35 bits   0x1C71C71C6E3
+    // least significant N bits (15 bits)      0x46E3
+    TEST_EQUAL(hash(0x555555555ull, 15), 0x46E3ull);
+
+    // HASH(0xF0F0F0F0F, 15)
+    // input                                   0xF0F0F0F0F
+    // zero bit 35                             0x70F0F0F0F
+    // squared                                 0x31D3B5977886A4C2E1
+    // shift left by N / 2 bits (7 bits)       0x18E9DACBBC4352617080
+    // discard the least significant 35 bits   0x31D3B597788
+    // least significant N bits (15 bits)      0x7788
+    TEST_EQUAL(hash(0xF0F0F0F0Full, 15), 0x7788ull);
+
+    // HASH("ALWAYS", 15) = HASH(0214366217062, 15)
+    // input                                   0x463D91E32
+    // zero bit 35 (NB: bit 35 is already 0)   0x463D91E32
+    // squared                                 0x1345BA970EE053C1C4
+    // shift left by N / 2 bits (7 bits)       0x9A2DD4B877029E0E200
+    // discard the least significant 35 bits   0x1345BA970EE
+    // least dsignificant N bits (15 bits)     0x70EE
+    TEST_EQUAL(hash(0214366217062ull, 15), 0x70EEull);
+
+    // HASH("TIME  ", 15) = HASH(0633144256060, 15)
+    // input                                   0xCD9915C30
+    // zero bit 35                             0x4D9915C30
+    // squared                                 0x178572A252EF928900
+    // shift left by N / 2 bits (7 bit)        0xBC2B9512977C9448000
+    // discard the least significant 35 bits   0x178572A252E
+    // least dsignificant N bits (15 bits)     0x252E
+    TEST_EQUAL(hash(0633144256060ull, 15), 0x252Eull);
+
+    TEST_EQUAL(hash(0ull, 7), 0);
+}
+
 
 
 
@@ -581,7 +876,7 @@ uint_least64_t last_chunk_as_bcd(std::string s)
 
     auto append = [&](char c) {
         result <<= 6;
-        result |= char_to_hollerith_table[static_cast<unsigned char>(c)];
+        result |= hollerith_encoding[static_cast<unsigned char>(c)];
     };
 
     int count = 0;
@@ -595,6 +890,22 @@ uint_least64_t last_chunk_as_bcd(std::string s)
         append(' ');
 
     return result;
+}
+
+DEF_TEST_FUNC(last_chunk_as_bcd_test)
+{
+                                                //  _ _ _ _ _ _
+    TEST_EQUAL(last_chunk_as_bcd(""),             0606060606060ull);
+                                                //  _ _ _ _ _ _
+    TEST_EQUAL(last_chunk_as_bcd("X"),            0676060606060ull);
+                                                //  H E R E _ _
+    TEST_EQUAL(last_chunk_as_bcd("HERE"),         0302551256060ull);
+                                                //  A L W A Y S
+    TEST_EQUAL(last_chunk_as_bcd("ALWAYS"),       0214366217062ull);
+                                                //  E D _ _ _ _
+    TEST_EQUAL(last_chunk_as_bcd("INVENTED"),     0252460606060ull);
+                                                //  A B C D E F
+    TEST_EQUAL(last_chunk_as_bcd("123456ABCDEF"), 0212223242526ull);
 }
 
 
@@ -2339,216 +2650,6 @@ const char * CACM_1966_01_DOCTOR_script =
 namespace elizatest { // basic test of whether this simulation is accurate
 
 
-void hash_test()
-{
-    using elizalogic::hash;
-
-    // The four real-world test cases
-
-    // 1. Weizenbaum stated this in the CACM paper
-    // text                                     "ALWAYS"
-    // left-justified, space padded to 6 chars  "ALWAYS"
-    // Hollerith encoded (octal)                21 43 66 21 70 62
-    // Test is                                  HASH(0214366217062, 7) == 14
-    // 0214366217062 (octal) =                  0x463D91E32 (hexadecimal)
-    // input                                    0x463D91E32
-    // zero bit 35 (NB: bit 35 is already 0)    0x463D91E32
-    // squared                                  0x1345BA970EE053C1C4
-    // shift left by N / 2 bits (3 bits)        0x9A2DD4B877029E0E20
-    // discard the least significant 35 bits    0x1345BA970E
-    // least dsignificant N bits (7 bits)       0xE
-    TEST_EQUAL(hash(0214366217062ull, 7), 14ull);
-
-    // 2. From published conversation in the CACM paper
-    // text                                     "HERE"
-    // left-justified, space padded to 6 chars  "HERE  "
-    // Hollerith encoded (octal)                30 25 51 25 60 60
-    // Test is                                  HASH(0302551256060, 2) == 3
-    // 0302551256060 (octal) =                  0x615A55C30 (hexadecimal)
-    // zero bit 35 (NB: bit 35 is already 0)    0x615A55C30
-    // squared                                  0x250594DE2FD7128900
-    // shift left by N / 2 bits(1 bit)          0x4A0B29BC5FAE251200
-    // discard the least significant 35 bits    0x94165378B
-    // least significant N bits(2 bits)         0x3
-    TEST_EQUAL(hash(0302551256060ull, 2), 3ull);
-
-    // 3. Assumed from unpublished conversation dated 5 March 1965
-    // text                                     "KIDS"
-    // left-justified, space padded to 6 chars  "KIDS  "
-    // Hollerith encoded (octal)                42 31 24 62 60 60
-    // Test is                                  HASH(0423124626060, 2) == 1
-    // 0423124626060 (octal) =                  0x899532C30 (hexadecimal)
-    // zero bit 35                              0x99532C30
-    // squared                                  0x5BD485D70EC08900
-    // shift left by N / 2 bits(1 bit)          0xB7A90BAE1D811200
-    // discard the least significant 35 bits    0x16F52175
-    // least significant N bits(2 bits)         0x1
-    TEST_EQUAL(hash(0423124626060ull, 2), 1ull);
-
-    // 4. Assumed from unpublished conversation dated 5 March 1965
-    // text                                     "TIME"
-    // left-justified, space padded to 6 chars  "TIME  "
-    // Hollerith encoded(octal)                 63 31 44 25 60 60
-    // Test is                                  HASH(0633144256060, 2) == 0
-    // 0633144256060 (octal) =                  0xCD9915C30 (hexadecimal)
-    // zero bit 35                              0x4D9915C30
-    // squared                                  0x178572A252EF928900
-    // shift left by N / 2 bits (1 bit)         0x2F0AE544A5DF251200
-    // discard the least significant 35 bits    0x5E15CA894
-    // least dsignificant N bits (2 bits)       0
-    TEST_EQUAL(hash(0633144256060ull, 2), 0ull);
-
-
-    // The rest are made up
-
-    // HASH(0777777777777, 7)
-    // input                                   0xFFFFFFFFF (36 significant bits)
-    // zero bit 35                             0x7FFFFFFFF (35 significant bits)
-    // squared                                 0x3FFFFFFFF000000001 (70 significant bits)
-    // shift left by N / 2 bits (3 bits)       0x1FFFFFFFF8000000008 (73 significant bits)
-    // discard the least significant 35 bits   0x3FFFFFFFF0 (38 significant bits)
-    // least significant N bits (7 bits)       0x70
-    TEST_EQUAL(hash(0777777777777ull, 7), 0x70ull);
-
-    // HASH(0777777777777, 15)
-    // input                                   0xFFFFFFFFF
-    // zero bit 35                             0x7FFFFFFFF
-    // squared                                 0x3FFFFFFFF000000001
-    // shift left by N / 2 bits (7 bits)       0X1FFFFFFFF80000000080
-    // discard the least significant 35 bits   0x3FFFFFFFF00
-    // least significant N bits (15 bits)      0x7F00
-    TEST_EQUAL(hash(0777777777777ull, 15), 0x7F00ull);
-
-    // HASH(0x555555555, 15)
-    // input                                   0x555555555
-    // zero bit 35                             0x555555555
-    // squared                                 0x1C71C71C6E38E38E39
-    // shift left by N / 2 bits (7 bits)       0xE38E38E371C71C71C80
-    // discard the least significant 35 bits   0x1C71C71C6E3
-    // least significant N bits (15 bits)      0x46E3
-    TEST_EQUAL(hash(0x555555555ull, 15), 0x46E3ull);
-
-    // HASH(0xF0F0F0F0F, 15)
-    // input                                   0xF0F0F0F0F
-    // zero bit 35                             0x70F0F0F0F
-    // squared                                 0x31D3B5977886A4C2E1
-    // shift left by N / 2 bits (7 bits)       0x18E9DACBBC4352617080
-    // discard the least significant 35 bits   0x31D3B597788
-    // least significant N bits (15 bits)      0x7788
-    TEST_EQUAL(hash(0xF0F0F0F0Full, 15), 0x7788ull);
-
-    // HASH("ALWAYS", 15) = HASH(0214366217062, 15)
-    // input                                   0x463D91E32
-    // zero bit 35 (NB: bit 35 is already 0)   0x463D91E32
-    // squared                                 0x1345BA970EE053C1C4
-    // shift left by N / 2 bits (7 bits)       0x9A2DD4B877029E0E200
-    // discard the least significant 35 bits   0x1345BA970EE
-    // least dsignificant N bits (15 bits)     0x70EE
-    TEST_EQUAL(hash(0214366217062ull, 15), 0x70EEull);
-
-    // HASH("TIME  ", 15) = HASH(0633144256060, 15)
-    // input                                   0xCD9915C30
-    // zero bit 35                             0x4D9915C30
-    // squared                                 0x178572A252EF928900
-    // shift left by N / 2 bits (7 bit)        0xBC2B9512977C9448000
-    // discard the least significant 35 bits   0x178572A252E
-    // least dsignificant N bits (15 bits)     0x252E
-    TEST_EQUAL(hash(0633144256060ull, 15), 0x252Eull);
-
-    TEST_EQUAL(hash(0ull, 7), 0);
-}
-
-
-void last_chunk_as_bcd_test()
-{
-    using elizalogic::last_chunk_as_bcd;
-                                                  //  _ _ _ _ _ _
-    TEST_EQUAL(last_chunk_as_bcd(""),             0606060606060ull);
-                                                  //  _ _ _ _ _ _
-    TEST_EQUAL(last_chunk_as_bcd("X"),            0676060606060ull);
-                                                  //  H E R E _ _
-    TEST_EQUAL(last_chunk_as_bcd("HERE"),         0302551256060ull);
-                                                  //  A L W A Y S
-    TEST_EQUAL(last_chunk_as_bcd("ALWAYS"),       0214366217062ull);
-                                                  //  E D _ _ _ _
-    TEST_EQUAL(last_chunk_as_bcd("INVENTED"),     0252460606060ull);
-                                                  //  A B C D E F
-    TEST_EQUAL(last_chunk_as_bcd("123456ABCDEF"), 0212223242526ull);
-
-
-    /*  In the CACM published script, the MEMORY S-expression is
-
-            (MEMORY MY
-                (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
-                (0 YOUR 0 = EARLIER YOU SAID YOUR 3)
-                (0 YOUR 0 = BUT YOUR 3)
-                (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))
-
-        In the CACM published conversation, the memory is formed
-        by the input sentence
-
-            "Well, my boyfriend made me come here."
-
-        In the Eliza code, these lines choose the MEMORY rule
-
-            OR W'R KEYWRD .E. MEMORY                                     001220
-             I=HASH.(BOT.(INPUT),2)+1                                    001230
-             NEWBOT.(REGEL.(MYTRAN(I),INPUT,LIST.(MINE)),MYLIST)         001240
-
-        That's the HASH of the BOT (last cell) of the user's INPUT sentence,
-        with a 2-bit result. MYTRAN (containing the 4 MEMORY rules) is indexed
-        on the value returned by HASH plus 1.
-
-        Later, Eliza says
-
-            "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HERE"
-
-        So, the value returned by HASH in this case must have been 3 in order
-        to select the correct rule...
-
-            (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3)
-
-        Hence this test: HASH of "HERE" must be 3.
-    */
-    using elizalogic::hash;
-    TEST_EQUAL(hash(last_chunk_as_bcd("HERE"), 2), 3);
-
-
-    /*  In an unpublished conversation, marked 5 March 1965, there are two memories
-        recalled for Eliza's responses
-
-            "EARLIER YOU SAID YOUR WIFE WANTS KIDS"
-        and
-            "LETS DISCUSS FURTHER WHY YOUR FATHER TALKS ABOUT GRANDCHILDREN ALL THE TIME"
-
-        The next two tests come from these via an analysis similar to the
-        above for "HERE", plus some assumptions that the script used to
-        generate these responses, which we don't have, is very similar to
-        the published script.
-    */
-    TEST_EQUAL(hash(last_chunk_as_bcd("KIDS"), 2), 1);
-    TEST_EQUAL(hash(last_chunk_as_bcd("TIME"), 2), 0);
-
-
-    /*  In the 1966 CACM paper, JW says on page 38
-
-            "As a particular key list structure is read the keyword K at its
-            top is randomized (hashed) by a procedure that produces (currently)
-            a 7 bit integer "i". The word "always", for example, yeilds the
-            integer 14."
-
-        From this I assumed the following test.
-    */
-    TEST_EQUAL(hash(last_chunk_as_bcd("ALWAYS"), 7), 14);
-
-
-    /*  Finally, I made this test up (checked by hand calculating) to test
-        the code on words longer than 6 characters. Unfortunately, I haven't
-        seen any real-world tests of words longer than 6 characters. */
-    TEST_EQUAL(hash(last_chunk_as_bcd("INVENTED"), 7), 123);
-}
-
-
 // return a string in ELIZA script format representing given script 's'
 std::string to_string(const elizascript::script & s)
 {
@@ -2565,8 +2666,8 @@ std::string to_string(const elizascript::script & s)
 // perform basic checks on implementation
 void test()
 {
-    hash_test();
-    last_chunk_as_bcd_test();
+    RUN_TESTS(); // run the tests defined with DEF_TEST_FUNC
+
 
     // script_text is logically identical to the script in the CACM article
     // appendix, but the ordering and whitespace is different so that it can
@@ -2933,101 +3034,6 @@ void test()
     TEST_EQUAL(join(tags["NOUN"]), "FATHER MOTHER");
 
 
-    // test [0, YOU, (*WANT NEED), 0] matches [YOU, NEED, NICE, FOOD]
-    stringlist pattern{ "0", "YOU", "(*WANT NEED)", "0" };
-    stringlist matching_components;
-    TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
-        pattern,
-        elizalogic::split("YOU NEED NICE FOOD"),
-        matching_components), true);
-    TEST_EQUAL(matching_components.size(), (size_t)4);
-    if (matching_components.size() == 4) {
-        TEST_EQUAL(matching_components[0].empty(), true);
-        TEST_EQUAL(matching_components[1], "YOU");
-        TEST_EQUAL(matching_components[2], "NEED");
-        TEST_EQUAL(matching_components[3], "NICE FOOD");
-    }
-
-    // test [0, 0, YOU, (*WANT NEED), 0] matches [YOU, WANT, NICE, FOOD]
-    pattern = { "0", "0", "YOU", "(*WANT NEED)", "0" };
-    TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
-        pattern,
-        elizalogic::split("YOU WANT NICE FOOD"),
-        matching_components), true);
-    TEST_EQUAL(matching_components.size(), (size_t)5);
-    if (matching_components.size() == 5) {
-        TEST_EQUAL(matching_components[0].empty(), true);
-        TEST_EQUAL(matching_components[1].empty(), true);
-        TEST_EQUAL(matching_components[2], "YOU");
-        TEST_EQUAL(matching_components[3], "WANT");
-        TEST_EQUAL(matching_components[4], "NICE FOOD");
-    }
-
-    // test [1, (*WANT NEED), 0] matches [YOU, WANT, NICE, FOOD]
-    pattern = { "1", "(*WANT NEED)", "0" };
-    TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
-        pattern,
-        elizalogic::split("YOU WANT NICE FOOD"),
-        matching_components), true);
-    TEST_EQUAL(matching_components.size(), (size_t)3);
-    if (matching_components.size() == 3) {
-        TEST_EQUAL(matching_components[0], "YOU");
-        TEST_EQUAL(matching_components[1], "WANT");
-        TEST_EQUAL(matching_components[2], "NICE FOOD");
-    }
-
-    // test [1, (*WANT NEED), 1] doesn't match [YOU, WANT, NICE, FOOD]
-    pattern = { "1", "(*WANT NEED)", "1" };
-    TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
-        pattern,
-        elizalogic::split("YOU WANT NICE FOOD"),
-        matching_components), false);
-
-    // test [1, (*WANT NEED), 2] matches [YOU, WANT, NICE, FOOD]
-    pattern = { "1", "(*WANT NEED)", "2" };
-    TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
-        pattern,
-        elizalogic::split("YOU WANT NICE FOOD"),
-        matching_components), true);
-    TEST_EQUAL(matching_components.size(), (size_t)3);
-    if (matching_components.size() == 3) {
-        TEST_EQUAL(matching_components[0], "YOU");
-        TEST_EQUAL(matching_components[1], "WANT");
-        TEST_EQUAL(matching_components[2], "NICE FOOD");
-    }
-
-    // A test pattern from the YMATCH function description in the SLIP manual
-    pattern = { "MARY", "2", "2", "ITS", "1", "0" };
-    TEST_EQUAL(elizalogic::match(elizalogic::tagmap(),
-        pattern,
-        elizalogic::split("MARY HAD A LITTLE LAMB ITS PROBABILITY WAS ZERO"),
-        matching_components), true);
-    TEST_EQUAL(matching_components.size(), (size_t)6);
-    if (matching_components.size() == 6) {
-        TEST_EQUAL(matching_components[0], "MARY");
-        TEST_EQUAL(matching_components[1], "HAD A");
-        TEST_EQUAL(matching_components[2], "LITTLE LAMB");
-        TEST_EQUAL(matching_components[3], "ITS");
-        TEST_EQUAL(matching_components[4], "PROBABILITY");
-        TEST_EQUAL(matching_components[5], "WAS ZERO");
-
-        // A test pattern from the ASSMBL function description in the SLIP manual
-        // (using above matching_components list)
-        stringlist assmbl = elizalogic::reassemble(
-            stringlist{ "DID", "1", "HAVE", "A", "3" },
-            matching_components);
-        TEST_EQUAL(assmbl.size(), (size_t)6);
-        if (assmbl.size() == 6) {
-            TEST_EQUAL(assmbl[0], "DID");
-            TEST_EQUAL(assmbl[1], "MARY");
-            TEST_EQUAL(assmbl[2], "HAVE");
-            TEST_EQUAL(assmbl[3], "A");
-            TEST_EQUAL(assmbl[4], "LITTLE");
-            TEST_EQUAL(assmbl[5], "LAMB");
-        }
-    }
-
-
     struct exchange {
         const char * prompt;    // input to ELIZA
         const char * response;  // output expected from ELIZA
@@ -3098,7 +3104,6 @@ void test()
     elizalogic::eliza eliza(s.rules);
     for (const auto & exchg : conversation)
         TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
-
 }
 
 }//namespace elizatest
