@@ -51,8 +51,17 @@
 
 
 
-// stringlist provides enough of the functionality present
-// in Wiezenbaum's SLIP to implement ELIZA
+/*  Wiezenbaum wrote ELIZA in a language called MAD-SLIP.
+
+    He also developed SLIP ("Symmetric List Processor").
+    SLIP is a library of functions used to manipulate
+    doubly-linked lists of cells, where a cell may contain
+    either a datum or a reference to another list.
+
+    This code doesn't use SLIP. The type stringlist is
+    used where the original ELIZA might have used a SLIP
+    list. (stringlist is not equivalent to a SLIP list.) 
+*/
 typedef std::deque<std::string> stringlist;
 
 // (needed for unit test purposes only)
@@ -97,7 +106,7 @@ void test_equal(const A & value, const B & expected_value,
         __FILE__, __LINE__, __FUNCTION__);                  \
 }
 
-
+// list of all test routines to be executed
 std::vector<void (*)()> test_routines;
 
 size_t add_test(void (*f)())
@@ -106,14 +115,14 @@ size_t add_test(void (*f)())
     return test_routines.size();
 }
 
-#define DEF_TEST_FUNC(test_func)                                   \
+#define DEF_TEST_FUNC(test_func)                                         \
 void test_func();                                                        \
 size_t micro_test_##test_func = micro_test_library::add_test(test_func); \
 void test_func()
 
 void run_tests()
 {
-    for (auto t : test_routines)
+    for (auto & t : test_routines)
         t();
 }
 #define RUN_TESTS() micro_test_library::run_tests()
@@ -125,7 +134,7 @@ void run_tests()
 
 
 
-// remove front element of given 'container' and return it
+// remove front element of given container and return it
 template<typename T>
 auto pop_front(T & container)
 {
@@ -161,7 +170,9 @@ std::string join(const stringlist & words)
 
 DEF_TEST_FUNC(join_test)
 {
-    TEST_EQUAL(join(stringlist{ "one", "", "two", ",", "3", "." }), "one two , 3 .");
+    TEST_EQUAL(join({  }), "");
+    TEST_EQUAL(join({ "ELIZA" }), "ELIZA");
+    TEST_EQUAL(join({ "one", "", "two", ",", "3", "." }), "one two , 3 .");
 }
 
 
@@ -194,7 +205,7 @@ const std::array<unsigned char, 256> hollerith_encoding{ []{
         generally expressed as 2-digit octal numbers, as in the table. The
         term Hollerith is used synonomously with BCD." [1]
 
-        The following array is derrived from the above mentioned table, with
+        The following array is derived from the above mentioned table, with
         one exception: BCD code 14 (octal) is a single quote (prime), not a
         double quote. See [2].
 
@@ -273,9 +284,9 @@ bool punctuation(char c)
 
 bool delimeter(const std::string & s)
 {
-    // In the 1966 CACM artical on page 37 Weizenbaum says "the procedure
+    // In the 1966 CACM article on page 37 Weizenbaum says "the procedure
     // recognizes a comma or a period as a delimiter." However, in the
-    // MAD-Slip source code the relavent code is
+    // MAD-SLIP source code the relevant code is
     //    W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR. WORD .E. $BUT$
     // (W'R means WHENEVER). So "BUT" is also a delimiter.
     return s == "BUT" || (s.size() == 1 && punctuation(s[0]));
@@ -313,7 +324,7 @@ DEF_TEST_FUNC(split_test)
 
 
 
-// return given string 's' in uppercase
+// return given string s in uppercase
 std::string to_upper(std::string s)
 {
     std::transform(s.begin(), s.end(), s.begin(),
@@ -323,7 +334,7 @@ std::string to_upper(std::string s)
 }
 
 
-// return numeric value of given 's' or -1, e.g. to_int("2") -> 2, to_int("two") -> -1
+// return numeric value of given s or -1, e.g. to_int("2") -> 2, to_int("two") -> -1
 int to_int(const std::string & s)
 {
     int result = 0;
@@ -365,8 +376,8 @@ bool inlist(const std::string & word, std::string wordlist, const tagmap & tags)
 }
 
 
-/*  return true iff 'words' match 'pattern'; if they match, 'matching_components'
-    are the actual matched words, one for each element of 'pattern'
+/*  return true iff words match pattern; if they match, matching_components
+    are the actual matched words, one for each element of pattern
 
     e.g. match(tags, [0, YOU, (* WANT NEED), 0], [YOU, NEED, NICE, FOOD], mc) -> true
       with mc = [<empty>, YOU, NEED, NICE FOOD]
@@ -480,7 +491,7 @@ DEF_TEST_FUNC(match_test)
 
 
 
-// return words constructed from given 'reassembly_rule' and 'components'
+// return words constructed from given reassembly_rule and components
 // e.g. reassemble([ARE, YOU, 1], [MAD, ABOUT YOU]) -> [ARE, YOU, MAD]
 stringlist reassemble(const stringlist & reassembly_rule, const stringlist & components)
 {
@@ -526,7 +537,7 @@ DEF_TEST_FUNC(reassemble_test)
        IBM 7090, SLIP section, page 30
 
 
-    The FORTRAN Assembly Program implementation of Slip HASH from JW's
+    The FORTRAN Assembly Program implementation of SLIP HASH from JW's
     MIT archive, with my comments in lowercase (I'm using 'N' to refer
     to the second HASH parameter rather than 'N2' in the above documentation
     because the latter is confusing):
@@ -607,11 +618,11 @@ DEF_TEST_FUNC(reassemble_test)
     of the top bit has no effect on the result.
 */
 
-// recreate the Slip HASH function: return an n-bit hash value for
+// recreate the SLIP HASH function: return an n-bit hash value for
 // the given 36-bit datum d, for values of n in range 0..15
 int hash(uint_least64_t d, int n)
 {
-    /*  This code implements the Slip HASH algorithm from the FAP
+    /*  This code implements the SLIP HASH algorithm from the FAP
         code shown above.
 
         The function returns the middle n bits of d squared.
@@ -630,7 +641,7 @@ int hash(uint_least64_t d, int n)
         On the IBM 7094 multiplying two 35-bit numbers produces a
         70-bit result. In this code that 70-bit result will be
         truncated to 64-bits. (Unsigned arithmetic overflow is not
-        undefined behaviour, as it is for signed arithmetic.) If n
+        undefined behavior, as it is for signed arithmetic.) If n
         is 15, the middle 15 bits of a 70-bit number are bits 42-28
         (bit 0 least significant), which is well within our 64-bit
         calculation. */
@@ -663,7 +674,7 @@ DEF_TEST_FUNC(hash_test)
         squared                                  0x1345BA970EE053C1C4
         shift left by N / 2 bits (3 bits)        0x9A2DD4B877029E0E20
         discard the least significant 35 bits    0x1345BA970E
-        least dsignificant N bits (7 bits)       0xE
+        least significant N bits (7 bits)        0xE
     */
     TEST_EQUAL(hash(0214366217062ull, 7), 14ull);
 
@@ -750,7 +761,7 @@ DEF_TEST_FUNC(hash_test)
         squared                                  0x178572A252EF928900
         shift left by N / 2 bits (1 bit)         0x2F0AE544A5DF251200
         discard the least significant 35 bits    0x5E15CA894
-        least dsignificant N bits (2 bits)       0
+        least significant N bits (2 bits)        0
     */
     TEST_EQUAL(hash(0423124626060ull, 2), 1ull);
     TEST_EQUAL(hash(0633144256060ull, 2), 0ull);
@@ -800,7 +811,7 @@ DEF_TEST_FUNC(hash_test)
     // squared                                 0x1345BA970EE053C1C4
     // shift left by N / 2 bits (7 bits)       0x9A2DD4B877029E0E200
     // discard the least significant 35 bits   0x1345BA970EE
-    // least dsignificant N bits (15 bits)     0x70EE
+    // least significant N bits (15 bits)      0x70EE
     TEST_EQUAL(hash(0214366217062ull, 15), 0x70EEull);
 
     // HASH("TIME  ", 15) = HASH(0633144256060, 15)
@@ -809,7 +820,7 @@ DEF_TEST_FUNC(hash_test)
     // squared                                 0x178572A252EF928900
     // shift left by N / 2 bits (7 bit)        0xBC2B9512977C9448000
     // discard the least significant 35 bits   0x178572A252E
-    // least dsignificant N bits (15 bits)     0x252E
+    // least significant N bits (15 bits)      0x252E
     TEST_EQUAL(hash(0633144256060ull, 15), 0x252Eull);
 
     TEST_EQUAL(hash(0ull, 7), 0);
@@ -823,36 +834,36 @@ DEF_TEST_FUNC(hash_test)
 
     Very quick overview:
 
-    Eliza was written in Slip for an IBM 7094. The character encoding
+    Eliza was written in SLIP for an IBM 7094. The character encoding
     used on the 7094 is called Hollerith. The Hollerith encoding
     uses 6 bits per character. The IBM 7094 machine word size is
     36-bits.
 
-    Slip stores strings in Slip cells. A Slip cell consists of two
+    SLIP stores strings in SLIP cells. A SLIP cell consists of two
     adjacent machine words. The first word contains some type bits
-    and two addresses, one pointing to the previous Slip cell and
-    the other pointing to the next Slip cell. (The IBM 7094 had a
+    and two addresses, one pointing to the previous SLIP cell and
+    the other pointing to the next SLIP cell. (The IBM 7094 had a
     32,768 word core store, so only 15 bits are required for an
     address. So two addresses fit into one 36-bit word with 6 bits
     spare.) The second word may carry the "datum." This is where
     the characters are stored.
     
-    Each Slip cell can store up to 6 6-bit Hollerith characters.
+    Each SLIP cell can store up to 6 6-bit Hollerith characters.
 
     If a string has fewer than 6 characters, the string is stored left-
     justified and space padded to the right.
 
-    So for example, the string "HERE" would be storred in one Slip cell,
+    So for example, the string "HERE" would be stored in one SLIP cell,
     which would have the octal value 30 25 51 25 60 60.
 
-    If a string has more than 6 characters, it is storred in successive
-    Slip cells. Each cell except the last has the sign bit set in the
+    If a string has more than 6 characters, it is stored in successive
+    SLIP cells. Each cell except the last has the sign bit set in the
     first word to indicated the string is continued in the next cell.
 
-    So the word "INVENTED" would be storred in two Slip cells, "INVENT"
+    So the word "INVENTED" would be stored in two SLIP cells, "INVENT"
     in the first and "ED    " in the second.
 
-    In Eliza, the user's input text is read into a Slip list, each word
+    In Eliza, the user's input text is read into a SLIP list, each word
     in the sentence is in it's own cell, unless a word needs to be
     continued in the next cell because it's more than 6 characters long.
 
@@ -861,8 +872,8 @@ DEF_TEST_FUNC(hash_test)
     the last chunk of the last word, if the last word is more than
     6 characters long.
 
-    This code doesn't use Slip cells. A std::deque of std::string
-    provided enough functionality to manage without Slip. In this
+    This code doesn't use SLIP cells. A std::deque of std::string
+    provided enough functionality to manage without SLIP. In this
     code, every word is contained in one std::string, no matter
     how long.
 
@@ -1394,7 +1405,7 @@ public:
 
 
 
-// collect all tags from any of the given 'rules' that have them into a tagmap
+// collect all tags from any of the given rules that have them into a tagmap
 tagmap collect_tags(const rulemap & rules)
 {
     tagmap tags;
@@ -2108,9 +2119,9 @@ const char * CACM_1966_01_DOCTOR_script =
     "; composition. (Weizenbaum says \"An ELIZA script consists mainly of a set\n"
     "; of list structures...\", but nowhere in the article are S-expressions or\n"
     "; LISP mentioned. Perhaps it was too obvious to be noted.) Weizenbaum says\n"
-    "; ELIZA was written in MAD-Slip. It seems his original source code has\n"
+    "; ELIZA was written in MAD-SLIP. It seems his original source code has\n"
     "; been lost. Weizenbaum developed a library of FORTRAN functions for\n"
-    "; manipulating doubly-linked lists, which he called Slip (for Symmetric\n"
+    "; manipulating doubly-linked lists, which he called SLIP (for Symmetric\n"
     "; list processor).\n"
     ";\n"
     "; The most common transformation rule has the form:\n"
@@ -2650,7 +2661,7 @@ const char * CACM_1966_01_DOCTOR_script =
 namespace elizatest { // basic test of whether this simulation is accurate
 
 
-// return a string in ELIZA script format representing given script 's'
+// return a string in ELIZA script format representing given script s
 std::string to_string(const elizascript::script & s)
 {
     std::string result;
@@ -2664,11 +2675,8 @@ std::string to_string(const elizascript::script & s)
 
 
 // perform basic checks on implementation
-void test()
+DEF_TEST_FUNC(script_and_conversation_test)
 {
-    RUN_TESTS(); // run the tests defined with DEF_TEST_FUNC
-
-
     // script_text is logically identical to the script in the CACM article
     // appendix, but the ordering and whitespace is different so that it can
     // be checked against the output of elizatest::to_string()
@@ -3076,9 +3084,9 @@ void test()
         // NOTICE THAT". I assume the comma got lost from the CACM article.
         //{ "You are not very aggressive, but I think you don't want me to notice that.",
         //
-        // UPDATE: We now have a version of Weizenbaum's original MAD-Slip
+        // UPDATE: We now have a version of Weizenbaum's original MAD-SLIP
         // source code where we see that the word "BUT" is also considered
-        // to be a delimeter. So I was wrong to assume a missing comma.
+        // to be a delimiter. So I was wrong to assume a missing comma.
         { "You are not very aggressive but I think you don't want me to notice that.",
           "WHAT MAKES YOU THINK I AM NOT VERY AGGRESSIVE" },
 
@@ -3110,7 +3118,7 @@ void test()
 
 
 
-// write given 's' to std::cout, followed by newline
+// write given s to std::cout, followed by newline
 void writeln(const std::string & s)
 {
     if (false) {
@@ -3168,7 +3176,8 @@ int main(int argc, const char * argv[])
             "This implementation by Anthony Hay, 2022  (CC0 1.0) Public Domain\n"
             "-----------------------------------------------------------------\n";
 
-        elizatest::test();
+        RUN_TESTS(); // run the tests defined with DEF_TEST_FUNC
+
 
         elizascript::script s;
         if (argc == 1) {
