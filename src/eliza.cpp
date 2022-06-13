@@ -282,7 +282,7 @@ bool punctuation(char c)
 }
 
 
-bool delimeter(const std::string & s)
+bool delimiter(const std::string & s)
 {
     // In the 1966 CACM article on page 37 Weizenbaum says "the procedure
     // recognizes a comma or a period as a delimiter." However, in the
@@ -886,6 +886,7 @@ uint_least64_t last_chunk_as_bcd(std::string s)
     uint_least64_t result = 0;
 
     auto append = [&](char c) {
+        assert(hollerith_defined(c));
         result <<= 6;
         result |= hollerith_encoding[static_cast<unsigned char>(c)];
     };
@@ -1476,7 +1477,7 @@ public:
         stringlist keystack;
         int top_rank = 0;
         for (auto word = words.begin(); word != words.end(); ) {
-            if (delimeter(*word)) {
+            if (delimiter(*word)) {
                 // keep only the first clause to contain a keyword [page 37 (c)]
                 if (keystack.empty()) {
                     // discard left of punctuation, continue scanning what remains
