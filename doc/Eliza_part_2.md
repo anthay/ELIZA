@@ -218,9 +218,7 @@ Presumably, Weizenbaum continued to work on ELIZA after this listing was printed
 
 ### 3. Quirks
 
-In the annotated transcription I've noted a few quirks. For example, it seems to me that keywords must differ in the first six characters. If two or more keywords have the same first six characters only one of the rules will be used.
-
-Please note that I am no MAD-SLIP expert. My knowledge is limited to trying to puzzle out how this one program, ELIZA, works. I've almost certainly misunderstood things and would be very happy to be corrected.
+In the annotated transcription I've noted a few quirks. For example, it seems to me that if more than one keyword hashes to the same slot in the KEY hashmap, although they will all be stored in the map, only the first will actually be used when processing user input text. (But please note that I am no MAD-SLIP expert. My knowledge is limited to trying to puzzle out how this one program, ELIZA, works. I've almost certainly misunderstood things and would be very happy to be corrected.)
 
 
 
