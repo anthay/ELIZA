@@ -340,7 +340,7 @@ In other words, the I keyword will be triggered, "I" will be replaced by "YOU" i
       YOU know the mob controls the big rackets.
 ```
 
-and then the code will attempt to match all the YOU decomposition rules, including the one just mentioned. But (0 YOU 0 (NIL BELIEF) 0 I 0) doesn't match the input sentence, so it won't try the YOU keyword via the PRE rule.
+and then the code will attempt to match all the YOU decomposition rules, including the one just mentioned. But `(0 YOU 0 (NIL BELIEF) 0 I 0)` doesn't match the input sentence, so it won't try the YOU keyword via the PRE rule.
 
 So how could the output come from the YOU rule? I'm sure it does come from the YOU rule because the very next response is 
 
@@ -348,7 +348,7 @@ So how could the output come from the YOU rule? I'm sure it does come from the Y
       Suppose you ever really thought about the MAFIA.
 ```
 
-which comes from (SUPPOSE YOU 3 4 %.), which is the next reconstruction rule after (WHO ARE YOU REALLY TALKING ABOUT]. If (WHO ARE YOU REALLY TALKING ABOUT] has not been used in the previous response, it is used in the following response instead of (SUPPOSE YOU 3 4 %.).
+which comes from `(SUPPOSE YOU 3 4 %.)`, which is the next reconstruction rule after `(WHO ARE YOU REALLY TALKING ABOUT]`. If `(WHO ARE YOU REALLY TALKING ABOUT]` has not been used in the previous response, it is used in the following response instead of `(SUPPOSE YOU 3 4 %.)`.
 
 When processing the the input text
 
@@ -362,7 +362,7 @@ The word "HAVE" is examined and found not to be a keyword. Next the word "YOU" i
       Have I ever really thought about the MAFIA?
 ```
 
-Next the rest of the words are examined and no more keywords are found. Finally, the rules associated with the only keyword found, YOU, are tried. The only decomposition rule that matches is (0 I 1 0), i.e. 0 or more of any word, "I", 1 of any word, 0 or more of any words
+Next the rest of the words are examined and no more keywords are found. Finally, the rules associated with the only keyword found, YOU, are tried. The only decomposition rule that matches is `(0 I 1 0)`, i.e. 0 or more of any word, "I", 1 of any word, 0 or more of any words
 
 ```text
       1 HAVE
@@ -371,7 +371,7 @@ Next the rest of the words are examined and no more keywords are found. Finally,
       4 REALLY THOUGHT ABOUT THE MAFIA
 ```
 
-Then the next-in-turn reconstruction rule is selected, (SUPPOSE YOU 3 4 %.) in this case. This generates the output sentence
+Then the next-in-turn reconstruction rule is selected, `(SUPPOSE YOU 3 4 %.)` in this case. This generates the output sentence
 
 ```text
       SUPPOSE YOU EVER REALLY THOUGHT ABOUT THE MAFIA
@@ -379,7 +379,7 @@ Then the next-in-turn reconstruction rule is selected, (SUPPOSE YOU 3 4 %.) in t
 
 Which is the output reported in the RFC439 conversation.
 
-However, if the previous message doesn't match, the next message is (WHO ARE YOU REALLY TALKING ABOUT].
+However, if the previous message doesn't match, the next message is `(WHO ARE YOU REALLY TALKING ABOUT]`.
 
 So finally, how can this be made to work? If instead of 
 
@@ -402,7 +402,7 @@ Could there be a mistake in the recording of the conversation in RFC439 so that 
 
 ## Problem 4: RFC439 is almost certainly not an accurate record of the conversation
 
-Here are the NONE messages from Cosell's 24-APR-72 script to be used when no patterns match. They should be used in turn.
+Here are the `NONE` messages from Cosell's 24-APR-72 script to be used when no patterns match. They should be used in turn.
 
 ```text
   [RPLQQ NONE LASTRESORT
@@ -415,7 +415,7 @@ Here are the NONE messages from Cosell's 24-APR-72 script to be used when no pat
                   (WHY DO YOU SAY THAT JUST NOW]
 ```
 
-Here is every DOCTOR response in the conversation in the order they appear, with the NONE responses numbered
+Here is every DOCTOR response in the conversation in the order they appear, with the `NONE` responses numbered
 
 ```text
 1     I am not sure I understand you fully.
@@ -485,20 +485,19 @@ Here is every DOCTOR response in the conversation in the order they appear, with
   3   What does that suggest to you?
 ```
 
-(That NONE rule is doing a lot of heavy lifting for Cosell's ELIZA.)
+(That `NONE` rule is doing a lot of heavy lifting for Cosell's ELIZA.)
 
-Message 5, "Why do you say that just now," is missed out. Without it the NONE messages are out of sync and every subsequent NONE message is going to be wrong. I fudge a work-around by introducing a prompt text not in the RFC in order to force message 5 to appear.
+Message 5, "Why do you say that just now," is missed out. Without it the `NONE` messages are out of sync and every subsequent `NONE` message is going to be wrong. I fudge a work-around by introducing a prompt text not in the RFC in order to force message 5 to appear.
 
 At this point I have strong doubts that RFC439 is an accurate representation of a conversation between PARRY and Bernie Cosell's ELIZA. Perhaps someone formatted it for publication and in the process introduced errors. I don't know what happened.
 
-My enthusiasm for the project is somewhat diminished by this thought and I stop working on it.
 
 
 
 
 ## Aside: It probably was an oh and not a zero
 
-![fragment of listing showing zero you one oh rule](1972-04-24 Cosell oh zero.jpg)
+![fragment of listing showing zero you one oh rule](1972-04-24_Cosell_oh_zero.jpg)
 
 Here is the transcription of Cosell's 31 JULY 1969 script; the oh has been corrected to zero and a comment added
 
@@ -545,7 +544,7 @@ will be converted to
    YOU went to the track at Bay Meadows a while back.
 ```
 
-which would match (0 YOU 1 0), with
+which would match `(0 YOU 1 0)`, with
 
 ```text
       1 <empty>
@@ -554,13 +553,13 @@ which would match (0 YOU 1 0), with
       4 "to the track at Bay Meadows a while back"
 ```
 
-and produce the response for the reconstruction rule (YOU SAY 2 3 4)
+and produce the response for the reconstruction rule `(YOU SAY 2 3 4)`
 
 ```text
    "YOU SAY YOU WENT TO THE TRACK AT BAY MEADOWS A WHILE BACK"
 ```
 
-But that is not what we see in the conversation. If instead the rule is (0 YOU 1 O) this will not match, which means the NONE message
+But that is not what we see in the conversation. If instead the rule is `(0 YOU 1 O)` this will not match, which means the NONE message
 
 ```text
    "WHAT DOES THAT SUGGEST TO YOU"
@@ -568,7 +567,7 @@ But that is not what we see in the conversation. If instead the rule is (0 YOU 1
 
 will be issued, which is what we see in the conversation.
 
-In other words, the, probably accidental, (0 YOU 1 O) decomposition rule, with oh not zero, is likely to have been the one used in Cosell's ELIZA for the RFC439 conversation.
+In other words, the, probably accidental, `(0 YOU 1 O)` decomposition rule, with oh not zero, is likely to have been the one used in Cosell's ELIZA for the RFC439 conversation.
 
 In my recreation of this conversation, the corrected rule, with zero instead of oh, produced the wrong message ("YOU SAY YOU WENT TO THE TRACK AT BAY MEADOWS A WHILE BACK"). Whereas the uncorrected rule, with oh instead of zero, produced the expected message ("WHAT DOES THAT SUGGEST TO YOU").
 
@@ -731,5 +730,5 @@ This is how the RFC439 conversation continues, from the point at which I stopped
 
 ## Conclusion
 
-I'm not necessarily going to finish everything I start.
+My enthusiasm for the project was somewhat diminished by the thought that RFC439 is probably not an accurate record of the actual conversation between PARRY and Cosell's ELIZA. If I'm right, that in itself is of some interest.
 
