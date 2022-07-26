@@ -7,3 +7,5 @@ I made this before the ELIZA source code had been found, and wrote about it in [
 [Part 2](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_2.md) describes changes I made after the ELIZA source code was found.
 
 [Part 3](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_3.md) is about the HASH function, now that too has been found. 
+
+In a [footnote](https://github.com/anthay/ELIZA/blob/master/doc/Trying_to_recreate_RFC439.md) I document trying to recreate the PARRY/DOCTOR conversation from RFC439.
