@@ -1462,6 +1462,14 @@ public:
         : rules_(std::move(rules)), tags_(collect_tags(rules_))
     {}
 
+    // f=true (defualt) under certain error conditions use built-in
+    // msgs from ELIZA code that were not described in CACM;
+    // f=false use NONE messages instead
+    void set_use_nomatch_msgs(bool f)
+    {
+        use_nomatch_msgs_ = f;
+    }
+
 
     // produce a response to the given 'input' using the given 'rules'
     std::string response(const std::string & input)
@@ -1531,7 +1539,9 @@ public:
             auto rule = rules_.find(top_keyword);
             if (rule == rules_.end()) {
                 // e.g. could happen if a rule links to a non-existent keyword
-                return nomatch_msgs_[limit_ - 1];
+                if (use_nomatch_msgs_)
+                    return nomatch_msgs_[limit_ - 1];
+                break; // (use NONE message)
             }
 
             // try to lay down a memory for future use
@@ -1546,7 +1556,9 @@ public:
 
             if (act == rule_base::inapplicable) {
                 // no decomposition rule matched the input words; script error?
-                return nomatch_msgs_[limit_ - 1];
+                if (use_nomatch_msgs_)
+                    return nomatch_msgs_[limit_ - 1];
+                break; // (use NONE message)
             }
 
             if (act == rule_base::linkkey)
@@ -1582,6 +1594,7 @@ private:
         "GO ON, PLEASE",
         "I SEE"
     };
+    bool use_nomatch_msgs_{ true };
 };
 
 
@@ -1662,6 +1675,11 @@ public:
         return readtok();
     }
 
+    size_t line() const
+    {
+        return line_number_;
+    }
+
 private:
     T & stream_;
     token t_;
@@ -1670,6 +1688,7 @@ private:
     uint8_t buf_[buflen_];
     size_t bufdata_{ 0 };
     size_t bufptr_{ 0 };
+    size_t line_number_{ 1 };
 
     token readtok()
     {
@@ -1678,6 +1697,8 @@ private:
             do { // skip whitespace
                 if (!nextch(ch))
                     return (token(token::typ::eof));
+                if (is_newline(ch))
+                    consume_newline(ch);
             } while (is_whitespace(ch));
             if (ch != ';')
                 break;
@@ -1685,6 +1706,7 @@ private:
                 if (!nextch(ch))
                     return (token(token::typ::eof));
             } while (!is_newline(ch));
+            consume_newline(ch);
         }
 
         if (ch == '(')
@@ -1755,6 +1777,15 @@ private:
             || ch == '\x0D';    // CR
     }
 
+    inline void consume_newline(uint8_t ch)
+    {
+        if (ch == '\x0D'        // CR
+            && peekch(ch)
+            && ch == '\x0A')    // LF
+            nextch(ch);
+        ++line_number_;
+    }
+
     inline bool is_digit(uint8_t ch)
     {
         return unsigned(ch) - '0' < 10;
@@ -1789,6 +1820,13 @@ private:
     tokenizer<T> tok_;
     script & script_;
 
+    std::string errormsg(const std::string& msg)
+    {
+        return std::string("Script error on line ")
+            + std::to_string(tok_.line())
+            + ": "
+            + msg;
+    }
 
     // in the following comments, @ = position in symbol stream on function entry
 
@@ -1803,7 +1841,7 @@ private:
         token t = tok_.nexttok();
         if (prior) {
             if (!t.open())
-                throw std::runtime_error("expected '('");
+                throw std::runtime_error(errormsg("expected '('"));
             t = tok_.nexttok();
         }
         while (!t.close()) {
@@ -1817,7 +1855,7 @@ private:
                 t = tok_.nexttok();
                 while (!t.close()) {
                     if (!t.symbol())
-                        throw std::runtime_error("expected symbol");
+                        throw std::runtime_error(errormsg("expected symbol"));
                     if (!sublist.empty())
                         sublist += ' ';
                     sublist += t.value;
@@ -1826,7 +1864,7 @@ private:
                 s.emplace_back("(" + sublist + ")");
             }
             else
-                throw std::runtime_error("expected ')'");
+                throw std::runtime_error(errormsg("expected ')'"));
             t = tok_.nexttok();
         }
 
@@ -1848,28 +1886,28 @@ private:
         stringlist reassembly = rdlist();
 
         if (!tok_.nexttok().open())
-            throw std::runtime_error("expected '('");
+            throw std::runtime_error(errormsg("expected '('"));
         token t = tok_.nexttok();
         std::string link_keyword;
         if (t.symbol("=")) {
             t = tok_.nexttok();
             if (!t.symbol())
-                throw std::runtime_error("expected equivalence class name");
+                throw std::runtime_error(errormsg("expected equivalence class name"));
             link_keyword = t.value;
         }
         else if (t.symbol() && t.value.size() > 1 && t.value[0] == '=')
             link_keyword = std::string(reinterpret_cast<const char *>(&t.value[1]), t.value.size() - 1);
         else
-            throw std::runtime_error("expected equivalence class name");
+            throw std::runtime_error(errormsg("expected equivalence class name"));
 
         if (!tok_.nexttok().close())
-            throw std::runtime_error("expected ')'");
+            throw std::runtime_error(errormsg("expected ')'"));
         if (!tok_.nexttok().close())
-            throw std::runtime_error("expected ')'");
+            throw std::runtime_error(errormsg("expected ')'"));
         if (!tok_.nexttok().close())
-            throw std::runtime_error("expected ')'");
+            throw std::runtime_error(errormsg("expected ')'"));
         if (!tok_.nexttok().close())
-            throw std::runtime_error("expected ')'");
+            throw std::runtime_error(errormsg("expected ')'"));
 
         script_.rules[keyword] = std::make_shared<elizalogic::rule_pre>(keyword, precedence,
             keyword_substitution, decomposition, reassembly, link_keyword);
@@ -1903,7 +1941,7 @@ private:
             token t = tok_.nexttok();
             for (;;) {
                 if (!t.open())
-                    throw std::runtime_error("expected '('");
+                    throw std::runtime_error(errormsg("expected '('"));
                 if (tok_.peektok().symbol("PRE"))
                     return read_pre_rule(keyword, precedence, keyword_substitution, decomposition);
                 reassembly_rules.push_back(rdlist(false));
@@ -1917,7 +1955,7 @@ private:
             if (t.close())
                 break;
             if (!t.open())
-                throw std::runtime_error("expected '('");
+                throw std::runtime_error(errormsg("expected '('"));
         }
         script_.rules[keyword] = r;
 
@@ -1951,7 +1989,7 @@ private:
     {
         token t = tok_.nexttok();
         if (!t.symbol())
-            throw std::runtime_error("expected keyword");
+            throw std::runtime_error(errormsg("expected keyword"));
         auto r = std::make_shared<elizalogic::rule_memory>(t.value);
 
         for (int i = 0; i < elizalogic::rule_memory::num_transformations; ++i) {
@@ -1959,7 +1997,7 @@ private:
             std::vector<stringlist> reassembly_rules;
 
             if (!tok_.nexttok().open())
-                throw std::runtime_error("expected '('");
+                throw std::runtime_error(errormsg("expected '('"));
             for (t = tok_.nexttok(); !t.symbol("=") && !t.eof(); t = tok_.nexttok())
                 decomposition.push_back(t.value);
             stringlist reassembly;
@@ -1971,7 +2009,7 @@ private:
         }
 
         if (!tok_.nexttok().close())
-            throw std::runtime_error("expected ')'");
+            throw std::runtime_error(errormsg("expected ')'"));
 
         script_.rules[SPECIAL_RULE_MEMORY] = r;
         return true;
@@ -1986,7 +2024,7 @@ private:
         tags = rdlist();
         token t = tok_.nexttok();
         if (!t.close())
-            throw std::runtime_error("expected ')'");
+            throw std::runtime_error(errormsg("expected ')'"));
         script_.rules[keyword] = std::make_shared<elizalogic::rule_dlist>(keyword, keyword_substitution, tags);
         return true;
     }
@@ -2001,21 +2039,21 @@ private:
         if (t.symbol("=")) {
             t = tok_.nexttok();
             if (!t.symbol())
-                throw std::runtime_error("expected equivalence class name");
+                throw std::runtime_error(errormsg("expected equivalence class name"));
             class_name = t.value;
         }
         else if (t.symbol() && t.value.size() > 1 && t.value[0] == '=')
             class_name = std::string(reinterpret_cast<const char *>(&t.value[1]), t.value.size() - 1);
         else
-            throw std::runtime_error("expected equivalence class name");
+            throw std::runtime_error(errormsg("expected equivalence class name"));
 
         script_.rules[keyword] = std::make_shared<elizalogic::rule_equivalence_class>(
             keyword, keyword_substitution, precedence, class_name);
 
         if (!tok_.nexttok().close())
-            throw std::runtime_error("expected ')'");
+            throw std::runtime_error(errormsg("expected ')'"));
         if (!tok_.nexttok().close())
-            throw std::runtime_error("expected ')'");
+            throw std::runtime_error(errormsg("expected ')'"));
 
         return true;
     }
@@ -2031,13 +2069,13 @@ private:
         if (t.t == token::typ::eof)
             return false;
         if (!t.open())
-            throw std::runtime_error("expected '('");
+            throw std::runtime_error(errormsg("expected '('"));
 
         t = tok_.nexttok();
         if (t.t == token::typ::close_bracket)
             return true; // ignore empty rule list, if present
         if (t.t != token::typ::symbol)
-            throw std::runtime_error("expected keyword|MEMORY|NONE");
+            throw std::runtime_error(errormsg("expected keyword|MEMORY|NONE"));
         if (t.value == "MEMORY")
             return read_memory();
         else if (t.value == "NONE")
@@ -2049,7 +2087,7 @@ private:
             if (t.symbol("=")) {
                 t = tok_.nexttok();
                 if (t.t != token::typ::symbol)
-                    throw std::runtime_error("expected keyword");
+                    throw std::runtime_error(errormsg("expected keyword"));
                 keyword_substitution = t.value;
             }
             else if (t.number())
@@ -2069,7 +2107,7 @@ private:
                 return true;
             }
             else
-                throw std::runtime_error("malformed rule");
+                throw std::runtime_error(errormsg("malformed rule"));
         }
 
         return true;
@@ -3114,6 +3152,8 @@ DEF_TEST_FUNC(script_and_conversation_test)
     for (const auto & exchg : conversation)
         TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
 }
+
+
 
 }//namespace elizatest
 
