@@ -1,9 +1,11 @@
 /*  This is a simulation of Joseph Weizenbaum's 1966 ELIZA. The code was
-    written from scratch using only the description in the article on page
-    36 of the January 1966 edition of Communications of the ACM as a guide.
+    written from scratch originally using only the description in the
+    Weizenbaum's paper on page 36 of the January 1966 edition of
+    Communications of the ACM as a guide.
+
     If given the same S-expression-like script from the appendix of that
-    article, and given the same prompt text, the conversation it generates
-    is identical to the conversation shown in that article.
+    paper, and given the same prompt text, the conversation it generates
+    is identical to the conversation shown in the paper.
 
     I made this for my amusement and hereby place it in the public domain
     or, if you prefer, I release it under either CC0 1.0 Universal or the
@@ -20,7 +22,7 @@
     changes are documented in the code.
     -- Anthony Hay, 2022, Devon, UK
 
-    Update: In April 2022 Jeff Shrager located the source code to SLIP,
+    Update: In April 2022 Jeff Shrager located the source code to Slip,
     including the HASH function. I made hash used in this code use the
     same algorithm.
 
@@ -51,16 +53,16 @@
 
 
 
-/*  Wiezenbaum wrote ELIZA in a language called MAD-SLIP.
+/*  Wiezenbaum wrote ELIZA in a language called MAD-Slip.
 
-    He also developed SLIP ("Symmetric List Processor").
-    SLIP is a library of functions used to manipulate
+    He also developed Slip ("Symmetric List Processor").
+    Slip is a library of functions used to manipulate
     doubly-linked lists of cells, where a cell may contain
     either a datum or a reference to another list.
 
-    This code doesn't use SLIP. The type stringlist is
-    used where the original ELIZA might have used a SLIP
-    list. (stringlist is not equivalent to a SLIP list.) 
+    This code doesn't use Slip. The type stringlist is
+    used where the original ELIZA might have used a Slip
+    list. (stringlist is not equivalent to a Slip list.) 
 */
 typedef std::deque<std::string> stringlist;
 
@@ -124,6 +126,8 @@ void run_tests()
 {
     for (auto & t : test_routines)
         t();
+    if (fault_count)
+        std::cout << fault_count << " total failures\n";
 }
 #define RUN_TESTS() micro_test_library::run_tests()
 
@@ -286,7 +290,7 @@ bool delimiter(const std::string & s)
 {
     // In the 1966 CACM article on page 37 Weizenbaum says "the procedure
     // recognizes a comma or a period as a delimiter." However, in the
-    // MAD-SLIP source code the relevant code is
+    // MAD-Slip source code the relevant code is
     //    W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR. WORD .E. $BUT$
     // (W'R means WHENEVER). So "BUT" is also a delimiter.
     return s == "BUT" || (s.size() == 1 && punctuation(s[0]));
@@ -481,10 +485,60 @@ DEF_TEST_FUNC(match_test)
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 
-    // A test pattern from the YMATCH function description in the SLIP manual
+    // test (0 YOUR 0 (* FATHER MOTHER) 0) matches
+    // (CONSIDER YOUR AGED MOTHER AND FATHER TOO)
+    /* "The above input text would have been decomposed precisely as stated
+        above by the decomposition rule: (0 YOUR 0 (*FATHER MOTHER) 0) which,
+        by virtue of the presence of "*" in the sublist structure seen above,
+        would have isolated either the word "FATHER" or "MOTHER" (in that
+        order) in the input text, whichever occurred first after the first
+        appearance of the word "YOUR". -- Weizenbaum 1966, page 42
+       What does "in that order" mean? */
+    words = { "CONSIDER", "YOUR", "AGED", "MOTHER", "AND", "FATHER", "TOO" };
+    pattern = { "0", "YOUR", "0", "(* FATHER MOTHER)", "0" };
+    expected = { "CONSIDER", "YOUR", "AGED", "MOTHER", "AND FATHER TOO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // patterns don't require literals
+    words = { "FIRST", "AND", "LAST", "TWO", "WORDS" };
+    pattern = { "2", "0", "2" };
+    expected = { "FIRST AND", "LAST", "TWO WORDS" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // pointless but not prohibited
+    words = { "THE", "NAME", "IS", "BOND", "JAMES", "BOND", "OR", "007", "IF", "YOU", "PREFER"};
+    pattern = { "0", "0", "7" };
+    expected = { "", "THE NAME IS BOND", "JAMES BOND OR 007 IF YOU PREFER" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // how are ambiguous matches resolved?
+    words = { "ITS", "MARY", "ITS", "NOT", "MARY", "IT", "IS", "MARY", "TOO" };
+    pattern = { "0", "ITS", "0", "MARY", "1" };
+    expected = { "", "ITS", "MARY ITS NOT MARY IT IS", "MARY", "TOO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // how are ambiguous matches resolved? ("I know that you know I hate you and I like you too") 
+    words = { "YOU", "KNOW", "THAT", "I", "KNOW", "YOU", "HATE", "I", "AND", "YOU", "LIKE", "I", "TOO"};
+    pattern = { "0", "YOU", "0", "I", "0" }; // from the I rule in the DOCTOR script
+    expected = { "", "YOU", "KNOW THAT", "I", "KNOW YOU HATE I AND YOU LIKE I TOO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // A test pattern from the YMATCH function description in the Slip manual
     words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "WAS", "ZERO" };
     pattern = { "MARY", "2", "2", "ITS", "1", "0" };
     expected = { "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY", "WAS ZERO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // A test pattern from the RULE function description in the Slip manual
+    words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "WAS", "ZERO" };
+    pattern = { "1", "0", "2", "ITS", "0" };
+    expected = { "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY WAS ZERO" };
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 }
@@ -512,7 +566,7 @@ stringlist reassemble(const stringlist & reassembly_rule, const stringlist & com
 
 DEF_TEST_FUNC(reassemble_test)
 {
-    // A test pattern from the ASSMBL function description in the SLIP manual
+    // A test pattern from the ASSMBL function description in the Slip manual
     // (using above matching_components list)
     stringlist matching_components {
         "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY", "WAS ZERO"
@@ -534,10 +588,10 @@ DEF_TEST_FUNC(reassemble_test)
     value of the function is a pseudo-random number N1 in the range of
     0 to 2^N2-1."
     -- Documentation from University of Michigan Executive System for the
-       IBM 7090, SLIP section, page 30
+       IBM 7090, Slip section, page 30
 
 
-    The FORTRAN Assembly Program implementation of SLIP HASH from JW's
+    The FORTRAN Assembly Program implementation of Slip HASH from JW's
     MIT archive, with my comments in lowercase (I'm using 'N' to refer
     to the second HASH parameter rather than 'N2' in the above documentation
     because the latter is confusing):
@@ -618,11 +672,11 @@ DEF_TEST_FUNC(reassemble_test)
     of the top bit has no effect on the result.
 */
 
-// recreate the SLIP HASH function: return an n-bit hash value for
+// recreate the Slip HASH function: return an n-bit hash value for
 // the given 36-bit datum d, for values of n in range 0..15
 int hash(uint_least64_t d, int n)
 {
-    /*  This code implements the SLIP HASH algorithm from the FAP
+    /*  This code implements the Slip HASH algorithm from the FAP
         code shown above.
 
         The function returns the middle n bits of d squared.
@@ -632,7 +686,7 @@ int hash(uint_least64_t d, int n)
         in a 36-bit integer, the most-significant bit is assumed to
         be the sign of the integer, and the least-significant 35-bits
         are assumed to be the magnitude of the integer. Therefore,
-        in the SLIP HASH implementation only the least-significant
+        in the Slip HASH implementation only the least-significant
         35-bits of D are squared. When the datum holds six 6-bit
         characters the top bit of the first character in the given D
         will be assumed to be a sign bit and will not be part of
@@ -693,7 +747,7 @@ DEF_TEST_FUNC(hash_test)
 
             "Well, my boyfriend made me come here."
 
-        In the Eliza code, these lines choose the MEMORY rule
+        In the ELIZA code, these lines choose the MEMORY rule
 
             OR W'R KEYWRD .E. MEMORY                                     001220
              I=HASH.(BOT.(INPUT),2)+1                                    001230
@@ -703,7 +757,7 @@ DEF_TEST_FUNC(hash_test)
         with a 2-bit result. MYTRAN (containing the 4 MEMORY rules) is indexed
         on the value returned by HASH plus 1.
 
-        Later, Eliza says
+        Later, ELIZA says
 
             "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HERE"
 
@@ -730,7 +784,7 @@ DEF_TEST_FUNC(hash_test)
     /* 3. Assumed from unpublished conversation dated 5 March 1965
 
         In an unpublished conversation, marked 5 March 1965, there are two memories
-        recalled for Eliza's responses
+        recalled for ELIZA's responses
 
             "EARLIER YOU SAID YOUR WIFE WANTS KIDS"
         and
@@ -834,46 +888,46 @@ DEF_TEST_FUNC(hash_test)
 
     Very quick overview:
 
-    Eliza was written in SLIP for an IBM 7094. The character encoding
+    ELIZA was written in Slip for an IBM 7094. The character encoding
     used on the 7094 is called Hollerith. The Hollerith encoding
     uses 6 bits per character. The IBM 7094 machine word size is
     36-bits.
 
-    SLIP stores strings in SLIP cells. A SLIP cell consists of two
+    Slip stores strings in Slip cells. A Slip cell consists of two
     adjacent machine words. The first word contains some type bits
-    and two addresses, one pointing to the previous SLIP cell and
-    the other pointing to the next SLIP cell. (The IBM 7094 had a
+    and two addresses, one pointing to the previous Slip cell and
+    the other pointing to the next Slip cell. (The IBM 7094 had a
     32,768 word core store, so only 15 bits are required for an
     address. So two addresses fit into one 36-bit word with 6 bits
     spare.) The second word may carry the "datum." This is where
     the characters are stored.
     
-    Each SLIP cell can store up to 6 6-bit Hollerith characters.
+    Each Slip cell can store up to 6 6-bit Hollerith characters.
 
     If a string has fewer than 6 characters, the string is stored left-
     justified and space padded to the right.
 
-    So for example, the string "HERE" would be stored in one SLIP cell,
+    So for example, the string "HERE" would be stored in one Slip cell,
     which would have the octal value 30 25 51 25 60 60.
 
     If a string has more than 6 characters, it is stored in successive
-    SLIP cells. Each cell except the last has the sign bit set in the
+    Slip cells. Each cell except the last has the sign bit set in the
     first word to indicated the string is continued in the next cell.
 
-    So the word "INVENTED" would be stored in two SLIP cells, "INVENT"
+    So the word "INVENTED" would be stored in two Slip cells, "INVENT"
     in the first and "ED    " in the second.
 
-    In Eliza, the user's input text is read into a SLIP list, each word
+    In ELIZA, the user's input text is read into a Slip list, each word
     in the sentence is in it's own cell, unless a word needs to be
     continued in the next cell because it's more than 6 characters long.
 
-    When Eliza chooses a MEMORY rule it hashes the last cell in the
+    When ELIZA chooses a MEMORY rule it hashes the last cell in the
     input sentence. That will be the last word in the sentence, or
     the last chunk of the last word, if the last word is more than
     6 characters long.
 
-    This code doesn't use SLIP cells. A std::deque of std::string
-    provided enough functionality to manage without SLIP. In this
+    This code doesn't use Slip cells. A std::deque of std::string
+    provided enough functionality to manage without Slip. In this
     code, every word is contained in one std::string, no matter
     how long.
 
@@ -1091,6 +1145,8 @@ public:
 
     virtual std::string to_string() const = 0;
 
+    virtual std::string trace() const { return std::string(); }
+
 protected:
     std::string keyword_;           // the word that triggers this rule
     std::string word_substitution_; // the word that is to replace the keyword, if any
@@ -1125,139 +1181,6 @@ typedef std::map<std::string, std::shared_ptr<rule_base>> rulemap;
 
 
 
-// e.g. (ME = YOU)
-class rule_unconditional_substitution : public rule_base {
-public:
-    rule_unconditional_substitution() {}
-
-    rule_unconditional_substitution(const std::string & keyword, const std::string & word_substitution)
-        : rule_base(keyword, word_substitution, 0)
-    {}
-
-    virtual std::string to_string() const
-    {
-        return "(" + keyword_ + " = " + word_substitution_ + ")\n";
-    }
-};
-
-
-// e.g. (MOM = MOTHER DLIST(/ FAMILY))
-class rule_dlist : public rule_base {
-public:
-    rule_dlist() {}
-
-    rule_dlist(const std::string & keyword, const std::string & word_substitution, const stringlist & tags)
-        : rule_base(keyword, word_substitution, 0), tags_(tags)
-    {
-    }
-
-    stringlist dlist_tags() const { return tags_; }
-
-    virtual std::string to_string() const
-    {
-        std::string sexp("(");
-        sexp += keyword_;
-        if (!word_substitution_.empty())
-            sexp += " = " + word_substitution_;
-        sexp += " DLIST(" + join(tags_) + "))\n";
-        return sexp;
-    }
-
-private:
-    stringlist tags_;
-};
-
-
-// e.g. (DREAMED = DREAMT 4 (=DREAMT))
-class rule_equivalence_class : public rule_base {
-public:
-    rule_equivalence_class() {}
-
-    rule_equivalence_class(const std::string & keyword, const std::string & word_substitution,
-        int precedence, const std::string & link_keyword)
-        : rule_base(keyword, word_substitution, precedence), link_keyword_(link_keyword)
-    {}
-
-    virtual bool has_transformation() const { return true; }
-
-    virtual action apply_transformation(stringlist & /*words*/, const tagmap & /*tags*/, std::string & link_keyword)
-    {
-        link_keyword = link_keyword_;
-        return linkkey;
-    }
-
-    virtual std::string to_string() const
-    {
-        std::string sexp("(");
-        sexp += keyword_;
-        if (!word_substitution_.empty())
-            sexp += " = " + word_substitution_;
-        if (precedence_ > 0)
-            sexp += " " + std::to_string(precedence_);
-        sexp += " (= " + link_keyword_ + "))\n";
-        return sexp;
-    }
-
-private:
-    std::string link_keyword_;
-};
-
-
-/* e.g.
-    (YOU'RE = I'M
-        ((0 I'M 0)
-            (PRE (I ARE 3) (=YOU))))
-*/
-class rule_pre : public rule_base {
-public:
-    rule_pre() {}
-
-    rule_pre(std::string keyword, int precedence, std::string word_substitution,
-        stringlist decomposition, stringlist reassembly, std::string link_keyword)
-        : rule_base(keyword, word_substitution, precedence), link_keyword_(link_keyword)
-    {
-        std::vector<stringlist> reassembly_rules;
-        reassembly_rules.push_back(reassembly);
-        add_transformation_rule(decomposition, reassembly_rules);
-    }
-
-    virtual bool has_transformation() const { return true; }
-
-    virtual action apply_transformation(stringlist & words, const tagmap & tags, std::string & link_keyword)
-    {
-        if (trans_.size() != 1)
-            return inapplicable; // bad script?
-
-        stringlist constituents;
-        if (!match(tags, trans_[0].decomposition, words, constituents))
-            return inapplicable; // [page 39 (f)] should not happen?
-
-        if (trans_[0].reassembly_rules.size() != 1)
-            return inapplicable; // bad script?
-        stringlist & reassembly_rule = trans_[0].reassembly_rules[0];
-
-        // use the selected reassembly rule and decomposition components
-        // to construct a response sentence
-        words = reassemble(reassembly_rule, constituents);
-
-        link_keyword = link_keyword_;
-        return linkkey;
-    }
-
-    virtual std::string to_string() const
-    {
-        std::string sexp("(");
-        sexp += keyword_;
-        if (!word_substitution_.empty())
-            sexp += " = " + word_substitution_;
-        sexp += "\n    ((" + join(trans_[0].decomposition) + ")";
-        sexp += "\n        (PRE (" + join(trans_[0].reassembly_rules[0]) + ") (=" + link_keyword_ + "))))\n";
-        return sexp;
-    }
-
-private:
-    std::string link_keyword_;
-};
 
 
 /* e.g.
@@ -1290,7 +1213,10 @@ public:
         if (!match(tags, transformation.decomposition, words, constituents))
             return;
 
-        //std::cout << "Making memory[" << words.back() << "]: " << join(reassemble(transformation.reassembly_rules[0], constituents)) << "\n";
+        trace_
+            << "    new memory: "
+            << join(reassemble(transformation.reassembly_rules[0], constituents))
+            << "\n";
         memories_.push_back(join(reassemble(transformation.reassembly_rules[0], constituents)));
     }
 
@@ -1318,12 +1244,33 @@ public:
         return sexp;
     }
 
+    virtual void clear_trace()
+    {
+        trace_.str("");;
+    }
+    virtual std::string trace() const
+    {
+        return trace_.str();
+    }
+    std::string trace_memory_stack() const
+    {
+        std::stringstream s;
+        s << "  memory stack:\n";
+        for (auto m : memories_)
+            s << "    " << m << "\n";
+        return s.str();
+    }
+
     // the MEMORY rule must have this number of transformations
     static constexpr int num_transformations = 4;
 
 private:
     stringlist memories_;
- };
+    std::stringstream trace_;
+};
+
+
+
 
 
 /* e.g.
@@ -1332,36 +1279,56 @@ private:
             (TELL ME MORE ABOUT YOUR FAMILY)
             (WHO ELSE IN YOUR FAMILY 5)
             (=WHAT)
+            (PRE (YOUR FAMILY 5) (=YOUR))
             (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))
         ((0 YOUR 0 (*SAD UNHAPPY DEPRESSED SICK ) 0)
             (CAN YOU EXPLAIN WHAT MADE YOU 5))
-            ((0)
-            (NEWKEY)))
+        ((0)
+            (NEWKEY))
+        (=WHAT))
 */
-class rule_vanilla : public rule_base {
+class rule_keyword : public rule_base {
 public:
-    rule_vanilla() {}
+    rule_keyword() {}
 
-    rule_vanilla(const std::string & keyword, const std::string & word_substitution, int precedence)
-        : rule_base(keyword, word_substitution, precedence)
+    rule_keyword(
+        const std::string& keyword,
+        const std::string& word_substitution,
+        int precedence,
+        const stringlist& tags,
+        const std::string& link_keyword)
+        : rule_base(keyword, word_substitution, precedence),
+        tags_(tags), link_keyword_(link_keyword)
     {}
 
-    virtual bool has_transformation() const { return true; }
+    stringlist dlist_tags() const { return tags_; }
 
-    virtual action apply_transformation(stringlist & words, const tagmap & tags, std::string & link_keyword)
+    virtual bool has_transformation() const
     {
-        if (trans_.empty())
-            return inapplicable; // bad script?
+        return !trans_.empty() || !link_keyword_.empty();
+    }
 
+    virtual action apply_transformation(stringlist& words, const tagmap& tags, std::string& link_keyword)
+    {
+        trace_begin(words);
         stringlist constituents;
         auto rule = trans_.begin();
         while (rule != trans_.end() && !match(tags, rule->decomposition, words, constituents))
             ++rule;
-        if (rule == trans_.end())
-            return inapplicable; // [page 39 (f)] should not happen?
+        if (rule == trans_.end()) {
+            if (link_keyword_.empty()) {
+                trace_nomatch();
+                return inapplicable; // [page 39 (f)] should not happen?
+            }
+            trace_reference(link_keyword_);
+            link_keyword = link_keyword_;
+            return linkkey;
+        }
+        trace_decomp(rule->decomposition);
 
         // get the next reassembly rule to be used for this decomposition rule
-        stringlist & reassembly_rule = rule->reassembly_rules[rule->next_reassembly_rule];
+        stringlist& reassembly_rule = rule->reassembly_rules[rule->next_reassembly_rule];
+        trace_reassembly(reassembly_rule);
 
         // update the reassembly rule index so that they all get cycled through
         rule->next_reassembly_rule++;
@@ -1376,7 +1343,21 @@ public:
         if (reassembly_rule.size() == 1 && reassembly_rule[0].size() > 1 && reassembly_rule[0][0] == '=') {
             link_keyword = reassembly_rule[0];
             pop_front(link_keyword); // pop off the '='
-            return linkkey; // yes, try the next highest priority keyword, if any
+            return linkkey; // yes, try the specified keyword
+        }
+
+        // is it the special-case reassembly rule (PRE (reassembly) (=reference))
+        // (note: this is the only reassembly_rule that is still in a list)
+        if (!reassembly_rule.empty() && reassembly_rule[0] == "(") {
+            auto r = std::next(reassembly_rule.begin(), 3); // skip '(', 'PRE', '('
+            stringlist reassembly;
+            while (*r != ")")
+                reassembly.push_back(*r++);
+            words = reassemble(reassembly, constituents);
+            r += 2; // skip ')' and '('
+            link_keyword = *r;
+            pop_front(link_keyword); // pop off the '='
+            return linkkey;
         }
 
         // use the selected reassembly rule and decomposition components
@@ -1389,18 +1370,64 @@ public:
     {
         std::string sexp("(");
         sexp += (keyword_ == SPECIAL_RULE_NONE) ? "NONE" : keyword_;
+
         if (!word_substitution_.empty())
             sexp += " = " + word_substitution_;
+
         if (precedence_ > 0)
             sexp += " " + std::to_string(precedence_);
-        for (const auto & k : trans_) {
+
+        if (!tags_.empty())
+            sexp += " DLIST(" + join(tags_) + ")";
+
+        for (const auto& k : trans_) {
             sexp += "\n    ((" + join(k.decomposition) + ")";
-            for (const auto & r : k.reassembly_rules)
-                sexp += "\n        (" + join(r) + ")";
+            for (const auto& r : k.reassembly_rules) {
+                if (!r.empty() && r[0] == "(")
+                    sexp += "\n        " + join(r); // it's a PRE rule
+                else
+                    sexp += "\n        (" + join(r) + ")";
+            }
             sexp += ")";
         }
+
+        if (!link_keyword_.empty()) {
+            if (!trans_.empty())
+                sexp += "\n   ";
+            sexp += " (=" + link_keyword_ + ")";
+        }
+
         sexp += ")\n";
         return sexp;
+    }
+
+    virtual std::string trace() const
+    {
+        return trace_.str();
+    }
+
+private:
+    stringlist tags_;
+    std::string link_keyword_;
+
+    std::stringstream trace_;
+    void trace_begin(stringlist & words) {
+        trace_.str("");
+        trace_
+            << "    keyword: " << keyword_ << '\n'
+            << "    input: " << join(words) << '\n';
+    }
+    void trace_nomatch() {
+        trace_ << "    ill-formed script: no decomposition rule matches\n";
+    }
+    void trace_reference(const std::string & ref) {
+        trace_ << "    reference to equivalence class: " << ref << '\n';
+    }
+    void trace_decomp(const stringlist & d) {
+        trace_ << "    matching decomposition: " << join(d) << '\n';
+    }
+    void trace_reassembly(const stringlist & r) {
+        trace_ << "      matching reassembly: " << join(r) << '\n';
     }
 };
 
@@ -1429,13 +1456,13 @@ auto get_rule(rulemap & rules, const std::string & keyword)
 {
     auto rule = rules.find(keyword);
     if (rule == rules.end()) {
-        std::string msg("SCRIPT ERROR FOR ");
+        std::string msg("script error: missing keyword ");
         msg += keyword;
         throw std::runtime_error(msg);
     }
     auto castrule = std::dynamic_pointer_cast<T>(rule->second);
     if (!castrule) {
-        std::string msg("INTERNAL ERROR FOR ");
+        std::string msg("internal error for keyword ");
         msg += keyword;
         throw std::runtime_error(msg);
     }
@@ -1462,6 +1489,27 @@ public:
         : rules_(std::move(rules)), tags_(collect_tags(rules_))
     {}
 
+    eliza(const eliza & e)
+        : limit_(e.limit_), rules_(e.rules_), tags_(e.tags_)
+    {
+        trace_.str(e.trace_.str());
+    }
+
+    eliza & operator=(eliza e)
+    {
+        swap(e);
+        return *this;
+    }
+
+    void swap(eliza & e)
+    {
+        std::swap(limit_, e.limit_);
+        std::swap(rules_, e.rules_);
+        //std::swap(tags_, e.tags_);
+        //tagmap t = tags_; tags_ = e.tags_; e.tags_ = t;
+        std::swap(trace_, e.trace_);
+    }
+
     // f=true (defualt) under certain error conditions use built-in
     // msgs from ELIZA code that were not described in CACM;
     // f=false use NONE messages instead
@@ -1471,15 +1519,18 @@ public:
     }
 
 
-    // produce a response to the given 'input' using the given 'rules'
+    // produce a response to the given 'input'
     std::string response(const std::string & input)
     {
+        trace_clear();
+
         // for simplicity, convert the given input string to a list of uppercase words
         // e.g. "Hello, world!" -> (HELLO , WORLD !)
         stringlist words(split(filter_bcd(to_upper(input))));
 
         // JW's "a certain counting mechanism" is updated for each response
         limit_ = limit_ % 4 + 1;
+        trace_limit();
 
         // scan for keywords [page 38 (c)]; build the keystack; apply word substitutions
         stringlist keystack;
@@ -1522,23 +1573,31 @@ public:
         }
 
         auto memory_rule = get_rule<rule_memory>(rules_, SPECIAL_RULE_MEMORY);
+        memory_rule->clear_trace();
+        trace_memory_stack(memory_rule->trace_memory_stack());
         if (keystack.empty()) {
+            trace_keystack(keystack);
             /*  a text without keywords; can we recall a MEMORY ? [page 41 (f)]
                 JW's 1966 CACM paper refers to this decision as "a certain counting
                 mechanism is in a particular state." The ELIZA code shows that the
                 memory is recalled only when LIMIT has the value 4 */
-            if (limit_ == 4 && memory_rule->memory_exists())
+            if (limit_ == 4 && memory_rule->memory_exists()) {
+                trace_using_memory();
                 return memory_rule->recall_memory();
+            }
         }
 
         // the keystack contains all keywords that occur in the given 'input';
         // apply transformation associated with the top keyword [page 39 (d)]
         while (!keystack.empty()) {
+            trace_words(words);
+            trace_keystack(keystack);
             const std::string top_keyword = pop_front(keystack);
 
             auto rule = rules_.find(top_keyword);
             if (rule == rules_.end()) {
                 // e.g. could happen if a rule links to a non-existent keyword
+                trace_unknown_key(top_keyword);
                 if (use_nomatch_msgs_)
                     return nomatch_msgs_[limit_ - 1];
                 break; // (use NONE message)
@@ -1546,16 +1605,19 @@ public:
 
             // try to lay down a memory for future use
             memory_rule->create_memory(top_keyword, words, tags_);
+            trace_create_memory(memory_rule->trace());
 
             // perform the transformation for this rule
             std::string link_keyword;
             auto act = rule->second->apply_transformation(words, tags_, link_keyword);
+            trace_transform(rule->second->trace());
 
             if (act == rule_base::complete)
                 return join(words); // decomposition/reassembly successfully applied
 
             if (act == rule_base::inapplicable) {
-                // no decomposition rule matched the input words; script error?
+                // no decomposition rule matched the input words; script error
+                trace_decomp_failed();
                 if (use_nomatch_msgs_)
                     return nomatch_msgs_[limit_ - 1];
                 break; // (use NONE message)
@@ -1570,10 +1632,16 @@ public:
 
 
         // last resort: the NONE rule never fails to produce a response [page 41 (d)]
-        auto none_rule = get_rule<rule_vanilla>(rules_, SPECIAL_RULE_NONE);
+        auto none_rule = get_rule<rule_keyword>(rules_, SPECIAL_RULE_NONE);
         std::string discard;
         none_rule->apply_transformation(words, tags_, discard);
+        trace_using_none();
         return join(words);
+    }
+
+    std::string back_trace() const
+    {
+        return trace_.str();
     }
 
 private:
@@ -1588,14 +1656,68 @@ private:
     const tagmap tags_;
 
     // script error messages hard-coded in JW's ELIZA, selected by LIMIT (our limit_)
-    const char * const nomatch_msgs_[4] = {
-        "PLEASE CONTINUE",
-        "HMMM",
-        "GO ON, PLEASE",
-        "I SEE"
-    };
+    static const char * const nomatch_msgs_[4];
     bool use_nomatch_msgs_{ true };
+
+
+    // a trace of internal state and script rules that led to the most recent response
+    std::stringstream trace_;
+    void trace_clear() { trace_.str(""); }
+    void trace_limit() { trace_ << "  LIMIT: " << limit_ << '\n'; }
+    void trace_create_memory(const std::string & s) { trace_ << s; }
+    void trace_using_memory() { trace_ << "  (recalling a stored memory)\n"; }
+    void trace_using_none() { trace_ << "  (using a message from NONE)\n"; }
+    void trace_keystack(const stringlist & keystack)
+    {
+        trace_ << "  keystack:";
+        if (keystack.empty())
+            trace_ << " <empty>";
+        else {
+            bool comma = false;
+            for (auto & keyword : keystack) {
+                trace_ << (comma ? ", " : " ") << keyword << "(";
+                const auto r = rules_.find(keyword);
+                if (r != rules_.end()) {
+                    const auto& rule = r->second;
+                    if (rule->has_transformation())
+                        trace_ << rule->precedence();
+                    else
+                        trace_ << "<no transform associated with this keyword>";
+                }
+                else
+                    trace_ << "<unknown keyword>";
+                trace_ << ')';
+                comma = true;
+            }
+        }
+        trace_ << '\n';
+    }
+    void trace_unknown_key(const std::string & keyword) {
+        trace_ << "  ill-formed script: \"" << keyword << "\" is not a keyoord\n";
+    }
+    void trace_decomp_failed() {
+        trace_ << "  ill-formed script: no decomposition rule matched input\n";
+    }
+    void trace_transform(const std::string & t) {
+        trace_ << t;
+    }
+    void trace_memory_stack(const std::string & t) {
+        trace_ << t;
+    }
+    void trace_words(const stringlist words) {
+        //std::cout << join(words) << '\n';
+    }
 };
+
+
+// script error messages hard-coded in JW's ELIZA, selected by LIMIT (our limit_)
+const char * const eliza::nomatch_msgs_[4] = {
+    "PLEASE CONTINUE",
+    "HMMM",
+    "GO ON, PLEASE",
+    "I SEE"
+};
+
 
 
 }//namespace elizalogic
@@ -1837,7 +1959,6 @@ private:
     stringlist rdlist(bool prior = true)
     {
         stringlist s;
-
         token t = tok_.nexttok();
         if (prior) {
             if (!t.open())
@@ -1845,7 +1966,7 @@ private:
             t = tok_.nexttok();
         }
         while (!t.close()) {
-            if (t.t == token::typ::symbol)
+            if (t.symbol())
                 s.emplace_back(t.value);
             else if (t.number())
                 s.emplace_back(t.value);
@@ -1873,121 +1994,17 @@ private:
 
 
     /* e.g.
-        (YOU'RE = I'M
-            ((0 I'M 0)
-                (@PRE (I ARE 3) (=YOU))))
-    */
-    bool read_pre_rule(const std::string & keyword,
-        int precedence,
-        const std::string & keyword_substitution,
-        const stringlist & decomposition)
-    {
-        tok_.nexttok(); // skip PRE
-        stringlist reassembly = rdlist();
-
-        if (!tok_.nexttok().open())
-            throw std::runtime_error(errormsg("expected '('"));
-        token t = tok_.nexttok();
-        std::string link_keyword;
-        if (t.symbol("=")) {
-            t = tok_.nexttok();
-            if (!t.symbol())
-                throw std::runtime_error(errormsg("expected equivalence class name"));
-            link_keyword = t.value;
-        }
-        else if (t.symbol() && t.value.size() > 1 && t.value[0] == '=')
-            link_keyword = std::string(reinterpret_cast<const char *>(&t.value[1]), t.value.size() - 1);
-        else
-            throw std::runtime_error(errormsg("expected equivalence class name"));
-
-        if (!tok_.nexttok().close())
-            throw std::runtime_error(errormsg("expected ')'"));
-        if (!tok_.nexttok().close())
-            throw std::runtime_error(errormsg("expected ')'"));
-        if (!tok_.nexttok().close())
-            throw std::runtime_error(errormsg("expected ')'"));
-        if (!tok_.nexttok().close())
-            throw std::runtime_error(errormsg("expected ')'"));
-
-        script_.rules[keyword] = std::make_shared<elizalogic::rule_pre>(keyword, precedence,
-            keyword_substitution, decomposition, reassembly, link_keyword);
-
-        return true;
-    }
-
-
-    /* e.g.
-        (MY = YOUR 2
-            (@(0 YOUR 0 (/FAMILY) 0)
-                (TELL ME MORE ABOUT YOUR FAMILY)
-                (WHO ELSE IN YOUR FAMILY 5)
-                (YOUR 4)
-                (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))
-            ((0 YOUR 0 (*SAD UNHAPPY DEPRESSED SICK ) 0)
-                (CAN YOU EXPLAIN WHAT MADE YOU 5))
-            ((0)
-                (NEWKEY)))
-    */
-    bool read_vanilla_rule(const std::string & keyword,
-        const std::string & keyword_substitution, int precedence) // or PRE
-    {
-        auto r = std::make_shared<elizalogic::rule_vanilla>(
-            keyword, keyword_substitution, precedence);
-
-        for (;;) {
-            const stringlist decomposition = rdlist();
-            std::vector<stringlist> reassembly_rules;
-
-            token t = tok_.nexttok();
-            for (;;) {
-                if (!t.open())
-                    throw std::runtime_error(errormsg("expected '('"));
-                if (tok_.peektok().symbol("PRE"))
-                    return read_pre_rule(keyword, precedence, keyword_substitution, decomposition);
-                reassembly_rules.push_back(rdlist(false));
-                t = tok_.nexttok();
-                if (t.close())
-                    break;
-            }
-            r->add_transformation_rule(decomposition, reassembly_rules);
-
-            t = tok_.nexttok();
-            if (t.close())
-                break;
-            if (!t.open())
-                throw std::runtime_error(errormsg("expected '('"));
-        }
-        script_.rules[keyword] = r;
-
-        return true;
-    }
-
-
-    /* e.g.
-        (NONE@
-            ((0)
-                (I AM NOT SURE I UNDERSTAND YOU FULLY)
-                (PLEASE GO ON)
-                (WHAT DOES THAT SUGGEST TO YOU)
-                (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))
-    */
-    bool read_none()
-    {
-        tok_.nexttok();
-        return read_vanilla_rule(SPECIAL_RULE_NONE, "", 0);
-    }
-
-
-    /* e.g.
-        (MEMORY@ MY
+        (@MEMORY MY
             (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
             (0 YOUR 0 = EARLIER YOU SAID YOUR 3)
             (0 YOUR 0 = BUT YOUR 3)
             (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))
     */
-    bool read_memory()
+    bool read_memory_rule()
     {
         token t = tok_.nexttok();
+        assert(t.symbol() && t.value == "MEMORY");
+        t = tok_.nexttok();
         if (!t.symbol())
             throw std::runtime_error(errormsg("expected keyword"));
         auto r = std::make_shared<elizalogic::rule_memory>(t.value);
@@ -2016,102 +2033,126 @@ private:
     }
 
 
-    // e.g. (MOM = MOTHER DLIST@(/ FAMILY))
-    bool dlist(const std::string & keyword,
-        const std::string & keyword_substitution)
+    stringlist read_reassembly()
     {
-        stringlist tags;
-        tags = rdlist();
-        token t = tok_.nexttok();
-        if (!t.close())
-            throw std::runtime_error(errormsg("expected ')'"));
-        script_.rules[keyword] = std::make_shared<elizalogic::rule_dlist>(keyword, keyword_substitution, tags);
-        return true;
-    }
+        if (!tok_.nexttok().open())
+            throw std::runtime_error(errormsg("expected '('"));
+        if (!tok_.peektok().symbol("PRE"))
+            return rdlist(false);
 
-
-    // e.g. (DREAMED = DREAMT 4 (@=DREAMT))
-    bool read_equivalence_class(const std::string & keyword,
-        const std::string & keyword_substitution, int precedence)
-    {
-        std::string class_name;
-        token t = tok_.nexttok();
-        if (t.symbol("=")) {
-            t = tok_.nexttok();
-            if (!t.symbol())
-                throw std::runtime_error(errormsg("expected equivalence class name"));
-            class_name = t.value;
-        }
-        else if (t.symbol() && t.value.size() > 1 && t.value[0] == '=')
-            class_name = std::string(reinterpret_cast<const char *>(&t.value[1]), t.value.size() - 1);
-        else
-            throw std::runtime_error(errormsg("expected equivalence class name"));
-
-        script_.rules[keyword] = std::make_shared<elizalogic::rule_equivalence_class>(
-            keyword, keyword_substitution, precedence, class_name);
-
+        // It's a PRE reassembly, e.g. (PRE (I ARE 3) (=YOU))
+        tok_.nexttok(); // skip "PRE"
+        stringlist pre{ "(", "PRE" };
+        stringlist reconstruct = rdlist();
+        stringlist reference = rdlist();
+        pre.push_back("(");
+        pre.insert(pre.end(), reconstruct.begin(), reconstruct.end());
+        pre.push_back(")");
+        pre.push_back("(");
+        pre.insert(pre.end(), reference.begin(), reference.end());
+        pre.push_back(")");
+        pre.push_back(")");
         if (!tok_.nexttok().close())
             throw std::runtime_error(errormsg("expected ')'"));
-        if (!tok_.nexttok().close())
-            throw std::runtime_error(errormsg("expected ')'"));
-
-        return true;
+        return pre;
     }
 
-
-    // read one rule of any type; return false => end of file reached
-    bool read_rule()
+    bool read_keyword_rule()
     {
         std::string keyword, keyword_substitution;
         int precedence = 0;
+        stringlist tags;
+        struct transform {
+            stringlist decomposition;
+            std::vector<stringlist> reassembly;
+        };
+        std::vector<transform> transformation;
+        std::string class_name;
 
         token t = tok_.nexttok();
-        if (t.t == token::typ::eof)
-            return false;
-        if (!t.open())
-            throw std::runtime_error(errormsg("expected '('"));
-
-        t = tok_.nexttok();
-        if (t.t == token::typ::close_bracket)
-            return true; // ignore empty rule list, if present
-        if (t.t != token::typ::symbol)
-            throw std::runtime_error(errormsg("expected keyword|MEMORY|NONE"));
-        if (t.value == "MEMORY")
-            return read_memory();
-        else if (t.value == "NONE")
-            return read_none();
+        assert(t.symbol());
         keyword = t.value;
+        if (keyword == "NONE")
+            keyword = SPECIAL_RULE_NONE;
 
-        for (;;) {
-            t = tok_.nexttok();
+        for (t = tok_.nexttok(); !t.close(); t = tok_.nexttok()) {
             if (t.symbol("=")) {
                 t = tok_.nexttok();
-                if (t.t != token::typ::symbol)
+                if (!t.symbol())
                     throw std::runtime_error(errormsg("expected keyword"));
                 keyword_substitution = t.value;
             }
             else if (t.number())
                 precedence = std::stoi(t.value);
             else if (t.symbol("DLIST"))
-                return dlist(keyword, keyword_substitution);
+                tags = rdlist();
             else if (t.open()) {
+                // a transformation rule
                 t = tok_.peektok();
-                if (t.symbol() && t.value[0] == '=')
-                    return read_equivalence_class(keyword, keyword_substitution, precedence);
-                return read_vanilla_rule(keyword, keyword_substitution, precedence);
-            }
-            else if (t.t == token::typ::close_bracket) {
-                // e.g. (ME = YOU)
-                script_.rules[keyword] = std::make_shared<elizalogic::rule_unconditional_substitution>(
-                    keyword, keyword_substitution);
-                return true;
+                if (t.symbol() && t.value[0] == '=') {
+                    // a reference
+                    t = tok_.nexttok();
+                    if (t.symbol("=")) {
+                        t = tok_.nexttok();
+                        if (!t.symbol())
+                            throw std::runtime_error(errormsg("expected equivalence class name"));
+                        class_name = t.value;
+                    }
+                    else if (t.symbol() && t.value.size() > 1 && t.value[0] == '=')
+                        class_name = std::string(reinterpret_cast<const char*>(&t.value[1]), t.value.size() - 1);
+                    else
+                        throw std::runtime_error(errormsg("expected equivalence class name"));
+
+                    if (!tok_.nexttok().close())
+                        throw std::runtime_error(errormsg("expected ')'"));
+                    if (!tok_.peektok().close())
+                        throw std::runtime_error(errormsg("expected ')'"));
+                }
+                else {
+                    // a decompose/reassemble transformation
+                    transform trans;
+                    trans.decomposition = rdlist();
+                    do {
+                        trans.reassembly.push_back(read_reassembly());
+                    } while (tok_.peektok().open());
+                    if (!tok_.nexttok().close())
+                        throw std::runtime_error(errormsg("expected ')'"));
+                    transformation.emplace_back(trans);
+                }
             }
             else
                 throw std::runtime_error(errormsg("malformed rule"));
         }
 
+        auto r = std::make_shared<elizalogic::rule_keyword>(
+            keyword, keyword_substitution, precedence, tags, class_name);
+        for (auto const & tr : transformation)
+            r->add_transformation_rule(tr.decomposition, tr.reassembly);
+        script_.rules[keyword] = r;
+
         return true;
     }
+
+    // read one rule of any type; return false => end of file reached
+    bool read_rule()
+    {
+        token t = tok_.nexttok();
+        if (t.eof())
+            return false;
+        if (!t.open())
+            throw std::runtime_error(errormsg("expected '('"));
+        t = tok_.peektok();
+        if (t.close()) {
+            tok_.nexttok();
+            return true; // ignore empty rule list, if present
+        }
+        if (!t.symbol())
+            throw std::runtime_error(errormsg("expected keyword|MEMORY|NONE"));
+        if (t.value == "MEMORY")
+            return read_memory_rule();
+        return read_keyword_rule();
+    }
+
 };
 
 
@@ -2125,17 +2166,12 @@ void read(T & script_file, script & s)
 
 const char * CACM_1966_01_DOCTOR_script =
     ";\n"
-    "; APPENDIX. An Eliza Script\n"
+    "; APPENDIX. An ELIZA Script\n"
     ";\n"
     "; Transcribed from Joseph Weizenbaum's article on page 36 of the January\n"
     "; 1966 edition of Communications of the ACM titled 'ELIZA - A Computer\n"
     "; Program For the Study of Natural Language Communication Between Man And\n"
     "; Machine'.\n"
-    ";\n"
-    "; \"Keywords and their associated transformation rules constitute the\n"
-    "; SCRIPT for a particular class of conversation. An important property of\n"
-    "; ELIZA is that a script is data; i.e., it is not part of the program\n"
-    "; itself.\" -- From the above mentioned article.\n"
     ";\n"
     "; Transcribed by Anthony Hay, December 2020\n"
     ";\n"
@@ -2150,127 +2186,9 @@ const char * CACM_1966_01_DOCTOR_script =
     ";    (with exactly 34 lines between each duplicate), making the structure\n"
     ";    nonsensical. These duplicates have been commented out of this\n"
     ";    transcription.\n"
-    "; c) One closing bracket has been added and noted in a comment.\n"
-    "; d) There were no comments in the script in the CACM article.\n"
+    "; c) There were no comments in the script in the CACM article.\n"
     ";\n"
     ";\n"
-    "; The script has the form of a series of S-expressions of varying\n"
-    "; composition. (Weizenbaum says \"An ELIZA script consists mainly of a set\n"
-    "; of list structures...\", but nowhere in the article are S-expressions or\n"
-    "; LISP mentioned. Perhaps it was too obvious to be noted.) Weizenbaum says\n"
-    "; ELIZA was written in MAD-SLIP. It seems his original source code has\n"
-    "; been lost. Weizenbaum developed a library of FORTRAN functions for\n"
-    "; manipulating doubly-linked lists, which he called SLIP (for Symmetric\n"
-    "; list processor).\n"
-    ";\n"
-    "; The most common transformation rule has the form:\n"
-    ";\n"
-    ";   (keyword [= replacement-keyword] [precedence]\n"
-    ";     [ ((decomposition-rule-0) (reassembly-rule-00) (reassembly-rule-01) ...)\n"
-    ";       ((decomposition-rule-1) (reassembly-rule-10) (reassembly-rule-11) ...)\n"
-    ";       ... ] )\n"
-    ";\n"
-    "; where [] denotes optional parts. Initially, ELIZA tries to match the\n"
-    "; decomposition rules against the input text only for the highest ranked\n"
-    "; keyword found in the input text. If a decomposition rule matches the\n"
-    "; input text the first associated reassembly rule is used to generate\n"
-    "; the output text. If there is more than one reassembly rule they are\n"
-    "; used in turn on successive matches.\n"
-    ";\n"
-    "; In the decomposition rules '0' matches zero or more words in the input.\n"
-    "; So (0 IF 0) matches \"IF POSSIBLE\" and \"WHAT IF YOU DIE\". Numbers in\n"
-    "; the reassembly rules refer to the parts of the decomposition rule\n"
-    "; match. 1 <empty>, 2 \"IF\", 3 \"POSSIBLE\" and 1 \"WHAT\", 2 \"IF\", 3 \"YOU DIE\"\n"
-    "; in the above examples. If the selected reassembly rule was (DO YOU THINK\n"
-    "; ITS LIKELY THAT 3) the text output would be \"DO YOU THINK ITS LIKELY\n"
-    "; THAT YOU DIE\".\n"
-    ";\n"
-    ";\n"
-    "; Each rule has one of the following six forms:\n"
-    ";\n"
-    "; R1. Plain vanilla transformation rule. [page 38 (a)]\n"
-    ";     (keyword [= keyword_substitution] [precedence]\n"
-    ";         [ ((decomposition_pattern) (reassembly_rule) (reassembly_rule) ... )\n"
-    ";            (decomposition_pattern) (reassembly_rule) (reassembly_rule) ... )\n"
-    ";            :\n"
-    ";            (decomposition_pattern) (reassembly_rule) (reassembly_rule) ... )) ] )\n"
-    ";   e.g.\n"
-    ";     (MY = YOUR 2\n"
-    ";         ((0 YOUR 0 (/FAMILY) 0)\n"
-    ";             (TELL ME MORE ABOUT YOUR FAMILY)\n"
-    ";             (WHO ELSE IN YOUR FAMILY 5)\n"
-    ";             (=WHAT)\n"
-    ";             (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))\n"
-    ";         ((0 YOUR 0 (*SAD UNHAPPY DEPRESSED SICK ) 0)\n"
-    ";             (CAN YOU EXPLAIN WHAT MADE YOU 5))\n"
-    ";         ((0)\n"
-    ";             (NEWKEY)))\n"
-    ";\n"
-    ";\n"
-    "; R2. Simple word substitution with no further transformation rules. [page 39 (a)]\n"
-    ";     (keyword = keyword_substitution)\n"
-    ";   e.g.\n"
-    ";     (DONT = DON'T)\n"
-    ";     (ME = YOU)\n"
-    ";\n"
-    ";\n"
-    "; R3. Allow words to be given tags, with optional word substitution. [page 41 (j)]\n"
-    ";     (keyword [= keyword_substitution]\n"
-    ";         DLIST (/ <word> ... <word>))\n"
-    ";   e.g.\n"
-    ";         (FEEL               DLIST(/BELIEF))\n"
-    ";         (MOTHER             DLIST(/NOUN FAMILY))\n"
-    ";         (MOM = MOTHER       DLIST(/ FAMILY))\n"
-    ";\n"
-    ";\n"
-    "; R4. Link to another keyword transformation rule. [page 40 (c)]\n"
-    ";     (keyword [= keyword_substitution] [precedence]\n"
-    ";         (= equivalence_class))\n"
-    ";   e.g.\n"
-    ";         (HOW                (=WHAT))\n"
-    ";         (WERE = WAS         (=WAS))\n"
-    ";         (DREAMED = DREAMT 4 (=DREAMT))\n"
-    ";         (ALIKE 10           (=DIT))\n"
-    ";\n"
-    ";\n"
-    "; R5. As for R4 but allow pre-transformation before link. [page 40 (f)]\n"
-    ";     (keyword [= keyword_substitution]\n"
-    ";         ((decomposition_pattern)\n"
-    ";             (PRE (reassembly_rule) (=equivalence_class))))\n"
-    ";   e.g.\n"
-    ";     (YOU'RE = I'M\n"
-    ";         ((0 I'M 0)\n"
-    ";             (PRE (I ARE 3) (=YOU))))\n"
-    ";\n"
-    ";\n"
-    "; R6. Rule to 'pre-record' responses for later use. [page 41 (f)]\n"
-    ";     (MEMORY keyword\n"
-    ";         (decomposition_pattern_1 = reassembly_rule_1)\n"
-    ";         (decomposition_pattern_2 = reassembly_rule_2)\n"
-    ";         (decomposition_pattern_3 = reassembly_rule_3)\n"
-    ";         (decomposition_pattern_4 = reassembly_rule_4))\n"
-    ";   e.g.\n"
-    ";     (MEMORY MY\n"
-    ";         (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)\n"
-    ";         (0 YOUR 0 = EARLIER YOU SAID YOUR 3)\n"
-    ";         (0 YOUR 0 = BUT YOUR 3)\n"
-    ";         (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n"
-    ";\n"
-    ";\n"
-    "; In addition, there must be a NONE rule with the same form as R1. [page 41 (d)]\n"
-    ";     (NONE\n"
-    ";         ((0)\n"
-    ";             (reassembly_rule)\n"
-    ";             (reassembly_rule)\n"
-    ";             :\n"
-    ";             (reassembly_rule)) )\n"
-    ";   e.g.\n"
-    ";     (NONE\n"
-    ";         ((0)\n"
-    ";             (I AM NOT SURE I UNDERSTAND YOU FULLY)\n"
-    ";             (PLEASE GO ON)\n"
-    ";             (WHAT DOES THAT SUGGEST TO YOU)\n"
-    ";             (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))\n"
     ";\n"
     ";\n"
     "; For further details see Weizenbaum's article, or look at eliza.cpp.\n"
@@ -2630,9 +2548,8 @@ const char * CACM_1966_01_DOCTOR_script =
     "        (DO YOU WANT TO BE ABLE TO 5)\n"
     "        (DO YOU BELIEVE THIS WILL HELP YOU TO 5)\n"
     "        (HAVE YOU ANY IDEA WHY YOU CAN'T 5)\n"
-    "        (=WHAT)))\n"
-    "; extraneous (=WHAT)) removed\n"
-    "; and missing final ')' added\n"
+    "        (=WHAT))\n"
+    "    (=WHAT))\n"
     "\n"
     "(EVERYONE 2\n"
     "    ((0 (* EVERYONE EVERYBODY NOBODY NOONE) 0)\n"
@@ -2722,7 +2639,7 @@ DEF_TEST_FUNC(script_and_conversation_test)
     const char * script_text =
         "(HOW DO YOU DO. PLEASE TELL ME YOUR PROBLEM)\n"
         "START\n"
-        "(ALIKE 10 (= DIT))\n"
+        "(ALIKE 10 (=DIT))\n"
         "(ALWAYS 1\n"
         "    ((0)\n"
         "        (CAN YOU THINK OF A SPECIFIC EXAMPLE)\n"
@@ -2771,7 +2688,7 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (PERHAPS YOU DON'T WANT TO 4)\n"
         "        (=WHAT)))\n"
         "(CANT = CAN'T)\n"
-        "(CERTAINLY (= YES))\n"
+        "(CERTAINLY (=YES))\n"
         "(CHILDREN DLIST(/FAMILY))\n"
         "(COMPUTER 50\n"
         "    ((0)\n"
@@ -2781,9 +2698,9 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (DON'T YOU THINK COMPUTERS CAN HELP PEOPLE)\n"
         "        (WHAT ABOUT MACHINES WORRIES YOU)\n"
         "        (WHAT DO YOU THINK ABOUT MACHINES)))\n"
-        "(COMPUTERS 50 (= COMPUTER))\n"
+        "(COMPUTERS 50 (=COMPUTER))\n"
         "(DAD = FATHER DLIST(/ FAMILY))\n"
-        "(DEUTSCH (= XFREMD))\n"
+        "(DEUTSCH (=XFREMD))\n"
         "(DIT\n"
         "    ((0)\n"
         "        (IN WHAT WAY)\n"
@@ -2802,8 +2719,8 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (WHAT PERSONS APPEAR IN YOUR DREAMS)\n"
         "        (DON'T YOU BELIEVE THAT DREAM HAS SOMETHING TO DO WITH YOUR PROBLEM)\n"
         "        (NEWKEY)))\n"
-        "(DREAMED = DREAMT 4 (= DREAMT))\n"
-        "(DREAMS = DREAM 3 (= DREAM))\n"
+        "(DREAMED = DREAMT 4 (=DREAMT))\n"
+        "(DREAMS = DREAM 3 (=DREAM))\n"
         "(DREAMT 4\n"
         "    ((0 YOU DREAMT 0)\n"
         "        (REALLY, 4)\n"
@@ -2811,8 +2728,8 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (HAVE YOU DREAMT 4 BEFORE)\n"
         "        (=DREAM)\n"
         "        (NEWKEY)))\n"
-        "(ESPANOL (= XFREMD))\n"
-        "(EVERYBODY 2 (= EVERYONE))\n"
+        "(ESPANOL (=XFREMD))\n"
+        "(EVERYBODY 2 (=EVERYONE))\n"
         "(EVERYONE 2\n"
         "    ((0 (* EVERYONE EVERYBODY NOBODY NOONE) 0)\n"
         "        (REALLY, 2)\n"
@@ -2826,11 +2743,11 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (WHO DO YOU THINK YOU'RE TALKING ABOUT)))\n"
         "(FATHER DLIST(/NOUN FAMILY))\n"
         "(FEEL DLIST(/BELIEF))\n"
-        "(FRANCAIS (= XFREMD))\n"
+        "(FRANCAIS (=XFREMD))\n"
         "(HELLO\n"
         "    ((0)\n"
         "        (HOW DO YOU DO. PLEASE STATE YOUR PROBLEM)))\n"
-        "(HOW (= WHAT))\n"
+        "(HOW (=WHAT))\n"
         "(I = YOU\n"
         "    ((0 YOU (* WANT NEED) 0)\n"
         "        (WHAT WOULD IT MEAN TO YOU IF YOU GOT 4)\n"
@@ -2889,22 +2806,22 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (THAT'S QUITE INTERESTING)))\n"
         "(I'M = YOU'RE\n"
         "    ((0 YOU'RE 0)\n"
-        "        (PRE (YOU ARE 3) (=I))))\n"
+        "        ( PRE ( YOU ARE 3 ) ( =I ) )))\n"
         "(IF 3\n"
         "    ((0 IF 0)\n"
         "        (DO YOU THINK ITS LIKELY THAT 3)\n"
         "        (DO YOU WISH THAT 3)\n"
         "        (WHAT DO YOU THINK ABOUT 3)\n"
         "        (REALLY, 2 3)))\n"
-        "(ITALIANO (= XFREMD))\n"
+        "(ITALIANO (=XFREMD))\n"
         "(LIKE 10\n"
         "    ((0 (*AM IS ARE WAS) 0 LIKE 0)\n"
         "        (=DIT))\n"
         "    ((0)\n"
         "        (NEWKEY)))\n"
-        "(MACHINE 50 (= COMPUTER))\n"
-        "(MACHINES 50 (= COMPUTER))\n"
-        "(MAYBE (= PERHAPS))\n"
+        "(MACHINE 50 (=COMPUTER))\n"
+        "(MACHINES 50 (=COMPUTER))\n"
+        "(MAYBE (=PERHAPS))\n"
         "(ME = YOU)\n"
         "(MOM = MOTHER DLIST(/ FAMILY))\n"
         "(MOTHER DLIST(/NOUN FAMILY))\n"
@@ -2930,8 +2847,8 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (YOU ARE BEING A BIT NEGATIVE)\n"
         "        (WHY NOT)\n"
         "        (WHY 'NO')))\n"
-        "(NOBODY 2 (= EVERYONE))\n"
-        "(NOONE 2 (= EVERYONE))\n"
+        "(NOBODY 2 (=EVERYONE))\n"
+        "(NOONE 2 (=EVERYONE))\n"
         "(PERHAPS\n"
         "    ((0)\n"
         "        (YOU DON'T SEEM QUITE CERTAIN)\n"
@@ -2955,7 +2872,7 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (YOU MENTIONED 5))\n"
         "    ((0)\n"
         "        (NEWKEY)))\n"
-        "(SAME 10 (= DIT))\n"
+        "(SAME 10 (=DIT))\n"
         "(SISTER DLIST(/FAMILY))\n"
         "(SORRY\n"
         "    ((0)\n"
@@ -2984,7 +2901,7 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (WHAT IF I HAD BEEN 4))\n"
         "    ((0)\n"
         "        (NEWKEY)))\n"
-        "(WERE = WAS (= WAS))\n"
+        "(WERE = WAS (=WAS))\n"
         "(WHAT\n"
         "    ((0)\n"
         "        (WHY DO YOU ASK)\n"
@@ -2996,7 +2913,7 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (WHAT COMES TO YOUR MIND WHEN YOU ASK THAT)\n"
         "        (HAVE YOU ASKED SUCH QUESTIONS BEFORE)\n"
         "        (HAVE YOU ASKED ANYONE ELSE)))\n"
-        "(WHEN (= WHAT))\n"
+        "(WHEN (=WHAT))\n"
         "(WHY\n"
         "    ((0 WHY DON'T I 0)\n"
         "        (DO YOU BELIEVE I DON'T 5)\n"
@@ -3009,7 +2926,8 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (DO YOU WANT TO BE ABLE TO 5)\n"
         "        (DO YOU BELIEVE THIS WILL HELP YOU TO 5)\n"
         "        (HAVE YOU ANY IDEA WHY YOU CAN'T 5)\n"
-        "        (=WHAT)))\n"
+        "        (=WHAT))\n"
+        "    (=WHAT))\n"
         "(WIFE DLIST(/FAMILY))\n"
         "(WISH DLIST(/BELIEF))\n"
         "(WONT = WON'T)\n"
@@ -3045,7 +2963,7 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (WHAT ARE YOUR FEELINGS NOW)))\n"
         "(YOU'RE = I'M\n"
         "    ((0 I'M 0)\n"
-        "        (PRE (I ARE 3) (=YOU))))\n"
+        "        ( PRE ( I ARE 3 ) ( =YOU ) )))\n"
         "(YOUR = MY\n"
         "    ((0 MY 0)\n"
         "        (WHY ARE YOU CONCERNED OVER MY 3)\n"
@@ -3123,7 +3041,7 @@ DEF_TEST_FUNC(script_and_conversation_test)
         // NOTICE THAT". I assume the comma got lost from the CACM article.
         //{ "You are not very aggressive, but I think you don't want me to notice that.",
         //
-        // UPDATE: We now have a version of Weizenbaum's original MAD-SLIP
+        // UPDATE: We now have a version of Weizenbaum's original MAD-Slip
         // source code where we see that the word "BUT" is also considered
         // to be a delimiter. So I was wrong to assume a missing comma.
         { "You are not very aggressive but I think you don't want me to notice that.",
@@ -3149,8 +3067,13 @@ DEF_TEST_FUNC(script_and_conversation_test)
         accurate simulation of the original ELIZA.
     */
     elizalogic::eliza eliza(s.rules);
-    for (const auto & exchg : conversation)
+    for (const auto& exchg : conversation) {
         TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
+        /*std::cout
+            << exchg.prompt << '\n'
+            << exchg.response << '\n'
+            << eliza.back_trace() << '\n';*/
+    }
 }
 
 
@@ -3205,58 +3128,98 @@ std::string as_option(std::string o)
     return option_escape + o;
 }
 
+bool parse_cmdline(
+    int argc, const char * argv[],
+    bool & showscript,
+    bool & nobanner,
+    bool & help,
+    std::string & script_filename)
+{
+    showscript = nobanner = help = false;
+    script_filename.clear();
+    for (int i = 1; i < argc; ++i) {
+        if (is_option(argv[i])) {
+            if (as_option("help") == argv[i])
+                help = true;
+            else if (as_option("showscript") == argv[i])
+                showscript = true;
+            else if (as_option("nobanner") == argv[i])
+                nobanner = true;
+            else
+                return false;
+        }
+        else if (script_filename.empty())
+            script_filename = argv[i];
+        else
+            return false;
+    }
+    return true;
+}
+
+
+//#include "unpublished_script_tests.cpp"
 
 int main(int argc, const char * argv[])
 {
     try {
-        std::cout <<
-            "-----------------------------------------------------------------\n"
-            "      ELIZA -- A Computer Program for the Study of Natural\n"
-            "         Language Communication Between Man and Machine\n"
-            "            DOCTOR script (c) Joseph Weizenbaum, 1966\n"
-            "This implementation by Anthony Hay, 2022  (CC0 1.0) Public Domain\n"
-            "-----------------------------------------------------------------\n";
-
-        RUN_TESTS(); // run the tests defined with DEF_TEST_FUNC
-
-
-        elizascript::script s;
-        if (argc == 1) {
-            // use default 'internal' 1966 CACM published script
-            std::cout
-                << "ELIZA " << as_option("help") << " for usage.\n"
-                << "Using Weizenbaum's 1966 DOCTOR script.\n"
-                << "Enter a blank line to quit."
-                << "\n\n\n";
-            std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
-            elizascript::read<std::stringstream>(ss, s);
-        }
-        else if (argc == 2 && as_option("showscript") == argv[1]) {
-            // just output Weizenbaum's DOCTOR script
-            std::cout << elizascript::CACM_1966_01_DOCTOR_script;
-            return EXIT_SUCCESS;
-        }
-        else if (argc == 2 && !is_option(argv[1])) {
-            // use the named script file
-            std::ifstream script_file(argv[1]);
-            if (!script_file.is_open()) {
-                std::cerr << argv[0]
-                    << ": failed to open script file '" << argv[1] << "'\n";
-                return EXIT_FAILURE;
-            }
-            std::cout
-                << "Using given script file '" << argv[1] << "'\n\n\n";
-            elizascript::read<std::ifstream>(script_file, s);
-        }
-        else {
-            std::cerr
-                << "Usage: ELIZA [" << as_option("showscript") << " | <filename>]\n"
+        bool showscript, nobanner, help;
+        std::string script_filename;
+        if (!parse_cmdline(argc, argv, showscript, nobanner, help, script_filename) || help) {
+            (help ? std::cout : std::cerr)
+                << "Usage: eliza ["
+                << as_option("showscript")
+                << " | " << as_option("nobanner")
+                << " | <filename>]\n"
                 << "  where\n"
+                << "    " << as_option("nobanner") << "   don't display startup banner\n"
                 << "    " << as_option("showscript") << " dump Weizenbaum's 1966 DOCTOR script to stcout\n"
                 << "                e.g. ELIZA " << as_option("showscript") << " > script.txt\n"
                 << "    <filename>  use named script file\n"
                 << "                e.g. ELIZA script.txt\n";
-            return EXIT_FAILURE;
+            return help ? EXIT_SUCCESS : EXIT_FAILURE;
+        }
+
+        if (!nobanner) {
+            std::cout <<
+                "-----------------------------------------------------------------\n"
+                "      ELIZA -- A Computer Program for the Study of Natural\n"
+                "         Language Communication Between Man and Machine\n"
+                "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
+                "ELIZA implementation by Anthony Hay, 2022 (CC0 1.0) Public Domain\n"
+                "-----------------------------------------------------------------\n"
+                << "ELIZA " << as_option("help") << " for usage.\n"
+                << (script_filename.empty() ? "Using Weizenbaum's 1966 DOCTOR script.\n" : "")
+                << "Enter a blank line to quit.\n"
+                << "\n\n";
+        }
+
+        //unpublished_script_tests::unpublished_script_tests();
+        RUN_TESTS(); // run the tests defined with DEF_TEST_FUNC
+
+        if (showscript) {
+            // just output Weizenbaum's DOCTOR script
+            std::cout << elizascript::CACM_1966_01_DOCTOR_script;
+            return EXIT_SUCCESS;
+        }
+
+
+        elizascript::script s;
+        if (script_filename.empty()) {
+            // use default 'internal' 1966 CACM published script
+            std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
+            elizascript::read<std::stringstream>(ss, s);
+        }
+        else {
+            // use the named script file
+            std::ifstream script_file(script_filename);
+            if (!script_file.is_open()) {
+                std::cerr << argv[0]
+                    << ": failed to open script file '" << script_filename << "'\n";
+                return EXIT_FAILURE;
+            }
+            std::cout
+                << "Using given script file '" << script_filename << "'\n\n\n";
+            elizascript::read<std::ifstream>(script_file, s);
         }
 
 
@@ -3265,6 +3228,10 @@ int main(int argc, const char * argv[])
             std::cout << std::endl;
             std::string userinput;
             std::getline(std::cin, userinput);
+            if (userinput == "*") {
+                std::cout << eliza.back_trace();
+                continue;
+            }
             if (userinput.empty())
                 break;
             writeln(eliza.response(userinput));
