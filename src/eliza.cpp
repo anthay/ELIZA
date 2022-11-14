@@ -3179,6 +3179,12 @@ int main(int argc, const char * argv[])
             return help ? EXIT_SUCCESS : EXIT_FAILURE;
         }
 
+        if (showscript) {
+            // just output Weizenbaum's DOCTOR script
+            std::cout << elizascript::CACM_1966_01_DOCTOR_script;
+            return EXIT_SUCCESS;
+        }
+
         if (!nobanner) {
             std::cout <<
                 "-----------------------------------------------------------------\n"
@@ -3195,12 +3201,6 @@ int main(int argc, const char * argv[])
 
         //unpublished_script_tests::unpublished_script_tests();
         RUN_TESTS(); // run the tests defined with DEF_TEST_FUNC
-
-        if (showscript) {
-            // just output Weizenbaum's DOCTOR script
-            std::cout << elizascript::CACM_1966_01_DOCTOR_script;
-            return EXIT_SUCCESS;
-        }
 
 
         elizascript::script s;
