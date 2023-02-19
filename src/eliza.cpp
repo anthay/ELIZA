@@ -165,6 +165,16 @@ auto pop_front(std::string & container)
 }
 
 
+// return given string s in uppercase
+std::string to_upper(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+        [](unsigned char c) { return static_cast<char>(std::toupper(c)); }
+    );
+    return s;
+}
+
+
 // join given words into one space separated string
 // e.g. join(["one", "two", ",", "3", "."]) -> "one two , 3 ."
 // (ELIZA doesn't output punctuation)
@@ -332,16 +342,6 @@ DEF_TEST_FUNC(split_test)
 {
     const stringlist r1{ "one", "two", ",", "three", "." };
     TEST_EQUAL(split("one   two, three."), r1);
-}
-
-
-// return given string s in uppercase
-std::string to_upper(std::string s)
-{
-    std::transform(s.begin(), s.end(), s.begin(),
-        [](unsigned char c) { return static_cast<char>(std::toupper(c)); }
-    );
-    return s;
 }
 
 
@@ -3323,26 +3323,26 @@ int main(int argc, const char * argv[])
                 std::cout << trace.text();
                 continue;
             }
-            else if (userinput == "*traceon") {
+            else if (to_upper(userinput) == "*TRACEON") {
                 eliza.set_tracer(&trace);
                 traceauto = false;
                 std::cout << "tracing enabled; enter '*' after any excahnge to see trace\n";
                 continue;
             }
-            else if (userinput == "*traceauto") {
+            else if (to_upper(userinput) == "*TRACEAUTO") {
                 eliza.set_tracer(&trace);
                 traceauto = true;
                 std::cout << "tracing enabled\n";
                 continue;
             }
-            else if (userinput == "*traceoff") {
+            else if (to_upper(userinput) == "*TRACEOFF") {
                 eliza.set_tracer(&notrace);
                 trace.clear();
                 traceauto = false;
                 std::cout << "tracing disabled\n";
                 continue;
             }
-            else if (userinput == "*tracepre") {
+            else if (to_upper(userinput) == "*TRACEPRE") {
                 eliza.set_tracer(&pretrace);
                 trace.clear();
                 traceauto = false;
