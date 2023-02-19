@@ -1,4 +1,4 @@
-/*  This is a simulation of Joseph Weizenbaum's 1966 ELIZA. The code was
+/*  This is a recreation of Joseph Weizenbaum's 1966 ELIZA. The code was
     written from scratch originally using only the description in the
     Weizenbaum's paper on page 36 of the January 1966 edition of
     Communications of the ACM as a guide.
@@ -10,7 +10,9 @@
     I made this for my amusement and hereby place it in the public domain
     or, if you prefer, I release it under either CC0 1.0 Universal or the
     MIT License.
-    -- Anthony Hay, 2021, Devon, UK
+    
+    Anthony Hay, 2021, Devon, UK
+
 
     Update: In April 2021 Jeff Shrager obtained a listing of ELIZA from
     Weizenbaum's MIT archive. In May 2021 he got permission from
@@ -20,12 +22,11 @@
     and appears to differ from the functionality described in the CACM
     paper.) I made changes to this code to reflect what I learned. These
     changes are documented in the code.
-    -- Anthony Hay, 2022, Devon, UK
+    Anthony Hay, 2022, Devon, UK
 
-    Update: In April 2022 Jeff Shrager located the source code to Slip,
+    Update: In April 2022 Jeff Shrager located the source code to SLIP,
     including the HASH function. I made hash used in this code use the
     same algorithm.
-
 
     Note: In the code below there are occasional references to
     Joseph Weizenbaum's 1966 CACM article. A reference like
@@ -43,7 +44,6 @@
 #include <vector>
 #include <memory>
 #include <map>
-#include <chrono>
 #include <algorithm>
 #include <deque>
 #include <cctype>
@@ -53,21 +53,21 @@
 
 
 
-/*  Wiezenbaum wrote ELIZA in a language called MAD-Slip.
+/*  Wiezenbaum wrote ELIZA in a language called MAD-SLIP.
 
-    He also developed Slip ("Symmetric List Processor").
-    Slip is a library of functions used to manipulate
-    doubly-linked lists of cells, where a cell may contain
-    either a datum or a reference to another list.
+    He also developed SLIP ("Symmetric List Processor"),
+    a library of functions used to manipulate doubly-linked
+    lists of cells, where a cell may contain either a datum
+    or a reference to another list.
 
-    This code doesn't use Slip. The type stringlist is
-    used where the original ELIZA might have used a Slip
-    list. (stringlist is not equivalent to a Slip list.) 
+    This code doesn't use SLIP. The type stringlist is
+    used where the original ELIZA might have used a SLIP
+    list. (stringlist is not equivalent to a SLIP list.) 
 */
 typedef std::deque<std::string> stringlist;
 
 // (needed for unit test purposes only)
-std::ostream& operator<<(std::ostream & os, const stringlist & list)
+std::ostream & operator<<(std::ostream & os, const stringlist & list)
 {
     os << '(';
     for (auto s : list)
@@ -102,14 +102,10 @@ void test_equal(const A & value, const B & expected_value,
     }
 }
 
-#define TEST_EQUAL(value, expected_value)                   \
-{                                                           \
-    micro_test_library::test_equal(value, expected_value,   \
-        __FILE__, __LINE__, __FUNCTION__);                  \
-}
 
 // list of all test routines to be executed
 std::vector<void (*)()> test_routines;
+
 
 size_t add_test(void (*f)())
 {
@@ -117,10 +113,6 @@ size_t add_test(void (*f)())
     return test_routines.size();
 }
 
-#define DEF_TEST_FUNC(test_func)                                         \
-void test_func();                                                        \
-size_t micro_test_##test_func = micro_test_library::add_test(test_func); \
-void test_func()
 
 void run_tests()
 {
@@ -129,13 +121,29 @@ void run_tests()
     if (fault_count)
         std::cout << fault_count << " total failures\n";
 }
+
+
+// micro_test_library usage:
+
+// write a message to std::cout if !(value == expected_value)
+#define TEST_EQUAL(value, expected_value)                   \
+{                                                           \
+    micro_test_library::test_equal(value, expected_value,   \
+        __FILE__, __LINE__, __FUNCTION__);                  \
+}
+
+// To allow test code to be placed nearby code being tested, test functions
+// may be defined with this macro. All such functions may then be called
+// with one call to RUN_TESTS(). Each test function must have a unique name.
+#define DEF_TEST_FUNC(test_func)                                         \
+void test_func();                                                        \
+size_t micro_test_##test_func = micro_test_library::add_test(test_func); \
+void test_func()
+
+// execute all the DEF_TEST_FUNC defined functions
 #define RUN_TESTS() micro_test_library::run_tests()
 
 } //namespace micro_test_library
-
-
-
-
 
 
 // remove front element of given container and return it
@@ -146,6 +154,7 @@ auto pop_front(T & container)
     container.pop_front();
     return v;
 }
+
 
 template<>
 auto pop_front(std::string & container)
@@ -279,7 +288,6 @@ DEF_TEST_FUNC(filter_bcd_test)
 }
 
 
-
 bool punctuation(char c)
 {
     return c == ',' || c == '.'; // [page 37 (c)]
@@ -290,7 +298,7 @@ bool delimiter(const std::string & s)
 {
     // In the 1966 CACM article on page 37 Weizenbaum says "the procedure
     // recognizes a comma or a period as a delimiter." However, in the
-    // MAD-Slip source code the relevant code is
+    // MAD-SLIP source code the relevant code is
     //    W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR. WORD .E. $BUT$
     // (W'R means WHENEVER). So "BUT" is also a delimiter.
     return s == "BUT" || (s.size() == 1 && punctuation(s[0]));
@@ -325,7 +333,6 @@ DEF_TEST_FUNC(split_test)
     const stringlist r1{ "one", "two", ",", "three", "." };
     TEST_EQUAL(split("one   two, three."), r1);
 }
-
 
 
 // return given string s in uppercase
@@ -528,21 +535,20 @@ DEF_TEST_FUNC(match_test)
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 
-    // A test pattern from the YMATCH function description in the Slip manual
+    // A test pattern from the YMATCH function description in the SLIP manual
     words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "WAS", "ZERO" };
     pattern = { "MARY", "2", "2", "ITS", "1", "0" };
     expected = { "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY", "WAS ZERO" };
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 
-    // A test pattern from the RULE function description in the Slip manual
+    // A test pattern from the RULE function description in the SLIP manual
     words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "WAS", "ZERO" };
     pattern = { "1", "0", "2", "ITS", "0" };
     expected = { "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY WAS ZERO" };
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 }
-
 
 
 // return words constructed from given reassembly_rule and components
@@ -566,7 +572,7 @@ stringlist reassemble(const stringlist & reassembly_rule, const stringlist & com
 
 DEF_TEST_FUNC(reassemble_test)
 {
-    // A test pattern from the ASSMBL function description in the Slip manual
+    // A test pattern from the ASSMBL function description in the SLIP manual
     // (using above matching_components list)
     stringlist matching_components {
         "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY", "WAS ZERO"
@@ -577,9 +583,6 @@ DEF_TEST_FUNC(reassemble_test)
 }
 
 
-
-
-
 /*
     "N1 : HASH.(D,N2)
 
@@ -588,10 +591,10 @@ DEF_TEST_FUNC(reassemble_test)
     value of the function is a pseudo-random number N1 in the range of
     0 to 2^N2-1."
     -- Documentation from University of Michigan Executive System for the
-       IBM 7090, Slip section, page 30
+       IBM 7090, SLIP section, page 30
 
 
-    The FORTRAN Assembly Program implementation of Slip HASH from JW's
+    The FORTRAN Assembly Program implementation of SLIP HASH from JW's
     MIT archive, with my comments in lowercase (I'm using 'N' to refer
     to the second HASH parameter rather than 'N2' in the above documentation
     because the latter is confusing):
@@ -672,11 +675,11 @@ DEF_TEST_FUNC(reassemble_test)
     of the top bit has no effect on the result.
 */
 
-// recreate the Slip HASH function: return an n-bit hash value for
+// recreate the SLIP HASH function: return an n-bit hash value for
 // the given 36-bit datum d, for values of n in range 0..15
 int hash(uint_least64_t d, int n)
 {
-    /*  This code implements the Slip HASH algorithm from the FAP
+    /*  This code implements the SLIP HASH algorithm from the FAP
         code shown above.
 
         The function returns the middle n bits of d squared.
@@ -686,7 +689,7 @@ int hash(uint_least64_t d, int n)
         in a 36-bit integer, the most-significant bit is assumed to
         be the sign of the integer, and the least-significant 35-bits
         are assumed to be the magnitude of the integer. Therefore,
-        in the Slip HASH implementation only the least-significant
+        in the SLIP HASH implementation only the least-significant
         35-bits of D are squared. When the datum holds six 6-bit
         characters the top bit of the first character in the given D
         will be assumed to be a sign bit and will not be part of
@@ -881,43 +884,40 @@ DEF_TEST_FUNC(hash_test)
 }
 
 
-
-
-
 /*  last_chunk_as_bcd() -- What the heck?
 
     Very quick overview:
 
-    ELIZA was written in Slip for an IBM 7094. The character encoding
+    ELIZA was written in SLIP for an IBM 7094. The character encoding
     used on the 7094 is called Hollerith. The Hollerith encoding
     uses 6 bits per character. The IBM 7094 machine word size is
     36-bits.
 
-    Slip stores strings in Slip cells. A Slip cell consists of two
+    SLIP stores strings in SLIP cells. A SLIP cell consists of two
     adjacent machine words. The first word contains some type bits
-    and two addresses, one pointing to the previous Slip cell and
-    the other pointing to the next Slip cell. (The IBM 7094 had a
+    and two addresses, one pointing to the previous SLIP cell and
+    the other pointing to the next SLIP cell. (The IBM 7094 had a
     32,768 word core store, so only 15 bits are required for an
     address. So two addresses fit into one 36-bit word with 6 bits
     spare.) The second word may carry the "datum." This is where
     the characters are stored.
     
-    Each Slip cell can store up to 6 6-bit Hollerith characters.
+    Each SLIP cell can store up to 6 6-bit Hollerith characters.
 
     If a string has fewer than 6 characters, the string is stored left-
     justified and space padded to the right.
 
-    So for example, the string "HERE" would be stored in one Slip cell,
+    So for example, the string "HERE" would be stored in one SLIP cell,
     which would have the octal value 30 25 51 25 60 60.
 
     If a string has more than 6 characters, it is stored in successive
-    Slip cells. Each cell except the last has the sign bit set in the
+    SLIP cells. Each cell except the last has the sign bit set in the
     first word to indicated the string is continued in the next cell.
 
-    So the word "INVENTED" would be stored in two Slip cells, "INVENT"
+    So the word "INVENTED" would be stored in two SLIP cells, "INVENT"
     in the first and "ED    " in the second.
 
-    In ELIZA, the user's input text is read into a Slip list, each word
+    In ELIZA, the user's input text is read into a SLIP list, each word
     in the sentence is in it's own cell, unless a word needs to be
     continued in the next cell because it's more than 6 characters long.
 
@@ -926,8 +926,8 @@ DEF_TEST_FUNC(hash_test)
     the last chunk of the last word, if the last word is more than
     6 characters long.
 
-    This code doesn't use Slip cells. A std::deque of std::string
-    provided enough functionality to manage without Slip. In this
+    This code doesn't use SLIP cells. A std::deque of std::string
+    provided enough functionality to manage without SLIP. In this
     code, every word is contained in one std::string, no matter
     how long.
 
@@ -975,125 +975,21 @@ DEF_TEST_FUNC(last_chunk_as_bcd_test)
 }
 
 
+/*  The ELIZA script contains the opening_remarks followed by rules.
+    (The formal syntax is given in the elizascript namespace below.)
+    There are two types of rule: keyword_rules and memory_rules.
 
+    Each keyword_rule may perform some sort of transformation on a
+    user input sentence. Rules are generally triggered by the
+    appearance of a particular keyword in the user input text. So one
+    way to model the script is to std::map the keyword to the associated
+    rule.
 
-/*  This is my understanding of the ELIZA script file from the explanation
-    in the CACM article and observation of the example script given in the
-    APPENDIX to the CACM article:
-
-    The script is a series of S-expressions. The first S-expression is a list
-    of words that ELIZA will emit at startup [page 42 (a)]. This is followed
-    by the atom START. Following that are the pattern-matching and message
-    assembly Rules. Finally, an empty list.
-
-    e.g.
-        (HOW DO YOU DO.  PLEASE TELL ME YOUR PROBLEM)
-        START
-        <Rules>
-        ()
-    
-    Each <Rule> has one of the following six forms:
-
-    R1. Plain vanilla transformation rule. [page 38 (a)]
-        (keyword [= keyword_substitution] [precedence]
-            [ ((decomposition_pattern) (reassembly_rule) (reassembly_rule) ... )
-               (decomposition_pattern) (reassembly_rule) (reassembly_rule) ... )
-               :
-               (decomposition_pattern) (reassembly_rule) (reassembly_rule) ... )) ] )
-      e.g.
-        (MY = YOUR 2
-            ((0 YOUR 0 (/FAMILY) 0)
-                (TELL ME MORE ABOUT YOUR FAMILY)
-                (WHO ELSE IN YOUR FAMILY 5)
-                (=WHAT)
-                (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))
-            ((0 YOUR 0 (*SAD UNHAPPY DEPRESSED SICK ) 0)
-                (CAN YOU EXPLAIN WHAT MADE YOU 5))
-            ((0)
-                (NEWKEY)))
-
-
-    R2. Simple word substitution with no further transformation rules. [page 39 (a)]
-        (keyword = keyword_substitution)
-      e.g.
-        (DONT = DON'T)
-        (ME = YOU)
-
-
-    R3. Allow words to be given tags, with optional word substitution. [page 41 (j)]
-        (keyword [= keyword_substitution]
-            DLIST (/ <word> ... <word>))
-      e.g.
-            (FEEL               DLIST(/BELIEF))
-            (MOTHER             DLIST(/NOUN FAMILY))
-            (MOM = MOTHER       DLIST(/ FAMILY))
-
-
-    R4. Link to another keyword transformation rule. [page 40 (c)]
-        (keyword [= keyword_substitution] [precedence]
-            (= equivalence_class))
-      e.g.
-            (HOW                (=WHAT))
-            (WERE = WAS         (=WAS))
-            (DREAMED = DREAMT 4 (=DREAMT))
-            (ALIKE 10           (=DIT))
-
-
-    R5. As for R4 but allow pre-transformation before link. [page 40 (f)]
-        (keyword [= keyword_substitution]
-            ((decomposition_pattern)
-                (PRE (reassembly_rule) (=equivalence_class))))
-      e.g.
-        (YOU'RE = I'M
-            ((0 I'M 0)
-                (PRE (I ARE 3) (=YOU))))
-
-
-    R6. Rule to 'pre-record' responses for later use. [page 41 (f)]
-        (MEMORY keyword
-            (decomposition_pattern_1 = reassembly_rule_1)
-            (decomposition_pattern_2 = reassembly_rule_2)
-            (decomposition_pattern_3 = reassembly_rule_3)
-            (decomposition_pattern_4 = reassembly_rule_4))
-      e.g.
-        (MEMORY MY
-            (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
-            (0 YOUR 0 = EARLIER YOU SAID YOUR 3)
-            (0 YOUR 0 = BUT YOUR 3)
-            (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))
-
-
-    In addition, there must be a NONE rule with the same form as R1. [page 41 (d)]
-        (NONE
-            ((0)
-                (reassembly_rule)
-                (reassembly_rule)
-                :
-                (reassembly_rule)) )
-      e.g.
-        (NONE
-            ((0)
-                (I AM NOT SURE I UNDERSTAND YOU FULLY)
-                (PLEASE GO ON)
-                (WHAT DOES THAT SUGGEST TO YOU)
-                (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))
-
-
-    Each rule type may perform some sort of transformation on a
-    suitable user input sentence. The ELIZA script is just a collection
-    of these rules. Rules are generally triggered by the appearance of
-    a particular keyword in the user input text. So one way to model
-    the script is to std::map the keyword to the associated rule.
-
-    In this implementation of ELIZA, the high-level core algorithm is
-    encoded in the function eliza(), the transformation of the user's
-    text into ELIZA's response is via polymorphic objects derived from
-    rule_base, and the script is conveniently represented by a map of
-    keywords to these rule_base objects.
+    Here are the two rule types.
  */
 
 
-// interface and data shared by all rules
+// interface and data shared by both rules
 class rule_base {
 public:
     rule_base() {}
@@ -1104,6 +1000,8 @@ public:
 
     virtual ~rule_base() {}
 
+
+    void set_keyword(const std::string & keyword) { keyword_ = keyword; }
 
     void add_transformation_rule(const stringlist & decomposition,
         const std::vector<stringlist> & reassembly_rules)
@@ -1165,6 +1063,7 @@ protected:
     std::vector<transform> trans_;  // transformations associated with this rule
 };
 
+
 std::string rule_base::to_string() const
 {
     return std::string();
@@ -1174,13 +1073,8 @@ std::string rule_base::to_string() const
 // map keyword -> transformation rule
 typedef std::map<std::string, std::shared_ptr<rule_base>> rulemap;
 
-// in the rules map, the special-cases NONE and MEMORY have keys
-// that cannot match any user input text
+// The NONE rule is a special-case that cannot match any user input text
 #define SPECIAL_RULE_NONE   "zNONE"
-#define SPECIAL_RULE_MEMORY "zMEMORY"
-
-
-
 
 
 /* e.g.
@@ -1197,6 +1091,8 @@ public:
     rule_memory(const std::string & keyword)
         : rule_base(keyword, "", 0)
     {}
+
+    bool empty() const { return keyword_.empty() || trans_.empty(); }
 
     void create_memory(const std::string & keyword, const stringlist & words, const tagmap & tags)
     {
@@ -1270,33 +1166,29 @@ private:
 };
 
 
-
-
-
 /* e.g.
     (MY = YOUR 2
         ((0 YOUR 0 (/FAMILY) 0)
             (TELL ME MORE ABOUT YOUR FAMILY)
             (WHO ELSE IN YOUR FAMILY 5)
-            (=WHAT)
-            (PRE (YOUR FAMILY 5) (=YOUR))
+            (YOUR 4)
             (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))
-        ((0 YOUR 0 (*SAD UNHAPPY DEPRESSED SICK ) 0)
-            (CAN YOU EXPLAIN WHAT MADE YOU 5))
-        ((0)
-            (NEWKEY))
-        (=WHAT))
+        ((0 YOUR 0)
+            (YOUR 3)
+            (WHY DO YOU SAY YOUR 3)
+            (DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU)
+            (IS IT IMPORTANT TO YOU THAT 2 3)))
 */
 class rule_keyword : public rule_base {
 public:
     rule_keyword() {}
 
     rule_keyword(
-        const std::string& keyword,
-        const std::string& word_substitution,
+        const std::string & keyword,
+        const std::string & word_substitution,
         int precedence,
-        const stringlist& tags,
-        const std::string& link_keyword)
+        const stringlist & tags,
+        const std::string & link_keyword)
         : rule_base(keyword, word_substitution, precedence),
         tags_(tags), link_keyword_(link_keyword)
     {}
@@ -1432,7 +1324,6 @@ private:
 };
 
 
-
 // collect all tags from any of the given rules that have them into a tagmap
 tagmap collect_tags(const rulemap & rules)
 {
@@ -1470,6 +1361,103 @@ auto get_rule(rulemap & rules, const std::string & keyword)
 }
 
 
+class tracer {
+public:
+    virtual ~tracer() = 0;
+    virtual void begin_response() = 0;
+    virtual void limit(int /*limit*/) = 0;
+    virtual void create_memory(const std::string& /*text*/) = 0;
+    virtual void using_memory() = 0;
+    virtual void using_none() = 0;
+    virtual void keystack(const stringlist& /*keystack*/, const rulemap& /*rules*/ ) = 0;
+    virtual void unknown_key(const std::string& /*keyword*/) = 0;
+    virtual void decomp_failed() = 0;
+    virtual void transform(const std::string& /*text*/) = 0;
+    virtual void memory_stack(const std::string& /*text*/) = 0;
+    virtual void pre_transform(const std::string& /*keyword*/, const stringlist& /*words*/) = 0;
+};
+
+tracer::~tracer() {}
+
+
+class null_tracer : public tracer {
+public:
+    virtual ~null_tracer() {}
+    virtual void begin_response() {}
+    virtual void limit(int /*limit*/) {}
+    virtual void create_memory(const std::string& /*text*/) {}
+    virtual void using_memory() {}
+    virtual void using_none() {}
+    virtual void keystack(const stringlist& /*keystack*/, const rulemap& /*rules*/) {}
+    virtual void unknown_key(const std::string& /*keyword*/) {}
+    virtual void decomp_failed() {}
+    virtual void transform(const std::string& /*text*/) {}
+    virtual void memory_stack(const std::string& /*text*/) {}
+    virtual void pre_transform(const std::string& /*keyword*/, const stringlist& /*words*/) {}
+};
+
+
+class pre_tracer : public null_tracer {
+public:
+    virtual ~pre_tracer() {}
+    virtual void pre_transform(const std::string & keyword, const stringlist & words) {
+        std::cout << join(words) <<  "   :" << keyword << "\n";
+    }
+};
+
+
+class string_tracer : public null_tracer {
+    std::stringstream trace_;
+public:
+    virtual ~string_tracer() {}
+    virtual void begin_response() { trace_.str(""); }
+    virtual void limit(int limit) { trace_ << "  LIMIT: " << limit << '\n'; }
+    virtual void create_memory(const std::string & s) { trace_ << s; }
+    virtual void using_memory() { trace_ << "  (recalling a stored memory)\n"; }
+    virtual void using_none() { trace_ << "  (using a message from NONE)\n"; }
+    virtual void keystack(const stringlist & keystack, const rulemap & rules)
+    {
+        trace_ << "  keystack:";
+        if (keystack.empty())
+            trace_ << " <empty>";
+        else {
+            bool comma = false;
+            for (auto& keyword : keystack) {
+                trace_ << (comma ? ", " : " ") << keyword << "(";
+                const auto r = rules.find(keyword);
+                if (r != rules.end()) {
+                    const auto& rule = r->second;
+                    if (rule->has_transformation())
+                        trace_ << rule->precedence();
+                    else
+                        trace_ << "<no transform associated with this keyword>";
+                }
+                else
+                    trace_ << "<unknown keyword>";
+                trace_ << ')';
+                comma = true;
+            }
+        }
+        trace_ << '\n';
+    }
+    virtual void unknown_key(const std::string & keyword) {
+        trace_ << "  ill-formed script: \"" << keyword << "\" is not a keyoord\n";
+    }
+    virtual void decomp_failed() {
+        trace_ << "  ill-formed script: no decomposition rule matched input\n";
+    }
+    virtual void transform(const std::string & t) {
+        trace_ << t;
+    }
+    virtual void memory_stack(const std::string & t) {
+        trace_ << t;
+    }
+
+    std::string text() const { return trace_.str(); }
+    void clear() { trace_.str(""); }
+};
+
+
 
                 //////// //       //// ////////    ///                    
                 //       //        //       //    // //                   
@@ -1481,48 +1469,22 @@ auto get_rule(rulemap & rules, const std::string & keyword)
 
 class eliza {
 public:
-    eliza(const rulemap & rules)
-        : rules_(rules), tags_(collect_tags(rules_))
+    eliza(const rulemap & rules, std::shared_ptr<rule_memory> mem_rule)
+        : rules_(rules), mem_rule_(mem_rule), tags_(collect_tags(rules_))
     {}
 
-    eliza(rulemap && rules)
-        : rules_(std::move(rules)), tags_(collect_tags(rules_))
-    {}
+    ~eliza() {}
 
-    eliza(const eliza & e)
-        : limit_(e.limit_), rules_(e.rules_), tags_(e.tags_)
-    {
-        trace_.str(e.trace_.str());
-    }
+    // true use built-in error msgs (defualt); false use NONE messages instead
+    void set_use_nomatch_msgs(bool f) { use_nomatch_msgs_ = f; }
 
-    eliza & operator=(eliza e)
-    {
-        swap(e);
-        return *this;
-    }
+    // provide the user with a window into ELIZA's thought processes(!)
+    void set_tracer(tracer * tr) { trace_ = tr; }
 
-    void swap(eliza & e)
-    {
-        std::swap(limit_, e.limit_);
-        std::swap(rules_, e.rules_);
-        //std::swap(tags_, e.tags_);
-        //tagmap t = tags_; tags_ = e.tags_; e.tags_ = t;
-        std::swap(trace_, e.trace_);
-    }
-
-    // f=true (defualt) under certain error conditions use built-in
-    // msgs from ELIZA code that were not described in CACM;
-    // f=false use NONE messages instead
-    void set_use_nomatch_msgs(bool f)
-    {
-        use_nomatch_msgs_ = f;
-    }
-
-
-    // produce a response to the given 'input'
+    // produce a response to the given 'input' (this is the core ELIZA functionality)
     std::string response(const std::string & input)
     {
-        trace_clear();
+        trace_->begin_response();
 
         // for simplicity, convert the given input string to a list of uppercase words
         // e.g. "Hello, world!" -> (HELLO , WORLD !)
@@ -1530,7 +1492,7 @@ public:
 
         // JW's "a certain counting mechanism" is updated for each response
         limit_ = limit_ % 4 + 1;
-        trace_limit();
+        trace_->limit(limit_);
 
         // scan for keywords [page 38 (c)]; build the keystack; apply word substitutions
         stringlist keystack;
@@ -1572,52 +1534,51 @@ public:
             ++word;
         }
 
-        auto memory_rule = get_rule<rule_memory>(rules_, SPECIAL_RULE_MEMORY);
-        memory_rule->clear_trace();
-        trace_memory_stack(memory_rule->trace_memory_stack());
+        mem_rule_->clear_trace();
+        trace_->memory_stack(mem_rule_->trace_memory_stack());
         if (keystack.empty()) {
-            trace_keystack(keystack);
+            trace_->keystack(keystack, rules_);
             /*  a text without keywords; can we recall a MEMORY ? [page 41 (f)]
                 JW's 1966 CACM paper refers to this decision as "a certain counting
                 mechanism is in a particular state." The ELIZA code shows that the
                 memory is recalled only when LIMIT has the value 4 */
-            if (limit_ == 4 && memory_rule->memory_exists()) {
-                trace_using_memory();
-                return memory_rule->recall_memory();
+            if (limit_ == 4 && mem_rule_->memory_exists()) {
+                trace_->using_memory();
+                return mem_rule_->recall_memory();
             }
         }
 
         // the keystack contains all keywords that occur in the given 'input';
         // apply transformation associated with the top keyword [page 39 (d)]
         while (!keystack.empty()) {
-            trace_words(words);
-            trace_keystack(keystack);
+            trace_->keystack(keystack, rules_);
             const std::string top_keyword = pop_front(keystack);
+            trace_->pre_transform(top_keyword, words);
 
             auto rule = rules_.find(top_keyword);
             if (rule == rules_.end()) {
                 // e.g. could happen if a rule links to a non-existent keyword
-                trace_unknown_key(top_keyword);
+                trace_->unknown_key(top_keyword);
                 if (use_nomatch_msgs_)
                     return nomatch_msgs_[limit_ - 1];
                 break; // (use NONE message)
             }
 
             // try to lay down a memory for future use
-            memory_rule->create_memory(top_keyword, words, tags_);
-            trace_create_memory(memory_rule->trace());
+            mem_rule_->create_memory(top_keyword, words, tags_);
+            trace_->create_memory(mem_rule_->trace());
 
             // perform the transformation for this rule
             std::string link_keyword;
             auto act = rule->second->apply_transformation(words, tags_, link_keyword);
-            trace_transform(rule->second->trace());
+            trace_->transform(rule->second->trace());
 
             if (act == rule_base::complete)
                 return join(words); // decomposition/reassembly successfully applied
 
             if (act == rule_base::inapplicable) {
                 // no decomposition rule matched the input words; script error
-                trace_decomp_failed();
+                trace_->decomp_failed();
                 if (use_nomatch_msgs_)
                     return nomatch_msgs_[limit_ - 1];
                 break; // (use NONE message)
@@ -1630,18 +1591,12 @@ public:
             assert(act == rule_base::linkkey || act == rule_base::newkey);
         }
 
-
         // last resort: the NONE rule never fails to produce a response [page 41 (d)]
         auto none_rule = get_rule<rule_keyword>(rules_, SPECIAL_RULE_NONE);
         std::string discard;
         none_rule->apply_transformation(words, tags_, discard);
-        trace_using_none();
+        trace_->using_none();
         return join(words);
-    }
-
-    std::string back_trace() const
-    {
-        return trace_.str();
     }
 
 private:
@@ -1651,6 +1606,9 @@ private:
     // the ELIZA script in 'rulemap' form
     rulemap rules_;
 
+    // the one MEMORY rule
+    std::shared_ptr<rule_memory> mem_rule_;
+
     // e.g. tags[BELIEF] -> (BELIEVE FEEL THINK WISH)
     // (This is derived from rules_. It's a member so we only need derive it once.)
     const tagmap tags_;
@@ -1659,56 +1617,14 @@ private:
     static const char * const nomatch_msgs_[4];
     bool use_nomatch_msgs_{ true };
 
+    // by default ELIZA's thought processes are discarded
+    null_tracer nulltr_;
+    tracer * trace_{ &nulltr_ };
 
-    // a trace of internal state and script rules that led to the most recent response
-    std::stringstream trace_;
-    void trace_clear() { trace_.str(""); }
-    void trace_limit() { trace_ << "  LIMIT: " << limit_ << '\n'; }
-    void trace_create_memory(const std::string & s) { trace_ << s; }
-    void trace_using_memory() { trace_ << "  (recalling a stored memory)\n"; }
-    void trace_using_none() { trace_ << "  (using a message from NONE)\n"; }
-    void trace_keystack(const stringlist & keystack)
-    {
-        trace_ << "  keystack:";
-        if (keystack.empty())
-            trace_ << " <empty>";
-        else {
-            bool comma = false;
-            for (auto & keyword : keystack) {
-                trace_ << (comma ? ", " : " ") << keyword << "(";
-                const auto r = rules_.find(keyword);
-                if (r != rules_.end()) {
-                    const auto& rule = r->second;
-                    if (rule->has_transformation())
-                        trace_ << rule->precedence();
-                    else
-                        trace_ << "<no transform associated with this keyword>";
-                }
-                else
-                    trace_ << "<unknown keyword>";
-                trace_ << ')';
-                comma = true;
-            }
-        }
-        trace_ << '\n';
-    }
-    void trace_unknown_key(const std::string & keyword) {
-        trace_ << "  ill-formed script: \"" << keyword << "\" is not a keyoord\n";
-    }
-    void trace_decomp_failed() {
-        trace_ << "  ill-formed script: no decomposition rule matched input\n";
-    }
-    void trace_transform(const std::string & t) {
-        trace_ << t;
-    }
-    void trace_memory_stack(const std::string & t) {
-        trace_ << t;
-    }
-    void trace_words(const stringlist words) {
-        //std::cout << join(words) << '\n';
-    }
+    // eliza isn't copyable because various members aren't copyable
+    eliza(const eliza &) = delete;
+    eliza & operator=(const eliza &);
 };
-
 
 // script error messages hard-coded in JW's ELIZA, selected by LIMIT (our limit_)
 const char * const eliza::nomatch_msgs_[4] = {
@@ -1717,8 +1633,6 @@ const char * const eliza::nomatch_msgs_[4] = {
     "GO ON, PLEASE",
     "I SEE"
 };
-
-
 
 }//namespace elizalogic
 
@@ -1738,14 +1652,159 @@ const char * const eliza::nomatch_msgs_[4] = {
 namespace elizascript { // reader for 1966 ELIZA script file format
 
 
+/*  This is my understanding of the ELIZA script file from the explanation
+    in the CACM article and observation of the example script given in the
+    APPENDIX to the CACM article:
+
+    The script is a series of S-expressions. The first S-expression is a list
+    of words that ELIZA will emit at startup [page 42 (a)]. This may be
+    followed by the atom START. Following that are the pattern-matching and
+    message assembly Rules. Finally, there may be an empty list.
+
+    e.g.
+        (HOW DO YOU DO.  PLEASE TELL ME YOUR PROBLEM)
+        START
+        <Rules>
+        ()
+
+    The following modified BNF is used to define the ELIZA script syntax.
+
+        x : y
+
+    Things on the left of the colon must be replaced by (or "produce") the
+    things on the right, and things on the right of the colon are either
+    terminals or must also appear on the left in some other rule.
+    In addition, things on the right may be sequences, choices or repetitions:
+
+        x y     means there must be an x followed by a y here
+        x|y     means there must be either x or y here
+        [x]     means there must be zero or one of x here
+        {x}     means there must be zero of more x here; note that {x|y}
+                produces, for example, x, y, xx, yy, xy, yx, xyx, xyxxy, ...
+        'x'     means literally x, a terminal
+
+    The ELIZA script syntax:
+
+    eliza_script        : opening_remarks ['START'] rules ['(' ')']
+    opening_remarks     : '(' {word} ')'
+    rules               : {keyword_rule | memory_rule}
+
+    keyword_rule        : '(' keyword
+                            ['=' substitute_word]
+                            [precedence]
+                            ['DLIST' tags]
+                            {transformation}
+                            [reference] ')'
+
+    memory_rule         : '(' 'MEMORY' keyword
+                            '(' decompose_terms '=' reassemble_terms ')'
+                            '(' decompose_terms '=' reassemble_terms ')'
+                            '(' decompose_terms '=' reassemble_terms ')'
+                            '(' decompose_terms '=' reassemble_terms ')' ')'
+
+    keyword             : word
+    substitute_word     : word
+    precedence          : INTEGER
+    reference           : '(' '=' keyword ')'
+
+    transformation      : '(' decompose_pattern
+                               reassemble_rule {reassemble_rule} ')'
+    decompose_pattern   : '(' decompose_terms ')'
+    decompose_terms     : decompose_term {decompose_term}
+    decompose_term      : word | match_count | tags | any_of
+    match_count         : INTEGER
+    tags                : '(' '/' word {word} ')'
+    any_of              : '(' '*' word {word} ')'
+
+    reassemble_rule     : reassemble_pattern
+                        | reference
+                        | newkey
+                        | pre_transform_ref
+
+    reassemble_pattern  : '(' reassemble_terms ')'
+    reassemble_terms    : reassemble_term {reassemble_term}
+    reassemble_term     : word | match_index
+    match_index         : INTEGER
+    newkey              : '(' 'NEWKEY' ')'
+    pre_transform_ref   : '(' 'PRE' reassemble_pattern reference ')'
+
+    word                : word_char {word_char}
+    word_char           : A-Z | SINGLE-QUOTE
+
+
+    Note that whitespace is ignored, except where it is necessary to separate
+    symbols that would otherwise merge. For example, two adjacent words need
+    at least one space between them to stop them merging into one.
+
+    To the syntax we must add these semantic rules
+
+    1. No two keyword_rules may have the same keyword.
+
+    2. If there are multiple transformation rules, the decompose_pattern of
+    each is tried in turn and the first that successfully matches the user's
+    input text is selected. One of the decompose_patterns must match the
+    user's input, unless the transformation rules are followed by a reference.
+
+    3. If a transformation has multiple reassemble_rules they are used in
+    turn: the first time a decompose_pattern matches a user's input the first
+    reassemble_rule is used to create ELIZA’s response. The next time the
+    user's input matches the same decompose_pattern the second reassemble_rule
+    is used, and so on. When they have all been used a subsequent match will
+    begin again with the first reassemble_rule.
+
+    4. There must be exactly one memory_rule. The keyword associated with the
+    memory_rule must also be the keyword in one of the keyword_rules.
+
+    5. There must be a keyword_rule for the special keyword NONE. This rule
+    must have a decompose_pattern that matches any text, (0), and associated
+    "content-free" remarks, such as "PLEASE GO ON". It must not have a
+    substitute_word, precedence or any DLIST tags.
+
+    6. Any tag word referenced in a decompose_pattern must also be associated
+    with at least one keyword via the DLIST mechanism.
+
+    7. match_count will match the specified number of words, but doesn't
+    specify what the words are. So a match_count of 2 means there must be two
+    words here, but they can be any two words. A match_count of 0 means there
+    can be any number, including none, of any words here.
+
+    8. match_index is a 1-based index of the parts matching the
+    decompose_pattern. For example, a decompose_pattern (A 1 0) will match the
+    text "A HILL OF BEANS" and when associated with the reassemble_pattern
+    (FIRST 1 SECOND 2 THIRD 3) will produce the output "FIRST A SECOND HILL
+    THIRD OF BEANS."
+
+    9. There must exist a keyword_rule for any keyword referred to in a
+    (=keyword) reference.
+
+    10. An infinite loop may be created if keyword_rule A has a reference to
+    itself or to another keyword_rule, which either refers directly back to A
+    or refers back to A via one or more other keyword_rules. In this case
+    ELIZA would generate no response message. Weizenbaum does not explicitly
+    disallow this. This looping mechanism is fundamental to the possibility
+    that ELIZA scripts are Turing complete; looping via the pre_transform_ref
+    rule is not necessarily infinite.
+
+    11. The script has the word START following the opening_remarks, and ends
+    with an empty list. Both these elements are present in Weizenbaum's
+    published DOCTOR script, but he doesn't mention them in the CACM paper.
+    The purpose of the START symbol isn't clear, but the ELIZA source code
+    appears to use an empty list as a sentinel signaling the end of the
+    script. Both elements are included in this formal script syntax as
+    optional. 
+*/
+
+
 struct script {
     // ELIZA's opening remarks e.g. "HOW DO YOU DO.  PLEASE TELL ME YOUR PROBLEM"
     stringlist hello_message;
 
     // maps keywords -> transformation rules
     elizalogic::rulemap rules;
-};
 
+    // the one and only special case MEMORY rule
+    std::shared_ptr<elizalogic::rule_memory> mem_rule;
+};
 
 
 struct token {
@@ -1768,7 +1827,6 @@ struct token {
 
     bool operator==(const token & rhs) const { return t == rhs.t && value == rhs.value; }
 };
-
 
 
 // this is just good enough to divide the ELIZA script file format
@@ -1920,9 +1978,6 @@ private:
 };
 
 
-
-
-
 template<typename T>
 class eliza_script_reader {
 public:
@@ -1936,19 +1991,35 @@ public:
 
         while (read_rule())
             ;
+
+        // does script meet minimum requirements?
+        if (script_.rules.find(SPECIAL_RULE_NONE) == std::end(script_.rules))
+            throw std::runtime_error(
+                "Script error: no NONE rule specified; see Jan 1966 CACM page 41");
+        if (!script_.mem_rule)
+            throw std::runtime_error(
+                "Script error: no MEMORY rule specified; see Jan 1966 CACM page 41");
+        if (script_.rules.find(script_.mem_rule->keyword()) == std::end(script_.rules)) {
+            std::string msg("Script error: MEMORY rule keyword '");
+            msg += script_.mem_rule->keyword();
+            msg += "' is not also a keyword in its own right; see Jan 1966 CACM page 41";
+            throw std::runtime_error(msg);
+        }
     }
 
 private:
     tokenizer<T> tok_;
     script & script_;
 
-    std::string errormsg(const std::string& msg)
+
+    std::string errormsg(const std::string & msg)
     {
         return std::string("Script error on line ")
             + std::to_string(tok_.line())
             + ": "
             + msg;
     }
+
 
     // in the following comments, @ = position in symbol stream on function entry
 
@@ -2007,7 +2078,9 @@ private:
         t = tok_.nexttok();
         if (!t.symbol())
             throw std::runtime_error(errormsg("expected keyword"));
-        auto r = std::make_shared<elizalogic::rule_memory>(t.value);
+        if (script_.mem_rule)
+            throw std::runtime_error(errormsg("multiple MEMORY rules specified"));
+        script_.mem_rule = std::make_shared<elizalogic::rule_memory>(t.value);
 
         for (int i = 0; i < elizalogic::rule_memory::num_transformations; ++i) {
             stringlist decomposition;
@@ -2022,13 +2095,12 @@ private:
                 reassembly.push_back(t.value);
             reassembly_rules.push_back(reassembly);
 
-            r->add_transformation_rule(decomposition, reassembly_rules);
+            script_.mem_rule->add_transformation_rule(decomposition, reassembly_rules);
         }
 
         if (!tok_.nexttok().close())
             throw std::runtime_error(errormsg("expected ')'"));
 
-        script_.rules[SPECIAL_RULE_MEMORY] = r;
         return true;
     }
 
@@ -2163,12 +2235,11 @@ void read(T & script_file, script & s)
 }
 
 
-
 const char * CACM_1966_01_DOCTOR_script =
     ";\n"
     "; APPENDIX. An ELIZA Script\n"
     ";\n"
-    "; Transcribed from Joseph Weizenbaum's article on page 36 of the January\n"
+    "; Transcribed from Joseph Weizenbaum's paper on page 36 of the January\n"
     "; 1966 edition of Communications of the ACM titled 'ELIZA - A Computer\n"
     "; Program For the Study of Natural Language Communication Between Man And\n"
     "; Machine'.\n"
@@ -2179,19 +2250,18 @@ const char * CACM_1966_01_DOCTOR_script =
     "; Notes\n"
     ";\n"
     "; This is a verbatim transcription of the ELIZA script in the above\n"
-    "; mentioned CACM article, with the following caveats:\n"
+    "; mentioned CACM paper, with the following caveats:\n"
     "; a) Whitespace has been added to help reveal the structure of the\n"
     ";    script.\n"
     "; b) In the appendix six lines were printed twice adjacent to each other\n"
     ";    (with exactly 34 lines between each duplicate), making the structure\n"
     ";    nonsensical. These duplicates have been commented out of this\n"
     ";    transcription.\n"
-    "; c) There were no comments in the script in the CACM article.\n"
+    "; c) There were no comments in the script in the CACM paper.\n"
     ";\n"
     ";\n"
-    ";\n"
-    ";\n"
-    "; For further details see Weizenbaum's article, or look at eliza.cpp.\n"
+    "; For further details see Weizenbaum's paper, or look at eliza.cpp\n"
+    "; in the https://github.com/anthay/ELIZA repository.\n"
     ";\n"
     "\n"
     "\n"
@@ -2596,12 +2666,7 @@ const char * CACM_1966_01_DOCTOR_script =
     "; --- End of ELIZA script ---\n";
 
 
-
-
 }//namespace elizascript
-
-
-
 
 
 
@@ -2613,7 +2678,6 @@ const char * CACM_1966_01_DOCTOR_script =
  //       //        //   //      //     //    //    //       //    //    //    
  //////// //////// //// //////// //     //    //    ////////  //////     //    
 
-
 namespace elizatest { // basic test of whether this simulation is accurate
 
 
@@ -2622,10 +2686,9 @@ std::string to_string(const elizascript::script & s)
 {
     std::string result;
     result += "(" + join(s.hello_message) + ")\n";
-    result += "START\n";
     for (const auto & r : s.rules)
         result += r.second->to_string();
-    result += "()\n";
+    result += s.mem_rule->to_string();
     return result;
 }
 
@@ -2638,7 +2701,6 @@ DEF_TEST_FUNC(script_and_conversation_test)
     // be checked against the output of elizatest::to_string()
     const char * script_text =
         "(HOW DO YOU DO. PLEASE TELL ME YOUR PROBLEM)\n"
-        "START\n"
         "(ALIKE 10 (=DIT))\n"
         "(ALWAYS 1\n"
         "    ((0)\n"
@@ -2971,25 +3033,24 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "        (ARE YOU WORRIED ABOUT SOMEONE ELSES 3)\n"
         "        (REALLY, MY 3)))\n"
         "(YOURSELF = MYSELF)\n"
-        "(MEMORY MY\n"
-        "    (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)\n"
-        "    (0 YOUR 0 = EARLIER YOU SAID YOUR 3)\n"
-        "    (0 YOUR 0 = BUT YOUR 3)\n"
-        "    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n"
         "(NONE\n"
         "    ((0)\n"
         "        (I AM NOT SURE I UNDERSTAND YOU FULLY)\n"
         "        (PLEASE GO ON)\n"
         "        (WHAT DOES THAT SUGGEST TO YOU)\n"
         "        (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))\n"
-        "()\n";
+        "(MEMORY MY\n"
+        "    (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)\n"
+        "    (0 YOUR 0 = EARLIER YOU SAID YOUR 3)\n"
+        "    (0 YOUR 0 = BUT YOUR 3)\n"
+        "    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n";
 
 
     std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
     elizascript::script s;
     elizascript::read<std::stringstream>(ss, s);
 
-    TEST_EQUAL(s.rules.size(), (size_t)68);
+    TEST_EQUAL(s.rules.size(), (size_t)67);
     TEST_EQUAL(to_string(s), script_text);
 
     elizalogic::tagmap tags(elizalogic::collect_tags(s.rules));
@@ -3041,7 +3102,7 @@ DEF_TEST_FUNC(script_and_conversation_test)
         // NOTICE THAT". I assume the comma got lost from the CACM article.
         //{ "You are not very aggressive, but I think you don't want me to notice that.",
         //
-        // UPDATE: We now have a version of Weizenbaum's original MAD-Slip
+        // UPDATE: We now have a version of Weizenbaum's original MAD-SLIP
         // source code where we see that the word "BUT" is also considered
         // to be a delimiter. So I was wrong to assume a missing comma.
         { "You are not very aggressive but I think you don't want me to notice that.",
@@ -3066,8 +3127,8 @@ DEF_TEST_FUNC(script_and_conversation_test)
         that article, it is not unreasonable to suppose it is a fairly
         accurate simulation of the original ELIZA.
     */
-    elizalogic::eliza eliza(s.rules);
-    for (const auto& exchg : conversation) {
+    elizalogic::eliza eliza(s.rules, s.mem_rule);
+    for (const auto & exchg : conversation) {
         TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
         /*std::cout
             << exchg.prompt << '\n'
@@ -3076,33 +3137,23 @@ DEF_TEST_FUNC(script_and_conversation_test)
     }
 }
 
-
-
 }//namespace elizatest
-
 
 
 // write given s to std::cout, followed by newline
 void writeln(const std::string & s)
 {
-    if (false) {
-        // for fun, output 's' as if ELIZA was running on a 1966 Teletype
-        auto sleep = [](long ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
-        using std::cout; using std::flush; using std::endl;
+    // for fun, output 's' as if ELIZA was running on a 1966 Teletype
+    const long cps = 15; // the IBM Selectric printed at 15 characters per second
+    auto sleep = [](long ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
 
-        for (const auto c : s) {
-            cout << c << flush;
-            sleep(100);
-        }
+    for (const auto c : s) {
+        std::cout << c << std::flush;
+        sleep(1000/cps);
+    }
 
-        cout << endl;
-    }
-    else {
-        // spit out all of 's' in an instant
-        std::cout << s << std::endl;
-    }
+    std::cout << std::endl;
 }
-
 
 
 #if defined(_WIN32)
@@ -3111,10 +3162,12 @@ const std::string option_escape("/");
 const std::string option_escape("--");
 #endif
 
+
 bool is_option(const std::string s)
 {
     return s.compare(0, option_escape.size(), option_escape) == 0;
 }
+
 
 bool is_option(const std::string s, const std::string opt)
 {
@@ -3123,19 +3176,31 @@ bool is_option(const std::string s, const std::string opt)
         && s.compare(option_escape.size(), opt.size(), opt) == 0;
 }
 
+
 std::string as_option(std::string o)
 {
     return option_escape + o;
 }
 
+
+std::string pad(std::string s)
+{
+    const size_t width = 16;
+    if (s.size() < width)
+        s += std::string(width - s.size(), ' ');
+    return s;
+}
+
+
 bool parse_cmdline(
     int argc, const char * argv[],
     bool & showscript,
     bool & nobanner,
+    bool & notty,
     bool & help,
     std::string & script_filename)
 {
-    showscript = nobanner = help = false;
+    showscript = nobanner = notty = help = false;
     script_filename.clear();
     for (int i = 1; i < argc; ++i) {
         if (is_option(argv[i])) {
@@ -3145,6 +3210,8 @@ bool parse_cmdline(
                 showscript = true;
             else if (as_option("nobanner") == argv[i])
                 nobanner = true;
+            else if (as_option("notty") == argv[i])
+                notty = true;
             else
                 return false;
         }
@@ -3162,20 +3229,27 @@ bool parse_cmdline(
 int main(int argc, const char * argv[])
 {
     try {
-        bool showscript, nobanner, help;
+        bool showscript, nobanner, notty, help, traceauto = false;
         std::string script_filename;
-        if (!parse_cmdline(argc, argv, showscript, nobanner, help, script_filename) || help) {
+        if (!parse_cmdline(argc, argv, showscript, nobanner, notty, help, script_filename) || help) {
             (help ? std::cout : std::cerr)
-                << "Usage: eliza ["
-                << as_option("showscript")
-                << " | " << as_option("nobanner")
-                << " | <filename>]\n"
-                << "  where\n"
-                << "    " << as_option("nobanner") << "   don't display startup banner\n"
-                << "    " << as_option("showscript") << " dump Weizenbaum's 1966 DOCTOR script to stcout\n"
-                << "                e.g. ELIZA " << as_option("showscript") << " > script.txt\n"
-                << "    <filename>  use named script file\n"
-                << "                e.g. ELIZA script.txt\n";
+                << "Usage: ELIZA [options] [<filename>]\n"
+                << "\n"
+                << "  " << pad(as_option("nobanner"))   << "don't display startup banner\n"
+                << "  " << pad(as_option("notty"))      << "don't print like it's 1966 (at 15 characters per second)\n"
+                << "  " << pad(as_option("showscript")) << "print Weizenbaum's 1966 DOCTOR script\n"
+                << "  " << pad("")                      << "e.g. ELIZA " << as_option("showscript") << " > script.txt\n"
+                << "  " << pad("<filename>")            << "use named script file instead of built-in DOCTOR script\n"
+                << "  " << pad("")                      << "e.g. ELIZA script.txt\n"
+                << "\n"
+                << "In a conversation with ELIZA, these inputs have special meaning:\n"
+                << "  <blank line>    quit\n"
+                << "  *               display trace of most recent exchange\n"
+                << "  *traceoff       turn off tracing\n"
+                << "  *traceon        turn on tracing; enter '*' after any excahnge to see trace\n"
+                << "  *traceauto      turn on tracing; trace shown after every exchange\n"
+                << "  *tracepre       show input sentence prior to applying transformation\n"
+                << "                  (watch the operation of Turing machines)\n";
             return help ? EXIT_SUCCESS : EXIT_FAILURE;
         }
 
@@ -3193,19 +3267,18 @@ int main(int argc, const char * argv[])
                 "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
                 "ELIZA implementation by Anthony Hay, 2022 (CC0 1.0) Public Domain\n"
                 "-----------------------------------------------------------------\n"
-                << "ELIZA " << as_option("help") << " for usage.\n"
-                << (script_filename.empty() ? "Using Weizenbaum's 1966 DOCTOR script.\n" : "")
-                << "Enter a blank line to quit.\n"
-                << "\n\n";
+                    << "ELIZA " << as_option("help") << " for usage.\n"
+                    << "Enter a blank line to quit.\n";
         }
 
         //unpublished_script_tests::unpublished_script_tests();
-        RUN_TESTS(); // run the tests defined with DEF_TEST_FUNC
-
+        RUN_TESTS(); // run all the tests defined with DEF_TEST_FUNC
 
         elizascript::script s;
         if (script_filename.empty()) {
             // use default 'internal' 1966 CACM published script
+            std::cout << (nobanner ? "\n\n"
+                : "Using Weizenbaum's 1966 DOCTOR script (built-in).\n\n\n");
             std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
             elizascript::read<std::stringstream>(ss, s);
         }
@@ -3213,28 +3286,74 @@ int main(int argc, const char * argv[])
             // use the named script file
             std::ifstream script_file(script_filename);
             if (!script_file.is_open()) {
-                std::cerr << argv[0]
-                    << ": failed to open script file '" << script_filename << "'\n";
+                std::cerr << argv[0] << ": failed to open script file '"
+                          << script_filename << "'\n";
                 return EXIT_FAILURE;
             }
-            std::cout
-                << "Using given script file '" << script_filename << "'\n\n\n";
+            if (nobanner)
+                std::cout << "\n\n";
+            else
+                std::cout << "Using script file '" << script_filename << "'\n\n\n";
             elizascript::read<std::ifstream>(script_file, s);
         }
 
+        elizalogic::null_tracer notrace;
+        elizalogic::string_tracer trace;
+        elizalogic::pre_tracer pretrace;
 
-        writeln(join(s.hello_message));
-        for (elizalogic::eliza eliza(std::move(s.rules));;) {
+        elizalogic::eliza eliza(s.rules, s.mem_rule);
+        eliza.set_tracer(&trace);
+
+        auto print = [&](const std::string & s) {
+            if (notty)
+                std::cout << s << std::endl;
+            else
+                writeln(s);
+        };
+
+        print(join(s.hello_message));
+        for (;;) {
             std::cout << std::endl;
             std::string userinput;
             std::getline(std::cin, userinput);
-            if (userinput == "*") {
-                std::cout << eliza.back_trace();
-                continue;
-            }
+
             if (userinput.empty())
                 break;
-            writeln(eliza.response(userinput));
+            else if (userinput == "*") {
+                std::cout << trace.text();
+                continue;
+            }
+            else if (userinput == "*traceon") {
+                eliza.set_tracer(&trace);
+                traceauto = false;
+                std::cout << "tracing enabled; enter '*' after any excahnge to see trace\n";
+                continue;
+            }
+            else if (userinput == "*traceauto") {
+                eliza.set_tracer(&trace);
+                traceauto = true;
+                std::cout << "tracing enabled\n";
+                continue;
+            }
+            else if (userinput == "*traceoff") {
+                eliza.set_tracer(&notrace);
+                trace.clear();
+                traceauto = false;
+                std::cout << "tracing disabled\n";
+                continue;
+            }
+            else if (userinput == "*tracepre") {
+                eliza.set_tracer(&pretrace);
+                trace.clear();
+                traceauto = false;
+                std::cout << "tracing PRE enabled\n";
+                continue;
+            }
+
+            print(eliza.response(userinput));
+
+            if (traceauto)
+                std::cout << trace.text();
         }
     }
     catch (const std::exception & e) {
