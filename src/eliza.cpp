@@ -209,7 +209,7 @@ DEF_TEST_FUNC(join_test)
 //////// //////// //// //////// //     // ////////  ///////   //////   ////  //////  
 
 
-namespace elizalogic { // the core ELIZA algorithm
+namespace elizalogic {
 
 // map tag -> associated words, e.g. "BELIEF" -> ("BELIEVE" "FEEL" "THINK" "WISH")
 typedef std::map<std::string, stringlist> tagmap;
@@ -340,8 +340,8 @@ stringlist split(std::string s)
 
 DEF_TEST_FUNC(split_test)
 {
-    const stringlist r1{ "one", "two", ",", "three", "." };
-    TEST_EQUAL(split("one   two, three."), r1);
+    const stringlist r1{ "one", "two", ",", "three", "don't", "." };
+    TEST_EQUAL(split("one   two, three don't."), r1);
 }
 
 
@@ -1266,11 +1266,11 @@ public:
         if (!word_substitution_.empty())
             sexp += " = " + word_substitution_;
 
-        if (precedence_ > 0)
-            sexp += " " + std::to_string(precedence_);
-
         if (!tags_.empty())
             sexp += " DLIST(" + join(tags_) + ")";
+
+        if (precedence_ > 0)
+            sexp += " " + std::to_string(precedence_);
 
         for (const auto& k : trans_) {
             sexp += "\n    ((" + join(k.decomposition) + ")";
@@ -1417,7 +1417,7 @@ public:
     virtual void using_none() { trace_ << "  (using a message from NONE)\n"; }
     virtual void keystack(const stringlist & keystack, const rulemap & rules)
     {
-        trace_ << "  keystack:";
+        trace_ << "  keyword stack:";
         if (keystack.empty())
             trace_ << " <empty>";
         else {
@@ -1481,7 +1481,7 @@ public:
     // provide the user with a window into ELIZA's thought processes(!)
     void set_tracer(tracer * tr) { trace_ = tr; }
 
-    // produce a response to the given 'input' (this is the core ELIZA functionality)
+    // produce a response to the given 'input' (this is the core ELIZA algorithm)
     std::string response(const std::string & input)
     {
         trace_->begin_response();
@@ -1691,8 +1691,8 @@ namespace elizascript { // reader for 1966 ELIZA script file format
 
     keyword_rule        : '(' keyword
                             ['=' substitute_word]
-                            [precedence]
                             ['DLIST' tags]
+                            [precedence]
                             {transformation}
                             [reference] ')'
 
@@ -1741,9 +1741,11 @@ namespace elizascript { // reader for 1966 ELIZA script file format
     1. No two keyword_rules may have the same keyword.
 
     2. If there are multiple transformation rules, the decompose_pattern of
-    each is tried in turn and the first that successfully matches the user's
-    input text is selected. One of the decompose_patterns must match the
-    user's input, unless the transformation rules are followed by a reference.
+    each is tried in turn and the first that successfully matches the user’s
+    input text is selected. If none of the decompose_patterns match the user’s
+    input, and the transformation rules are not followed by a reference, the
+    keyword rule fails to produce a response and ELIZA will emit one of four
+    built-in messages.
 
     3. If a transformation has multiple reassemble_rules they are used in
     turn: the first time a decompose_pattern matches a user's input the first
@@ -2146,6 +2148,13 @@ private:
         keyword = t.value;
         if (keyword == "NONE")
             keyword = SPECIAL_RULE_NONE;
+
+        if (script_.rules.find(keyword) != script_.rules.end()) {
+            std::string msg("keyword rule already specified for keyword '");
+            msg += keyword;
+            msg += "'";
+            throw std::runtime_error(errormsg(msg));
+        }
 
         for (t = tok_.nexttok(); !t.close(); t = tok_.nexttok()) {
             if (t.symbol("=")) {
@@ -2693,6 +2702,115 @@ std::string to_string(const elizascript::script & s)
 }
 
 
+DEF_TEST_FUNC(script_test)
+{
+    /* Test combinations of keyword_rule
+
+        '(' keyword
+            ['=' substitute_word]
+            ['DLIST' tags]
+            [precedence]
+            {transformation}
+            [reference] ')'
+    */
+
+    const char * script_text =
+        "(OPENING REMARKS)\n"
+
+        "(K00 = SUBSTITUTEWORD)\n"
+
+        "(K01 DLIST(/TAG1 TAG2))\n"
+
+        "(K10 (=REFERENCE))\n"
+        "(K11 99 (=REFERENCE))\n"
+        "(K12 DLIST(/TAG1 TAG2) (=REFERENCE))\n"
+        "(K13 = SUBSTITUTEWORD (=REFERENCE))\n"
+        "(K14 DLIST(/TAG1 TAG2) 99 (=REFERENCE))\n"
+        "(K15 = SUBSTITUTEWORD 99 (=REFERENCE))\n"
+        "(K16 = SUBSTITUTEWORD DLIST(/TAG1 TAG2) (=REFERENCE))\n"
+        "(K17 = SUBSTITUTEWORD DLIST(/TAG1 TAG2) 99 (=REFERENCE))\n"
+
+        "(K20\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE)))\n"
+        "(K21 99\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE)))\n"
+        "(K22 DLIST(/TAG1 TAG2)\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE)))\n"
+        "(K23 = SUBSTITUTEWORD\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE)))\n"
+        "(K24 DLIST(/TAG1 TAG2) 99\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE)))\n"
+        "(K25 = SUBSTITUTEWORD 99\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE)))\n"
+        "(K26 = SUBSTITUTEWORD DLIST(/TAG1 TAG2)\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE)))\n"
+        "(K27 = SUBSTITUTEWORD DLIST(/TAG1 TAG2) 99\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE)))\n"
+
+        "(K30\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE))\n"
+        "    (=REFERENCE))\n"
+        "(K31 99\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE))\n"
+        "    (=REFERENCE))\n"
+        "(K32 DLIST(/TAG1 TAG2)\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE))\n"
+        "    (=REFERENCE))\n"
+        "(K33 = SUBSTITUTEWORD\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE))\n"
+        "    (=REFERENCE))\n"
+        "(K34 DLIST(/TAG1 TAG2) 99\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE))\n"
+        "    (=REFERENCE))\n"
+        "(K35 = SUBSTITUTEWORD 99\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE))\n"
+        "    (=REFERENCE))\n"
+        "(K36 = SUBSTITUTEWORD DLIST(/TAG1 TAG2)\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE))\n"
+        "    (=REFERENCE))\n"
+        "(K37 = SUBSTITUTEWORD DLIST(/TAG1 TAG2) 99\n"
+        "    ((DECOMPOSE PATTERN)\n"
+        "        (REASSEMBLE RULE))\n"
+        "    (=REFERENCE))\n"
+
+        "(NONE\n"
+        "    ((0)\n"
+        "        (I AM NOT SURE I UNDERSTAND YOU FULLY)\n"
+        "        (PLEASE GO ON)\n"
+        "        (WHAT DOES THAT SUGGEST TO YOU)\n"
+        "        (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))\n"
+
+        "(MEMORY K10\n"
+        "    (0 = A)\n"
+        "    (0 = B)\n"
+        "    (0 = C)\n"
+        "    (0 = D))\n";
+
+
+    std::stringstream ss(script_text);
+    elizascript::script s;
+    elizascript::read<std::stringstream>(ss, s);
+
+    TEST_EQUAL(s.rules.size(), (size_t)27);
+    TEST_EQUAL(to_string(s), script_text);
+}
+
+
 // perform basic checks on implementation
 DEF_TEST_FUNC(script_and_conversation_test)
 {
@@ -3046,94 +3164,260 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n";
 
 
-    std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
-    elizascript::script s;
-    elizascript::read<std::stringstream>(ss, s);
-
-    TEST_EQUAL(s.rules.size(), (size_t)67);
-    TEST_EQUAL(to_string(s), script_text);
-
-    elizalogic::tagmap tags(elizalogic::collect_tags(s.rules));
-    TEST_EQUAL(tags.size(), (size_t)3);
-    TEST_EQUAL(join(tags["BELIEF"]), "BELIEVE FEEL THINK WISH");
-    TEST_EQUAL(join(tags["FAMILY"]), "BROTHER CHILDREN DAD FATHER MOM MOTHER SISTER WIFE");
-    TEST_EQUAL(join(tags["NOUN"]), "FATHER MOTHER");
-
-
     struct exchange {
         const char * prompt;    // input to ELIZA
         const char * response;  // output expected from ELIZA
     };
-    const exchange conversation[] = {
-        // --- exact conversation quoted in 1966 CACM article ---
-        { "Men are all alike.",
-          "IN WHAT WAY" },
 
-        { "They're always bugging us about something or other.",
-          "CAN YOU THINK OF A SPECIFIC EXAMPLE" },
+    {
+        std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
+        elizascript::script s;
+        elizascript::read<std::stringstream>(ss, s);
 
-        { "Well, my boyfriend made me come here.",
-          "YOUR BOYFRIEND MADE YOU COME HERE" },
+        TEST_EQUAL(s.rules.size(), (size_t)67);
+        TEST_EQUAL(to_string(s), script_text);
 
-        { "He says I'm depressed much of the time.",
-          "I AM SORRY TO HEAR YOU ARE DEPRESSED" },
+        elizalogic::tagmap tags(elizalogic::collect_tags(s.rules));
+        TEST_EQUAL(tags.size(), (size_t)3);
+        TEST_EQUAL(join(tags["BELIEF"]), "BELIEVE FEEL THINK WISH");
+        TEST_EQUAL(join(tags["FAMILY"]), "BROTHER CHILDREN DAD FATHER MOM MOTHER SISTER WIFE");
+        TEST_EQUAL(join(tags["NOUN"]), "FATHER MOTHER");
 
-        { "It's true. I am unhappy.",
-          "DO YOU THINK COMING HERE WILL HELP YOU NOT TO BE UNHAPPY" },
+        const exchange cacm_1966_conversation[] = {
+            // --- exact conversation quoted in 1966 CACM article ---
+            { "Men are all alike.",
+              "IN WHAT WAY" },
 
-        { "I need some help, that much seems certain.",
-          "WHAT WOULD IT MEAN TO YOU IF YOU GOT SOME HELP" },
+            { "They're always bugging us about something or other.",
+              "CAN YOU THINK OF A SPECIFIC EXAMPLE" },
 
-        { "Perhaps I could learn to get along with my mother.",
-          "TELL ME MORE ABOUT YOUR FAMILY" },
+            { "Well, my boyfriend made me come here.",
+              "YOUR BOYFRIEND MADE YOU COME HERE" },
 
-        { "My mother takes care of me.",
-          "WHO ELSE IN YOUR FAMILY TAKES CARE OF YOU" },
+            { "He says I'm depressed much of the time.",
+              "I AM SORRY TO HEAR YOU ARE DEPRESSED" },
 
-        { "My father.",
-          "YOUR FATHER" },
+            { "It's true. I am unhappy.",
+              "DO YOU THINK COMING HERE WILL HELP YOU NOT TO BE UNHAPPY" },
 
-        { "You are like my father in some ways.",
-          "WHAT RESEMBLANCE DO YOU SEE" },
+            { "I need some help, that much seems certain.",
+              "WHAT WOULD IT MEAN TO YOU IF YOU GOT SOME HELP" },
 
-        // In the CACM article, the following prompt contained no comma.
-        // Without the comma, this simulation responds "WHAT MAKES YOU
-        // THINK I AM NOT VERY AGGRESSIVE BUT YOU THINK I DON'T WANT YOU TO
-        // NOTICE THAT". I assume the comma got lost from the CACM article.
-        //{ "You are not very aggressive, but I think you don't want me to notice that.",
-        //
-        // UPDATE: We now have a version of Weizenbaum's original MAD-SLIP
-        // source code where we see that the word "BUT" is also considered
-        // to be a delimiter. So I was wrong to assume a missing comma.
-        { "You are not very aggressive but I think you don't want me to notice that.",
-          "WHAT MAKES YOU THINK I AM NOT VERY AGGRESSIVE" },
+            { "Perhaps I could learn to get along with my mother.",
+              "TELL ME MORE ABOUT YOUR FAMILY" },
 
-        { "You don't argue with me.",
-          "WHY DO YOU THINK I DON'T ARGUE WITH YOU" },
+            { "My mother takes care of me.",
+              "WHO ELSE IN YOUR FAMILY TAKES CARE OF YOU" },
 
-        { "You are afraid of me.",
-          "DOES IT PLEASE YOU TO BELIEVE I AM AFRAID OF YOU" },
+            { "My father.",
+              "YOUR FATHER" },
 
-        { "My father is afraid of everybody.",
-          "WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR FATHER" },
+            { "You are like my father in some ways.",
+              "WHAT RESEMBLANCE DO YOU SEE" },
 
-        { "Bullies.",
-          "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HERE" },
-        // --- end of 1966 CACM article conversation ---
-    };
+            // In the CACM article, the following prompt contained no comma.
+            // Without the comma, this simulation responds "WHAT MAKES YOU
+            // THINK I AM NOT VERY AGGRESSIVE BUT YOU THINK I DON'T WANT YOU TO
+            // NOTICE THAT". I assume the comma got lost from the CACM article.
+            //{ "You are not very aggressive, but I think you don't want me to notice that.",
+            //
+            // UPDATE: We now have a version of Weizenbaum's original MAD-SLIP
+            // source code where we see that the word "BUT" is also considered
+            // to be a delimiter. So I was wrong to assume a missing comma.
+            { "You are not very aggressive but I think you don't want me to notice that.",
+              "WHAT MAKES YOU THINK I AM NOT VERY AGGRESSIVE" },
 
-    /*  I believe that if this code reproduces the exact conversation
-        published in the CACM article, using the mechanisms described in
-        that article, it is not unreasonable to suppose it is a fairly
-        accurate simulation of the original ELIZA.
-    */
-    elizalogic::eliza eliza(s.rules, s.mem_rule);
-    for (const auto & exchg : conversation) {
-        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
-        /*std::cout
-            << exchg.prompt << '\n'
-            << exchg.response << '\n'
-            << eliza.back_trace() << '\n';*/
+            { "You don't argue with me.",
+              "WHY DO YOU THINK I DON'T ARGUE WITH YOU" },
+
+            { "You are afraid of me.",
+              "DOES IT PLEASE YOU TO BELIEVE I AM AFRAID OF YOU" },
+
+            { "My father is afraid of everybody.",
+              "WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR FATHER" },
+
+            { "Bullies.",
+              "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HERE" },
+            // --- end of 1966 CACM article conversation ---
+        };
+
+        /*  I believe that if this code reproduces the exact conversation
+            published in the CACM article, using the mechanisms described in
+            that article, it is not unreasonable to suppose it is a fairly
+            accurate simulation of the original ELIZA.
+        */
+        elizalogic::eliza eliza(s.rules, s.mem_rule);
+        for (const auto & exchg : cacm_1966_conversation)
+            TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
+    }
+
+    {
+        const exchange boston_globe_1966_conversation[] = {
+
+            /* A conversation printed in The Boston Globe, 22 September 1966
+               by Robert L. Levey who visited MIT and talked to the "doctor."
+               We don't have the script that was used so the conversation
+               recreated here is not the same. The responses printed in the
+               newspaper are commented out below. */
+
+            { "hello.",
+              "HOW DO YOU DO. PLEASE STATE YOUR PROBLEM" },
+
+            { "my foot hurts",
+            //"TELL ME ABOUT YOUR PAINS IN GENERAL"
+              "YOUR FOOT HURTS" },
+
+            { "it aches mostly around the toes",
+              "EARLIER YOU SAID YOUR FOOT HURTS" },
+
+            { "right",
+              "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+            { "what is your problem",
+              "WHY DO YOU ASK" },
+
+            { "because",
+              "IS THAT THE REAL REASON" },
+
+            { "no - i was simply picking on you",
+            //"LET'S TRY TO GO ON"
+              "WERE YOU REALLY" },
+
+            { "what can i do about my toes",
+            //"YOUR TOES"
+              "WHY DO YOU SAY YOUR TOES" },
+
+            { "they still hurt",
+            //"DOES ANY PART OF YOUR BODY HURT YOU"
+              "PLEASE GO ON" },
+
+            { "some vague pains in the chest",
+            //"PLEASE GO ON"
+              "WHAT DOES THAT SUGGEST TO YOU" },
+
+            { "the head bothers me too sometimes",
+              "EARLIER YOU SAID YOUR TOES" },
+
+            { "you wanted to know what else hurt me",
+              "WHY DO YOU THINK I WANTED TO KNOW WHAT ELSE HURT YOU" },
+
+            { "you are the doctor",
+              "WHAT MAKES YOU THINK I AM THE DOCTOR" },
+
+            { "the operator of this machine assured me that you were the doctor",
+              "DO COMPUTERS WORRY YOU" },
+
+            { "in general or in specific",
+            //"PERHAPS YOU PREFER NOT TO DISCUSS IT"
+              "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+
+            { "i am enjoying myself",
+            //"IS IT BECAUSE YOU ARE ENJOYING YOURSELF THAT YOU CAME HERE"
+              "IS IT BECAUSE YOU ARE ENJOYING YOURSELF THAT YOU CAME TO ME" },
+
+            { "i was looking for greater enjoyment when i came to you",
+            //"WERE YOU REALLY"
+              "WHY DO YOU TELL ME YOU WERE LOOKING FOR GREATER ENJOYMENT WHEN YOU CAME TO I NOW" },
+
+            { "yes - do you think i am being sarcastic",
+            //"YOU SEEM QUITE SURE"
+              "YOU SEEM QUITE POSITIVE" },
+
+            { "not sure - just confident",
+            //"WHAT DOES THAT SUGGEST TO YOU"
+              "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+            { "superiority",
+            //"DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS"
+              "PLEASE GO ON" },
+
+            { "more and more every moment",
+            //"TELL ME MORE ABOUT SUCH FEELINGS"
+              "WHAT DOES THAT SUGGEST TO YOU" },
+
+            { "would you understand",
+              "WE WERE DISCUSSING YOU - NOT ME" },
+
+            { "i also feel you don't really want to help me",
+              "YOU LIKE TO THINK I DON'T REALLY WANT TO HELP YOU - DON'T YOU" },
+
+            { "i don't like to feel it",
+              "DON'T YOU REALLY LIKE TO FEEL IT" },
+
+            { "no",
+              "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+
+            { "yes",
+            //"YOU'RE PLAYING GAMES - I WON'T RESPOND UNTIL YOU QUIT"
+              "YOU ARE SURE" },
+
+            { "treat me immediately",
+            //"DOES ANY PART OF YOUR BODY HURT YOU"
+              "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+
+            { "all parts hurt and then some",
+            //"WHAT DOES THAT SUGGEST TO YOU"
+              "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+            { "maladjustment",
+            //"DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS"
+              "PLEASE GO ON" },
+
+            { "no",
+            //"WHY NOT"
+              "YOU ARE BEING A BIT NEGATIVE" },
+
+            { "because you are putting me on",
+              "DON'T ANY OTHER REASONS COME TO MIND" },
+
+            { "yes - you seem arrogant and silly",
+            //"I UNDERSTAND"
+              "I SEE" },
+
+            { "you would",
+            //"YOU'RE NOT REALLY TALKING ABOUT ME ARE YOU"
+              "OH, I WOULD" },
+
+            { "who else",
+            //"I AM NOT SURE I UNDERSTAND YOU FULLY"
+              "WHAT DOES THAT SUGGEST TO YOU" },
+
+            { "i am calling you a fink",
+            //"HOW LONG HAVE YOU BEEN CALLING ME A FINK"
+              "HOW LONG HAVE YOU BEEN CALLING I A FINK" },
+
+            { "since you started behaving unethically",
+            //"WHAT ARE YOUR FEELINGS NOW"
+              "YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU" },
+
+            { "i despise you",
+            //"PERHAPS IN YOUR FANTASY WE STILL DESPISE TOGETHER"
+              "PERHAPS IN YOUR FANTASY WE DESPISE EACH OTHER" },
+
+            { "perhaps i actually despise myself",
+              "YOU DON'T SEEM QUITE CERTAIN" },
+
+            { "i feel more unsure as the moments pass",
+            //"DO YOU OFTEN FEEL MORE UNSURE AS THE MOMENTS PASS"
+              "TELL ME MORE ABOUT SUCH FEELINGS" },
+
+            { "you are losing control of your mind",
+              "DOES IT PLEASE YOU TO BELIEVE I AM LOSING CONTROL OF MY MIND" },
+
+            { "you are more to be pitied than censured",
+              "DO YOU SOMETIMES WISH YOU WERE MORE TO BE PITIED THAN CENSURED" },
+
+            { "i've had enough - goodbye",
+            //"DOES ANY PART OF YOUR BODY HURT YOU"
+              "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+        };
+
+        std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
+        elizascript::script s;
+        elizascript::read<std::stringstream>(ss, s);
+        elizalogic::eliza eliza(s.rules, s.mem_rule);
+        for (const auto & exchg : boston_globe_1966_conversation)
+            TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
     }
 }
 
@@ -3249,7 +3533,7 @@ int main(int argc, const char * argv[])
                 << "  *traceon        turn on tracing; enter '*' after any excahnge to see trace\n"
                 << "  *traceauto      turn on tracing; trace shown after every exchange\n"
                 << "  *tracepre       show input sentence prior to applying transformation\n"
-                << "                  (watch the operation of Turing machines)\n";
+                << "                  (for watching the operation of Turing machines)\n";
             return help ? EXIT_SUCCESS : EXIT_FAILURE;
         }
 
@@ -3278,7 +3562,7 @@ int main(int argc, const char * argv[])
         if (script_filename.empty()) {
             // use default 'internal' 1966 CACM published script
             std::cout << (nobanner ? "\n\n"
-                : "Using Weizenbaum's 1966 DOCTOR script (built-in).\n\n\n");
+                : "No script filename given; using built-in 1966 DOCTOR script.\n\n\n");
             std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
             elizascript::read<std::stringstream>(ss, s);
         }
