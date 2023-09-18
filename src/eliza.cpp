@@ -87,15 +87,15 @@ unsigned fault_count;     // total number of tests that fail
 // write a message to std::cout if !(value == expected_value)
 template<typename A, typename B>
 void test_equal(const A & value, const B & expected_value,
-    const char * filename, const size_t linenum, const char * functionname)
+    const char * filename, const size_t line_num, const char * function_name)
 {
     ++test_count;
     if (!(value == expected_value)) {
         ++fault_count;
         // e.g. love.cpp(2021) : in proposal() expected 'Yes!', but got 'Hahaha'
         std::cout
-            << filename << '(' << linenum
-            << ") : in " << functionname
+            << filename << '(' << line_num
+            << ") : in " << function_name
             << "() expected '" << expected_value
             << "', but got '" << value
             << "'\n";
@@ -107,6 +107,7 @@ void test_equal(const A & value, const B & expected_value,
 std::vector<void (*)()> test_routines;
 
 
+// register a test function; return an arbitary value
 size_t add_test(void (*f)())
 {
     test_routines.push_back(f);
@@ -114,6 +115,7 @@ size_t add_test(void (*f)())
 }
 
 
+// run all registered tests
 void run_tests()
 {
     for (auto & t : test_routines)
@@ -123,7 +125,8 @@ void run_tests()
 }
 
 
-// micro_test_library usage:
+// micro_test_library usage via these macros...
+
 
 // write a message to std::cout if !(value == expected_value)
 #define TEST_EQUAL(value, expected_value)                   \
@@ -132,6 +135,7 @@ void run_tests()
         __FILE__, __LINE__, __FUNCTION__);                  \
 }
 
+
 // To allow test code to be placed nearby code being tested, test functions
 // may be defined with this macro. All such functions may then be called
 // with one call to RUN_TESTS(). Each test function must have a unique name.
@@ -139,6 +143,7 @@ void run_tests()
 void test_func();                                                        \
 size_t micro_test_##test_func = micro_test_library::add_test(test_func); \
 void test_func()
+
 
 // execute all the DEF_TEST_FUNC defined functions
 #define RUN_TESTS() micro_test_library::run_tests()
@@ -156,6 +161,7 @@ auto pop_front(T & container)
 }
 
 
+// pop_front() specialised for std::string
 template<>
 auto pop_front(std::string & container)
 {
@@ -176,8 +182,7 @@ std::string to_upper(std::string s)
 
 
 // join given words into one space separated string
-// e.g. join(["one", "two", ",", "3", "."]) -> "one two , 3 ."
-// (ELIZA doesn't output punctuation)
+// e.g. join(["one", "two", "", "3"]) -> "one two 3"
 std::string join(const stringlist & words)
 {
     std::string result;
@@ -191,11 +196,16 @@ std::string join(const stringlist & words)
     return result;
 }
 
+
 DEF_TEST_FUNC(join_test)
 {
     TEST_EQUAL(join({  }), "");
     TEST_EQUAL(join({ "ELIZA" }), "ELIZA");
-    TEST_EQUAL(join({ "one", "", "two", ",", "3", "." }), "one two , 3 .");
+    TEST_EQUAL(join({ "one", "two", "", "3" }), "one two 3");
+    // There is currently no requirement that commas and periods
+    // be attached to preceeding words because in this code join()
+    // is never called upon to do this.
+    // TEST_EQUAL(join({ "one", ",", "two" }), "one, two");
 }
 
 
@@ -286,6 +296,7 @@ std::string filter_bcd(std::string s)
     return s;
 }
 
+
 DEF_TEST_FUNC(filter_bcd_test)
 {
     TEST_EQUAL(filter_bcd(""), "");
@@ -298,12 +309,14 @@ DEF_TEST_FUNC(filter_bcd_test)
 }
 
 
-bool punctuation(char c)
+// return true iff given c is delimiter (see delimiter())
+bool delimiter_character(char c)
 {
-    return c == ',' || c == '.'; // [page 37 (c)]
-}
+    return c == ',' || c == '.';
+};
 
 
+// return true iff given s is an ELIZA delimiter
 bool delimiter(const std::string & s)
 {
     // In the 1966 CACM article on page 37 Weizenbaum says "the procedure
@@ -311,18 +324,19 @@ bool delimiter(const std::string & s)
     // MAD-SLIP source code the relevant code is
     //    W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR. WORD .E. $BUT$
     // (W'R means WHENEVER). So "BUT" is also a delimiter.
-    return s == "BUT" || (s.size() == 1 && punctuation(s[0]));
+
+    return s == "BUT" || (s.size() == 1 && delimiter_character(s[0]));
 }
 
 
-// split given string s into a list of "words"; punctuation are words
+// split given string s into a list of "words"; delimiters are words
 // e.g. split("one   two, three.") -> ["one", "two", ",", "three", "."]
 stringlist split(std::string s)
 {
     stringlist result;
     std::string word;
     for (auto ch : s) {
-        if (punctuation(ch) || ch == ' ') {
+        if (delimiter_character(ch) || ch == ' ') {
             if (!word.empty()) {
                 result.push_back(word);
                 word.clear();
@@ -338,10 +352,11 @@ stringlist split(std::string s)
     return result;
 }
 
+
 DEF_TEST_FUNC(split_test)
 {
-    const stringlist r1{ "one", "two", ",", "three", "don't", "." };
-    TEST_EQUAL(split("one   two, three don't."), r1);
+    const stringlist r1{ "one", "two", ",", "three", ",", ",", "don't", "." };
+    TEST_EQUAL(split("one   two, three,, don't."), r1);
 }
 
 
@@ -356,6 +371,16 @@ int to_int(const std::string & s)
             return -1;
     }
     return result;
+}
+
+
+DEF_TEST_FUNC(to_int_test)
+{
+    TEST_EQUAL(to_int("0"), 0);
+    TEST_EQUAL(to_int("1"), 1);
+    TEST_EQUAL(to_int("2023"), 2023);
+    TEST_EQUAL(to_int("-42"), -1);
+    TEST_EQUAL(to_int("int"), -1);
 }
 
 
@@ -455,6 +480,7 @@ bool match(const tagmap & tags, stringlist pattern, stringlist words, stringlist
     }
     return false;
 }
+
 
 DEF_TEST_FUNC(match_test)
 {
@@ -570,6 +596,7 @@ stringlist reassemble(const stringlist & reassembly_rule, const stringlist & com
     return result;
 }
 
+
 DEF_TEST_FUNC(reassemble_test)
 {
     // A test pattern from the ASSMBL function description in the SLIP manual
@@ -644,7 +671,7 @@ DEF_TEST_FUNC(reassemble_test)
         TRA = transfer to specified address (aka jump)
         ZAC = zero the accumulator
 
-    Bits in an IBM 7090 instruction word are labeled
+    Bits in an IBM 7090 instruction word are labelled
         S 1 2 3 4 5 6 7 8 9 10 11 12 .. 20 21 22 23 .. 33 34 35
         <--- operation code ---->          <---- address ----->
     Where S is the sign bit and bit 1 is the most-significant data bit
@@ -698,7 +725,7 @@ int hash(uint_least64_t d, int n)
         On the IBM 7094 multiplying two 35-bit numbers produces a
         70-bit result. In this code that 70-bit result will be
         truncated to 64-bits. (Unsigned arithmetic overflow is not
-        undefined behavior, as it is for signed arithmetic.) If n
+        undefined behaviour, as it is for signed arithmetic.) If n
         is 15, the middle 15 bits of a 70-bit number are bits 42-28
         (bit 0 least significant), which is well within our 64-bit
         calculation. */
@@ -709,6 +736,7 @@ int hash(uint_least64_t d, int n)
     d >>= 35 - n / 2;           // move middle n bits to least sig. bits
     return d & (1ull << n) - 1; // mask off all but n least sig. bits
 }
+
 
 DEF_TEST_FUNC(hash_test)
 {
@@ -888,10 +916,10 @@ DEF_TEST_FUNC(hash_test)
 
     Very quick overview:
 
-    ELIZA was written in SLIP for an IBM 7094. The character encoding
-    used on the 7094 is called Hollerith. The Hollerith encoding
-    uses 6 bits per character. The IBM 7094 machine word size is
-    36-bits.
+    ELIZA was written in SLIP for an IBM 7094. The character encoding used
+    on the 7094 is called Hollerith (or BCD - see the hollerith_encoding
+    table above). The Hollerith encoding uses 6 bits per character.
+    The IBM 7094 machine word size is 36-bits.
 
     SLIP stores strings in SLIP cells. A SLIP cell consists of two
     adjacent machine words. The first word contains some type bits
@@ -958,11 +986,12 @@ uint_least64_t last_chunk_as_bcd(std::string s)
     return result;
 }
 
+
 DEF_TEST_FUNC(last_chunk_as_bcd_test)
 {
                                                 //  _ _ _ _ _ _
     TEST_EQUAL(last_chunk_as_bcd(""),             0606060606060ull);
-                                                //  _ _ _ _ _ _
+                                                //  X _ _ _ _ _
     TEST_EQUAL(last_chunk_as_bcd("X"),            0676060606060ull);
                                                 //  H E R E _ _
     TEST_EQUAL(last_chunk_as_bcd("HERE"),         0302551256060ull);
@@ -985,9 +1014,7 @@ DEF_TEST_FUNC(last_chunk_as_bcd_test)
     way to model the script is to std::map the keyword to the associated
     rule.
 
-    Here are the two rule types.
- */
-
+    Here are the two rule types. */
 
 // interface and data shared by both rules
 class rule_base {
@@ -1366,15 +1393,15 @@ public:
     virtual ~tracer() = 0;
     virtual void begin_response() = 0;
     virtual void limit(int /*limit*/) = 0;
-    virtual void create_memory(const std::string& /*text*/) = 0;
+    virtual void create_memory(const std::string & /*text*/) = 0;
     virtual void using_memory() = 0;
     virtual void using_none() = 0;
-    virtual void keystack(const stringlist& /*keystack*/, const rulemap& /*rules*/ ) = 0;
-    virtual void unknown_key(const std::string& /*keyword*/) = 0;
+    virtual void keystack(const stringlist & /*keystack*/, const rulemap & /*rules*/ ) = 0;
+    virtual void unknown_key(const std::string & /*keyword*/) = 0;
     virtual void decomp_failed() = 0;
-    virtual void transform(const std::string& /*text*/) = 0;
-    virtual void memory_stack(const std::string& /*text*/) = 0;
-    virtual void pre_transform(const std::string& /*keyword*/, const stringlist& /*words*/) = 0;
+    virtual void transform(const std::string & /*text*/) = 0;
+    virtual void memory_stack(const std::string & /*text*/) = 0;
+    virtual void pre_transform(const std::string & /*keyword*/, const stringlist & /*words*/) = 0;
 };
 
 tracer::~tracer() {}
@@ -1385,15 +1412,15 @@ public:
     virtual ~null_tracer() {}
     virtual void begin_response() {}
     virtual void limit(int /*limit*/) {}
-    virtual void create_memory(const std::string& /*text*/) {}
+    virtual void create_memory(const std::string & /*text*/) {}
     virtual void using_memory() {}
     virtual void using_none() {}
-    virtual void keystack(const stringlist& /*keystack*/, const rulemap& /*rules*/) {}
-    virtual void unknown_key(const std::string& /*keyword*/) {}
+    virtual void keystack(const stringlist & /*keystack*/, const rulemap & /*rules*/) {}
+    virtual void unknown_key(const std::string & /*keyword*/) {}
     virtual void decomp_failed() {}
-    virtual void transform(const std::string& /*text*/) {}
-    virtual void memory_stack(const std::string& /*text*/) {}
-    virtual void pre_transform(const std::string& /*keyword*/, const stringlist& /*words*/) {}
+    virtual void transform(const std::string & /*text*/) {}
+    virtual void memory_stack(const std::string & /*text*/) {}
+    virtual void pre_transform(const std::string & /*keyword*/, const stringlist & /*words*/) {}
 };
 
 
@@ -1475,7 +1502,10 @@ public:
 
     ~eliza() {}
 
-    // true use built-in error msgs (defualt); false use NONE messages instead
+    // true use built-in error msgs (default); false use NONE messages instead
+    // (Weizenbaum's ELIZA used built-in error messages. The option to use
+    // NONE messages instead is provided for attempts to reproduce conversations
+    // with some non-Weizenbaum ELIZAs.)
     void set_use_nomatch_msgs(bool f) { use_nomatch_msgs_ = f; }
 
     // provide the user with a window into ELIZA's thought processes(!)
@@ -1623,7 +1653,7 @@ private:
 
     // eliza isn't copyable because various members aren't copyable
     eliza(const eliza &) = delete;
-    eliza & operator=(const eliza &);
+    eliza & operator=(const eliza &) = delete;
 };
 
 // script error messages hard-coded in JW's ELIZA, selected by LIMIT (our limit_)
@@ -1791,7 +1821,7 @@ namespace elizascript { // reader for 1966 ELIZA script file format
     with an empty list. Both these elements are present in Weizenbaum's
     published DOCTOR script, but he doesn't mention them in the CACM paper.
     The purpose of the START symbol isn't clear, but the ELIZA source code
-    appears to use an empty list as a sentinel signaling the end of the
+    appears to use an empty list as a sentinel signalling the end of the
     script. Both elements are included in this formal script syntax as
     optional. 
 */
@@ -1994,7 +2024,7 @@ public:
         while (read_rule())
             ;
 
-        // does script meet minimum requirements?
+        // does the script meet the minimum requirements?
         if (script_.rules.find(SPECIAL_RULE_NONE) == std::end(script_.rules))
             throw std::runtime_error(
                 "Script error: no NONE rule specified; see Jan 1966 CACM page 41");
@@ -2690,6 +2720,12 @@ const char * CACM_1966_01_DOCTOR_script =
 namespace elizatest { // basic test of whether this simulation is accurate
 
 
+struct exchange {
+    const char * prompt;    // input to ELIZA
+    const char * response;  // output expected from ELIZA
+};
+
+
 // return a string in ELIZA script format representing given script s
 std::string to_string(const elizascript::script & s)
 {
@@ -3164,262 +3200,812 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n";
 
 
-    struct exchange {
-        const char * prompt;    // input to ELIZA
-        const char * response;  // output expected from ELIZA
+
+    std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
+    elizascript::script s;
+    elizascript::read<std::stringstream>(ss, s);
+
+    TEST_EQUAL(s.rules.size(), (size_t)67);
+    TEST_EQUAL(to_string(s), script_text);
+
+    elizalogic::tagmap tags(elizalogic::collect_tags(s.rules));
+    TEST_EQUAL(tags.size(), (size_t)3);
+    TEST_EQUAL(join(tags["BELIEF"]), "BELIEVE FEEL THINK WISH");
+    TEST_EQUAL(join(tags["FAMILY"]), "BROTHER CHILDREN DAD FATHER MOM MOTHER SISTER WIFE");
+    TEST_EQUAL(join(tags["NOUN"]), "FATHER MOTHER");
+
+    const exchange cacm_1966_conversation[] = {
+
+        // --- exact conversation quoted in 1966 CACM article ---
+
+        { "Men are all alike.",
+          "IN WHAT WAY" },
+
+        { "They're always bugging us about something or other.",
+          "CAN YOU THINK OF A SPECIFIC EXAMPLE" },
+
+        { "Well, my boyfriend made me come here.",
+          "YOUR BOYFRIEND MADE YOU COME HERE" },
+
+        { "He says I'm depressed much of the time.",
+          "I AM SORRY TO HEAR YOU ARE DEPRESSED" },
+
+        { "It's true. I am unhappy.",
+          "DO YOU THINK COMING HERE WILL HELP YOU NOT TO BE UNHAPPY" },
+
+        { "I need some help, that much seems certain.",
+          "WHAT WOULD IT MEAN TO YOU IF YOU GOT SOME HELP" },
+
+        { "Perhaps I could learn to get along with my mother.",
+          "TELL ME MORE ABOUT YOUR FAMILY" },
+
+        { "My mother takes care of me.",
+          "WHO ELSE IN YOUR FAMILY TAKES CARE OF YOU" },
+
+        { "My father.",
+          "YOUR FATHER" },
+
+        { "You are like my father in some ways.",
+          "WHAT RESEMBLANCE DO YOU SEE" },
+
+        // In the CACM article, the following prompt contained no comma.
+        // Without the comma, this simulation responds "WHAT MAKES YOU
+        // THINK I AM NOT VERY AGGRESSIVE BUT YOU THINK I DON'T WANT YOU TO
+        // NOTICE THAT". I assume the comma got lost from the CACM article.
+        //{ "You are not very aggressive, but I think you don't want me to notice that.",
+        //
+        // UPDATE: We now have a version of Weizenbaum's original MAD-SLIP
+        // source code where we see that the word "BUT" is also considered
+        // to be a delimiter. So I was wrong to assume a missing comma.
+        { "You are not very aggressive but I think you don't want me to notice that.",
+          "WHAT MAKES YOU THINK I AM NOT VERY AGGRESSIVE" },
+
+        { "You don't argue with me.",
+          "WHY DO YOU THINK I DON'T ARGUE WITH YOU" },
+
+        { "You are afraid of me.",
+          "DOES IT PLEASE YOU TO BELIEVE I AM AFRAID OF YOU" },
+
+        { "My father is afraid of everybody.",
+          "WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR FATHER" },
+
+        { "Bullies.",
+          "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HERE" },
+
+        // --- end of 1966 CACM article conversation ---
     };
 
-    {
-        std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
-        elizascript::script s;
-        elizascript::read<std::stringstream>(ss, s);
+    /*  I believe that if this code reproduces the exact conversation
+        published in the CACM article, using the mechanisms described in
+        that article, it is not unreasonable to suppose it is a fairly
+        accurate simulation of the original ELIZA. */
 
-        TEST_EQUAL(s.rules.size(), (size_t)67);
-        TEST_EQUAL(to_string(s), script_text);
-
-        elizalogic::tagmap tags(elizalogic::collect_tags(s.rules));
-        TEST_EQUAL(tags.size(), (size_t)3);
-        TEST_EQUAL(join(tags["BELIEF"]), "BELIEVE FEEL THINK WISH");
-        TEST_EQUAL(join(tags["FAMILY"]), "BROTHER CHILDREN DAD FATHER MOM MOTHER SISTER WIFE");
-        TEST_EQUAL(join(tags["NOUN"]), "FATHER MOTHER");
-
-        const exchange cacm_1966_conversation[] = {
-            // --- exact conversation quoted in 1966 CACM article ---
-            { "Men are all alike.",
-              "IN WHAT WAY" },
-
-            { "They're always bugging us about something or other.",
-              "CAN YOU THINK OF A SPECIFIC EXAMPLE" },
-
-            { "Well, my boyfriend made me come here.",
-              "YOUR BOYFRIEND MADE YOU COME HERE" },
-
-            { "He says I'm depressed much of the time.",
-              "I AM SORRY TO HEAR YOU ARE DEPRESSED" },
-
-            { "It's true. I am unhappy.",
-              "DO YOU THINK COMING HERE WILL HELP YOU NOT TO BE UNHAPPY" },
-
-            { "I need some help, that much seems certain.",
-              "WHAT WOULD IT MEAN TO YOU IF YOU GOT SOME HELP" },
-
-            { "Perhaps I could learn to get along with my mother.",
-              "TELL ME MORE ABOUT YOUR FAMILY" },
-
-            { "My mother takes care of me.",
-              "WHO ELSE IN YOUR FAMILY TAKES CARE OF YOU" },
-
-            { "My father.",
-              "YOUR FATHER" },
-
-            { "You are like my father in some ways.",
-              "WHAT RESEMBLANCE DO YOU SEE" },
-
-            // In the CACM article, the following prompt contained no comma.
-            // Without the comma, this simulation responds "WHAT MAKES YOU
-            // THINK I AM NOT VERY AGGRESSIVE BUT YOU THINK I DON'T WANT YOU TO
-            // NOTICE THAT". I assume the comma got lost from the CACM article.
-            //{ "You are not very aggressive, but I think you don't want me to notice that.",
-            //
-            // UPDATE: We now have a version of Weizenbaum's original MAD-SLIP
-            // source code where we see that the word "BUT" is also considered
-            // to be a delimiter. So I was wrong to assume a missing comma.
-            { "You are not very aggressive but I think you don't want me to notice that.",
-              "WHAT MAKES YOU THINK I AM NOT VERY AGGRESSIVE" },
-
-            { "You don't argue with me.",
-              "WHY DO YOU THINK I DON'T ARGUE WITH YOU" },
-
-            { "You are afraid of me.",
-              "DOES IT PLEASE YOU TO BELIEVE I AM AFRAID OF YOU" },
-
-            { "My father is afraid of everybody.",
-              "WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR FATHER" },
-
-            { "Bullies.",
-              "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HERE" },
-            // --- end of 1966 CACM article conversation ---
-        };
-
-        /*  I believe that if this code reproduces the exact conversation
-            published in the CACM article, using the mechanisms described in
-            that article, it is not unreasonable to suppose it is a fairly
-            accurate simulation of the original ELIZA.
-        */
-        elizalogic::eliza eliza(s.rules, s.mem_rule);
-        for (const auto & exchg : cacm_1966_conversation)
-            TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
-    }
-
-    {
-        const exchange boston_globe_1966_conversation[] = {
-
-            /* A conversation printed in The Boston Globe, 22 September 1966
-               by Robert L. Levey who visited MIT and talked to the "doctor."
-               We don't have the script that was used so the conversation
-               recreated here is not the same. The responses printed in the
-               newspaper are commented out below. */
-
-            { "hello.",
-              "HOW DO YOU DO. PLEASE STATE YOUR PROBLEM" },
-
-            { "my foot hurts",
-            //"TELL ME ABOUT YOUR PAINS IN GENERAL"
-              "YOUR FOOT HURTS" },
-
-            { "it aches mostly around the toes",
-              "EARLIER YOU SAID YOUR FOOT HURTS" },
-
-            { "right",
-              "I AM NOT SURE I UNDERSTAND YOU FULLY" },
-
-            { "what is your problem",
-              "WHY DO YOU ASK" },
-
-            { "because",
-              "IS THAT THE REAL REASON" },
-
-            { "no - i was simply picking on you",
-            //"LET'S TRY TO GO ON"
-              "WERE YOU REALLY" },
-
-            { "what can i do about my toes",
-            //"YOUR TOES"
-              "WHY DO YOU SAY YOUR TOES" },
-
-            { "they still hurt",
-            //"DOES ANY PART OF YOUR BODY HURT YOU"
-              "PLEASE GO ON" },
-
-            { "some vague pains in the chest",
-            //"PLEASE GO ON"
-              "WHAT DOES THAT SUGGEST TO YOU" },
-
-            { "the head bothers me too sometimes",
-              "EARLIER YOU SAID YOUR TOES" },
-
-            { "you wanted to know what else hurt me",
-              "WHY DO YOU THINK I WANTED TO KNOW WHAT ELSE HURT YOU" },
-
-            { "you are the doctor",
-              "WHAT MAKES YOU THINK I AM THE DOCTOR" },
-
-            { "the operator of this machine assured me that you were the doctor",
-              "DO COMPUTERS WORRY YOU" },
-
-            { "in general or in specific",
-            //"PERHAPS YOU PREFER NOT TO DISCUSS IT"
-              "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
-
-            { "i am enjoying myself",
-            //"IS IT BECAUSE YOU ARE ENJOYING YOURSELF THAT YOU CAME HERE"
-              "IS IT BECAUSE YOU ARE ENJOYING YOURSELF THAT YOU CAME TO ME" },
-
-            { "i was looking for greater enjoyment when i came to you",
-            //"WERE YOU REALLY"
-              "WHY DO YOU TELL ME YOU WERE LOOKING FOR GREATER ENJOYMENT WHEN YOU CAME TO I NOW" },
-
-            { "yes - do you think i am being sarcastic",
-            //"YOU SEEM QUITE SURE"
-              "YOU SEEM QUITE POSITIVE" },
-
-            { "not sure - just confident",
-            //"WHAT DOES THAT SUGGEST TO YOU"
-              "I AM NOT SURE I UNDERSTAND YOU FULLY" },
-
-            { "superiority",
-            //"DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS"
-              "PLEASE GO ON" },
-
-            { "more and more every moment",
-            //"TELL ME MORE ABOUT SUCH FEELINGS"
-              "WHAT DOES THAT SUGGEST TO YOU" },
-
-            { "would you understand",
-              "WE WERE DISCUSSING YOU - NOT ME" },
-
-            { "i also feel you don't really want to help me",
-              "YOU LIKE TO THINK I DON'T REALLY WANT TO HELP YOU - DON'T YOU" },
-
-            { "i don't like to feel it",
-              "DON'T YOU REALLY LIKE TO FEEL IT" },
-
-            { "no",
-              "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
-
-            { "yes",
-            //"YOU'RE PLAYING GAMES - I WON'T RESPOND UNTIL YOU QUIT"
-              "YOU ARE SURE" },
-
-            { "treat me immediately",
-            //"DOES ANY PART OF YOUR BODY HURT YOU"
-              "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
-
-            { "all parts hurt and then some",
-            //"WHAT DOES THAT SUGGEST TO YOU"
-              "I AM NOT SURE I UNDERSTAND YOU FULLY" },
-
-            { "maladjustment",
-            //"DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS"
-              "PLEASE GO ON" },
-
-            { "no",
-            //"WHY NOT"
-              "YOU ARE BEING A BIT NEGATIVE" },
-
-            { "because you are putting me on",
-              "DON'T ANY OTHER REASONS COME TO MIND" },
-
-            { "yes - you seem arrogant and silly",
-            //"I UNDERSTAND"
-              "I SEE" },
-
-            { "you would",
-            //"YOU'RE NOT REALLY TALKING ABOUT ME ARE YOU"
-              "OH, I WOULD" },
-
-            { "who else",
-            //"I AM NOT SURE I UNDERSTAND YOU FULLY"
-              "WHAT DOES THAT SUGGEST TO YOU" },
-
-            { "i am calling you a fink",
-            //"HOW LONG HAVE YOU BEEN CALLING ME A FINK"
-              "HOW LONG HAVE YOU BEEN CALLING I A FINK" },
-
-            { "since you started behaving unethically",
-            //"WHAT ARE YOUR FEELINGS NOW"
-              "YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU" },
-
-            { "i despise you",
-            //"PERHAPS IN YOUR FANTASY WE STILL DESPISE TOGETHER"
-              "PERHAPS IN YOUR FANTASY WE DESPISE EACH OTHER" },
-
-            { "perhaps i actually despise myself",
-              "YOU DON'T SEEM QUITE CERTAIN" },
-
-            { "i feel more unsure as the moments pass",
-            //"DO YOU OFTEN FEEL MORE UNSURE AS THE MOMENTS PASS"
-              "TELL ME MORE ABOUT SUCH FEELINGS" },
-
-            { "you are losing control of your mind",
-              "DOES IT PLEASE YOU TO BELIEVE I AM LOSING CONTROL OF MY MIND" },
-
-            { "you are more to be pitied than censured",
-              "DO YOU SOMETIMES WISH YOU WERE MORE TO BE PITIED THAN CENSURED" },
-
-            { "i've had enough - goodbye",
-            //"DOES ANY PART OF YOUR BODY HURT YOU"
-              "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
-        };
-
-        std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
-        elizascript::script s;
-        elizascript::read<std::stringstream>(ss, s);
-        elizalogic::eliza eliza(s.rules, s.mem_rule);
-        for (const auto & exchg : boston_globe_1966_conversation)
-            TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
-    }
+    elizalogic::eliza eliza(s.rules, s.mem_rule);
+    for (const auto & exchg : cacm_1966_conversation)
+        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
 }
+
+
+DEF_TEST_FUNC(test_boston_globe_1966_convo)
+{
+    const exchange boston_globe_1966_conversation[] = {
+
+        /* A conversation printed on page 15 of The Boston Globe,
+           22 September 1966 by Robert L. Levey who visited MIT and talked
+           to the "doctor." We don't have the ELIZA script that was used.
+           Using Weizenbaum's CACM published script reproduces a similar
+           but not identical conversation. The responses printed in the
+           newspaper that differ are commented out below. */
+
+        { "hello.",
+          "HOW DO YOU DO. PLEASE STATE YOUR PROBLEM" },
+
+        { "my foot hurts",
+        //"TELL ME ABOUT YOUR PAINS IN GENERAL"
+          "YOUR FOOT HURTS" },
+
+        { "it aches mostly around the toes",
+          "EARLIER YOU SAID YOUR FOOT HURTS" },
+
+        { "right",
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "what is your problem",
+          "WHY DO YOU ASK" },
+
+        { "because",
+          "IS THAT THE REAL REASON" },
+
+        { "no - i was simply picking on you",
+        //"LET'S TRY TO GO ON"
+          "WERE YOU REALLY" },
+
+        { "what can i do about my toes",
+        //"YOUR TOES"
+          "WHY DO YOU SAY YOUR TOES" },
+
+        { "they still hurt",
+        //"DOES ANY PART OF YOUR BODY HURT YOU"
+          "PLEASE GO ON" },
+
+        { "some vague pains in the chest",
+        //"PLEASE GO ON"
+          "WHAT DOES THAT SUGGEST TO YOU" },
+
+        { "the head bothers me too sometimes",
+          "EARLIER YOU SAID YOUR TOES" },
+
+        { "you wanted to know what else hurt me",
+          "WHY DO YOU THINK I WANTED TO KNOW WHAT ELSE HURT YOU" },
+
+        { "you are the doctor",
+          "WHAT MAKES YOU THINK I AM THE DOCTOR" },
+
+        { "the operator of this machine assured me that you were the doctor",
+          "DO COMPUTERS WORRY YOU" },
+
+        { "in general or in specific",
+        //"PERHAPS YOU PREFER NOT TO DISCUSS IT"
+          "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+
+        { "i am enjoying myself",
+        //"IS IT BECAUSE YOU ARE ENJOYING YOURSELF THAT YOU CAME HERE"
+          "IS IT BECAUSE YOU ARE ENJOYING YOURSELF THAT YOU CAME TO ME" },
+
+        { "i was looking for greater enjoyment when i came to you",
+        //"WERE YOU REALLY"
+          "WHY DO YOU TELL ME YOU WERE LOOKING FOR GREATER ENJOYMENT WHEN YOU CAME TO I NOW" },
+
+        { "yes - do you think i am being sarcastic",
+        //"YOU SEEM QUITE SURE"
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "not sure - just confident",
+        //"WHAT DOES THAT SUGGEST TO YOU"
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "superiority",
+        //"DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS"
+          "PLEASE GO ON" },
+
+        { "more and more every moment",
+        //"TELL ME MORE ABOUT SUCH FEELINGS"
+          "WHAT DOES THAT SUGGEST TO YOU" },
+
+        { "would you understand",
+          "WE WERE DISCUSSING YOU - NOT ME" },
+
+        { "i also feel you don't really want to help me",
+          "YOU LIKE TO THINK I DON'T REALLY WANT TO HELP YOU - DON'T YOU" },
+
+        { "i don't like to feel it",
+          "DON'T YOU REALLY LIKE TO FEEL IT" },
+
+        { "no",
+          "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+
+        { "yes",
+        //"YOU'RE PLAYING GAMES - I WON'T RESPOND UNTIL YOU QUIT"
+          "YOU ARE SURE" },
+
+        { "treat me immediately",
+        //"DOES ANY PART OF YOUR BODY HURT YOU"
+          "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+
+        { "all parts hurt and then some",
+        //"WHAT DOES THAT SUGGEST TO YOU"
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "maladjustment",
+        //"DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS"
+          "PLEASE GO ON" },
+
+        { "no",
+        //"WHY NOT"
+          "YOU ARE BEING A BIT NEGATIVE" },
+
+        { "because you are putting me on",
+          "DON'T ANY OTHER REASONS COME TO MIND" },
+
+        { "yes - you seem arrogant and silly",
+        //"I UNDERSTAND"
+          "I SEE" },
+
+        { "you would",
+        //"YOU'RE NOT REALLY TALKING ABOUT ME ARE YOU"
+          "OH, I WOULD" },
+
+        { "who else",
+        //"I AM NOT SURE I UNDERSTAND YOU FULLY"
+          "WHAT DOES THAT SUGGEST TO YOU" },
+
+        { "i am calling you a fink",
+        //"HOW LONG HAVE YOU BEEN CALLING ME A FINK"
+          "HOW LONG HAVE YOU BEEN CALLING I A FINK" },
+
+        { "since you started behaving unethically",
+        //"WHAT ARE YOUR FEELINGS NOW"
+          "YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU" },
+
+        { "i despise you",
+        //"PERHAPS IN YOUR FANTASY WE STILL DESPISE TOGETHER"
+          "PERHAPS IN YOUR FANTASY WE DESPISE EACH OTHER" },
+
+        { "perhaps i actually despise myself",
+          "YOU DON'T SEEM QUITE CERTAIN" },
+
+        { "i feel more unsure as the moments pass",
+        //"DO YOU OFTEN FEEL MORE UNSURE AS THE MOMENTS PASS"
+          "TELL ME MORE ABOUT SUCH FEELINGS" },
+
+        { "you are losing control of your mind",
+          "DOES IT PLEASE YOU TO BELIEVE I AM LOSING CONTROL OF MY MIND" },
+
+        { "you are more to be pitied than censured",
+          "DO YOU SOMETIMES WISH YOU WERE MORE TO BE PITIED THAN CENSURED" },
+
+        { "i've had enough - goodbye",
+        //"DOES ANY PART OF YOUR BODY HURT YOU"
+          "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+    };
+
+    std::stringstream ss(elizascript::CACM_1966_01_DOCTOR_script);
+    elizascript::script s;
+    elizascript::read<std::stringstream>(ss, s);
+    elizalogic::eliza eliza(s.rules, s.mem_rule);
+    for (const auto & exchg : boston_globe_1966_conversation)
+        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
+}
+
+
+DEF_TEST_FUNC(test_5_march_1965_convo)
+{
+    /* In Joseph Weizenbaum's MIT archive there is a folder titled
+       "Conversation - March 5, 1965" containing a hand-annotated
+       printout of an ELIZA conversation, along with a purple ink
+       (presumably mimeographed) version of the same conversation -
+       perhaps a lecture handout.
+
+       We don't have the ELIZA script used to generate this
+       conversation. I've modified the 1966 CACM script just enough
+       to recreate it.
+    */
+    
+    const char * CACM_1966_01_DOCTOR_script_modified_for_5_march_1965_convo =
+        "(HOW DO YOU DO.  PLEASE TELL ME YOUR PROBLEM)\n"
+        "\n"
+        "START\n"
+        "\n"
+        "(SORRY\n"
+        "    ((0)\n"
+        "        (PLEASE DON'T APOLIGIZE)\n"
+        "        (APOLOGIES ARE NOT NECESSARY)\n"
+        "        (WHAT FEELINGS DO YOU HAVE WHEN YOU APOLOGIZE)\n"
+        "        (I'VE TOLD YOU THAT APOLOGIES ARE NOT REQUIRED)))\n"
+        "\n"
+        "(DONT = DON'T)\n"
+        "(CANT = CAN'T)\n"
+        "(WONT = WON'T)\n"
+        "\n"
+        "(REMEMBER 5\n"
+        "    ((0 YOU REMEMBER 0)\n"
+        "         (DO YOU OFTEN THINK OF 4)\n"
+        "         (DOES THINKING OF 4 BRING ANYTHING ELSE TO MIND)\n"
+        "         (WHAT ELSE DO YOU REMEMBER)\n"
+        "         (WHY DO YOU REMEMBER 4 JUST NOW)\n"
+        "         (WHAT IN THE PRESENT SITUATION REMINDS YOU OF 4)\n"
+        "         (WHAT IS THE CONNECTION BETWEEN ME AND 4))\n"
+        "    ((0 DO I REMEMBER 0)\n"
+        "         (DID YOU THINK I WOULD FORGET 5)\n"
+        "         (WHY DO YOU THINK I SHOULD RECALL 5 NOW)\n"
+        "         (WHAT ABOUT 5)\n"
+        "         (=WHAT)\n"
+        "         (YOU MENTIONED 5))\n"
+        "    ((0)\n"
+        "         (NEWKEY)))\n"
+        "\n"
+        "(IF 3\n"
+        "    ((0 IF 0)\n"
+        "        (DO YOU THINK ITS LIKELY THAT 3)\n"
+        "        (DO YOU WISH THAT 3)\n"
+        "        (WHAT DO YOU THINK ABOUT 3)\n"
+        "        (REALLY, 2 3)))\n"
+        "; duplicate line removed: (WHAT DO YOU THINK ABOUT 3) (REALLY, 2 3)))\n"
+        "\n"
+        "(DREAMT 4\n"
+        "    ((0 YOU DREAMT 0)\n"
+        "        (REALLY, 4)\n"
+        "        (HAVE YOU EVER FANTASIED 4 WHILE YOU WERE AWAKE)\n"
+        "        (HAVE YOU DREAMT 4 BEFORE)\n"
+        "        (=DREAM)\n"
+        "        (NEWKEY)))\n"
+        "\n"
+        "(DREAMED = DREAMT 4 (=DREAMT))\n"
+        "\n"
+        "(DREAM 3\n"
+        "    ((0)\n"
+        "        (WHAT DOES THAT DREAM SUGGEST TO YOU)\n"
+        "        (DO YOU DREAM OFTEN)\n"
+        "        (WHAT PERSONS APPEAR IN YOUR DREAMS)\n"
+        "        (DON'T YOU BELIEVE THAT DREAM HAS SOMETHING TO DO WITH YOUR PROBLEM)\n"
+        "        (NEWKEY)))\n"
+        "\n"
+        "(DREAMS = DREAM 3 (=DREAM))\n"
+        "\n"
+        "(HOW (=WHAT))\n"
+        //[4] If WHEN links to WHAT you get the wrong response, "WHY DO YOU ASK."
+        //    Remove this link and you get the required answer.
+        //        "(WHEN (=WHAT))\n"
+        "(ALIKE 10 (=DIT))\n"
+        "(SAME 10 (=DIT))\n"
+        "(CERTAINLY (=YES))\n"
+        "\n"
+        "(FEEL DLIST(/BELIEF))\n"
+        "(THINK DLIST(/BELIEF))\n"
+        "(BELIEVE DLIST(/BELIEF))\n"
+        "(WISH DLIST(/BELIEF))\n"
+        "\n"
+        "(MEMORY MY\n"
+        "    (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)\n"
+        "    (0 YOUR 0 = EARLIER YOU SAID YOUR 3)\n"
+        "    (0 YOUR 0 = BUT YOUR 3)\n"
+        //[3] This one is a puzzle. The word being HASHed is "HERE". We know from the
+        //    1966 script and published conversation that HASH("HERE", 2) = 3. (Assuming
+        //    the same mechanism is being used in both.) So, I've just swapped this
+        //    message for the (0 YOUR 0 = YOU SAID YOUR 3).
+        //        "    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n"
+        "    (0 YOUR 0 = YOU SAID YOUR 3))\n"
+        "\n"
+        "(NONE\n"
+        "    ((0)\n"
+        "        (I AM NOT SURE I UNDERSTAND YOU FULLY)\n"
+        "        (PLEASE GO ON)\n"
+        "        (WHAT DOES THAT SUGGEST TO YOU)\n"
+        "        (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))\n"
+        "\n"
+        "(PERHAPS\n"
+        "    ((0)\n"
+        //[5] "AND MAYBE NOT" doesn't appear in the 1966 script, so I added it.
+        "        (AND MAYBE NOT)\n"
+        "        (YOU DON'T SEEM QUITE CERTAIN)\n"
+        "        (WHY THE UNCERTAIN TONE)\n"
+        "        (CAN'T YOU BE MORE POSITIVE)\n"
+        "        (YOU AREN'T SURE)\n"
+        "        (DON'T YOU KNOW)))\n"
+        "\n"
+        "(MAYBE (=PERHAPS))\n"
+        "\n"
+        "(NAME 15\n"
+        "    ((0)\n"
+        "        (I AM NOT INTERESTED IN NAMES)\n"
+        "        (I'VE TOLD YOU BEFORE, I DON'T CARE ABOUT NAMES - PLEASE CONTINUE)))\n"
+        "; duplicate line removed: PLEASE CONTINUE)) )\n"
+        "\n"
+        "(DEUTSCH (=XFREMD))\n"
+        "(FRANCAIS (=XFREMD))\n"
+        "(ITALIANO (=XFREMD))\n"
+        "(ESPANOL (=XFREMD))\n"
+        "\n"
+        "(XFREMD\n"
+        "    ((0)\n"
+        "        (I AM SORRY, I SPEAK ONLY ENGLISH)))\n"
+        "\n"
+        "(HELLO\n"
+        "    ((0)\n"
+        "        (HOW DO YOU DO.  PLEASE STATE YOUR PROBLEM)))\n"
+        "\n"
+        //[7] Removed the precedence level 50 for the keyword COMPUTER so
+        //    that it isn't selected in preference to keyword ARE.
+        //        "(COMPUTER 50\n"
+        "(COMPUTER\n"
+        "    ((0)\n"
+        "        (DO COMPUTERS WORRY YOU)\n"
+        "        (WHY DO YOU MENTION COMPUTERS)\n"
+        "        (WHAT DO YOU THINK MACHINES HAVE TO DO WITH YOUR PROBLEM)\n"
+        "        (DON'T YOU THINK COMPUTERS CAN HELP PEOPLE)\n"
+        "        (WHAT ABOUT MACHINES WORRIES YOU)\n"
+        "        (WHAT DO YOU THINK ABOUT MACHINES)))\n"
+        "\n"
+        "(MACHINE 50 (=COMPUTER))\n"
+        "(MACHINES 50 (=COMPUTER))\n"
+        //[8] Removed the precedence level 50 for the keyword COMPUTERS so that
+        //    it isn't selected in preference to keyword I and pattern (0 YOU DON'T 0).
+        //        "(COMPUTERS 50 (=COMPUTER))\n"
+        "(COMPUTERS (=COMPUTER))\n"
+        "\n"
+        "(AM = ARE\n"
+        "    ((0 ARE YOU 0)\n"
+        "        (DO YOU BELIEVE YOU ARE 4)\n"
+        "        (WOULD YOU WANT TO BE 4)\n"
+        "        (YOU WISH I WOULD TELL YOU YOU ARE 4)\n"
+        "        (WHAT WOULD IT MEAN IF YOU WERE 4)\n"
+        "        (=WHAT))\n"
+        "    ((0)\n"
+        "        (WHY DO YOU SAY 'AM')\n"
+        "        (I DON'T UNDERSTAND THAT)))\n"
+        "\n"
+        "(ARE\n"
+        "    ((0 ARE I 0)\n"
+        "        (WHY ARE YOU INTERESTED IN WHETHER I AM 4 OR NOT)\n"
+        "        (WOULD YOU PREFER IF I WEREN'T 4)\n"
+        "        (PERHAPS I AM 4 IN YOUR FANTASIES)\n"
+        "        (DO YOU SOMETIMES THINK I AM 4)\n"
+        "        (=WHAT))\n"
+        "    ((0 ARE 0)\n"
+        "        (DID YOU THINK THEY MIGHT NOT BE 3)\n"
+        "        (WOULD YOU LIKE IT IF THEY WERE NOT 3)\n"
+        "        (WHAT IF THEY WERE NOT 3)\n"
+        "        (POSSIBLY THEY ARE 3)))\n"
+        "\n"
+        "(YOUR = MY\n"
+        "    ((0 MY 0)\n"
+        "        (WHY ARE YOU CONCERNED OVER MY 3)\n"
+        "        (WHAT ABOUT YOUR OWN 3)\n"
+        "        (ARE YOU WORRIED ABOUT SOMEONE ELSES 3)\n"
+        "        (REALLY, MY 3)))\n"
+        "\n"
+        "(WAS 2\n"
+        "    ((0 WAS YOU 0)\n"
+        "        (WHAT IF YOU WERE 4)\n"
+        "        (DO YOU THINK YOU WERE 4)\n"
+        "        (WERE YOU 4)\n"
+        "        (WHAT WOULD IT MEAN IF YOU WERE 4)\n"
+        "        (WHAT DOES ' 4 ' SUGGEST TO YOU)\n"
+        "        (=WHAT))\n"
+        "    ((0 YOU WAS 0)\n"
+        "        (WERE YOU REALLY)\n"
+        "        (WHY DO YOU TELL ME YOU WERE 4 NOW)\n"
+        "; duplicate line removed: (WERE YOU REALLY) (WHY DO YOU TELL ME YOU WERE 4 NOW)\n"
+        "        (PERHAPS I ALREADY KNEW YOU WERE 4))\n"
+        "    ((0 WAS I 0)\n"
+        "        (WOULD YOU LIKE TO BELIEVE I WAS 4)\n"
+        "        (WHAT SUGGESTS THAT I WAS 4)\n"
+        "        (WHAT DO YOU THINK)\n"
+        "        (PERHAPS I WAS 4)\n"
+        "        (WHAT IF I HAD BEEN 4))\n"
+        "    ((0)\n"
+        "        (NEWKEY)))\n"
+        "\n"
+        "(WERE = WAS (=WAS))\n"
+        "(ME = YOU)\n"
+        "\n"
+        "(YOU'RE = I'M\n"
+        "    ((0 I'M 0)\n"
+        "        (PRE (I ARE 3) (=YOU))))\n"
+        "\n"
+        "(I'M = YOU'RE\n"
+        "    ((0 YOU'RE 0)\n"
+        "        (PRE (YOU ARE 3) (=I))))\n"
+        "\n"
+        "(MYSELF = YOURSELF)\n"
+        "(YOURSELF = MYSELF)\n"
+        "\n"
+        "(MOTHER DLIST(/NOUN FAMILY))\n"
+        "(MOM = MOTHER DLIST(/ FAMILY))\n"
+        "(DAD = FATHER DLIST(/ FAMILY))\n"
+        "(FATHER DLIST(/NOUN FAMILY))\n"
+        "(SISTER DLIST(/FAMILY))\n"
+        "(BROTHER DLIST(/FAMILY))\n"
+        "(WIFE DLIST(/FAMILY))\n"
+        "(CHILDREN DLIST(/FAMILY))\n"
+        "\n"
+        "(I = YOU\n"
+        "    ((0 YOU (* WANT NEED) 0)\n"
+        "        (WHAT WOULD IT MEAN TO YOU IF YOU GOT 4)\n"
+        "        (WHY DO YOU WANT 4)\n"
+        "        (SUPPOSE YOU GOT 4 SOON)\n"
+        "        (WHAT IF YOU NEVER GOT 4)\n"
+        "        (WHAT WOULD GETTING 4 MEAN TO YOU)\n"
+        "        (WHAT DOES WANTING 4 HAVE TO DO WITH THIS DISCUSSION))\n"
+        //[1] By removing this pattern the match is made with the more general
+        //    pattern (0 YOU ARE 0). Suggests that JW added the more specific
+        //    pattern at a later date.
+        //        "    ((0 YOU ARE 0 (*SAD UNHAPPY DEPRESSED SICK ) 0)\n"
+        //        "        (I AM SORRY TO HEAR YOU ARE 5)\n"
+        //        "        (DO YOU THINK COMING HERE WILL HELP YOU NOT TO BE 5)\n"
+        //        "        (I'M SURE ITS NOT PLEASANT TO BE 5)\n"
+        //        "        (CAN YOU EXPLAIN WHAT MADE YOU 5))\n"
+        "    ((0 YOU ARE 0 (*HAPPY ELATED GLAD BETTER) 0)\n"
+        "        (HOW HAVE I HELPED YOU TO BE 5)\n"
+        "        (HAS YOUR TREATMENT MADE YOU 5)\n"
+        "        (WHAT MAKES YOU 5 JUST NOW)\n"
+        "        (CAN YOU EXPLAIN WHY YOU ARE SUDDENLY 5))\n"
+        "    ((0 YOU WAS 0)\n"
+        "        (=WAS))\n"
+        "; duplicate line removed: ((0 YOU WAS 0) (=WAS))\n"
+        "    ((0 YOU (/BELIEF) YOU 0)\n"
+        "        (DO YOU REALLY THINK SO)\n"
+        "        (BUT YOU ARE NOT SURE YOU 5)\n"
+        "        (DO YOU REALLY DOUBT YOU 5))\n"
+        "    ((0 YOU 0 (/BELIEF) 0 I 0)\n"
+        "        (=YOU))\n"
+        "    ((0 YOU ARE 0)\n"
+        "        (IS IT BECAUSE YOU ARE 4 THAT YOU CAME TO ME)\n"
+        "        (HOW LONG HAVE YOU BEEN 4)\n"
+        "        (DO YOU BELIEVE IT NORMAL TO BE 4)\n"
+        "        (DO YOU ENJOY BEING 4))\n"
+        "    ((0 YOU (* CAN'T CANNOT) 0)\n"
+        "        (HOW DO YOU KNOW YOU CAN'T 4)\n"
+        "        (HAVE YOU TRIED)\n"
+        "        (PERHAPS YOU COULD 4 NOW)\n"
+        "        (DO YOU REALLY WANT TO BE ABLE TO 4))\n"
+        "    ((0 YOU DON'T 0)\n"
+        "        (DON'T YOU REALLY 4)\n"
+        "        (WHY DON'T YOU 4)\n"
+        "        (DO YOU WISH TO BE ABLE TO 4)\n"
+        "        (DOES THAT TROUBLE YOU))\n"
+        "    ((0 YOU FEEL 0)\n"
+        "        (TELL ME MORE ABOUT SUCH FEELINGS)\n"
+        "        (DO YOU OFTEN FEEL 4)\n"
+        "        (DO YOU ENJOY FEELING 4)\n"
+        "        (OF WHAT DOES FEELING 4 REMIND YOU))\n"
+        "    ((0 YOU 0 I 0)\n"
+        "        (PERHAPS IN YOUR FANTASY WE 3 EACH OTHER)\n"
+        "        (DO YOU WISH TO 3 ME)\n"
+        "        (YOU SEEM TO NEED TO 3 ME)\n"
+        "        (DO YOU 3 ANYONE ELSE))\n"
+        "    ((0)\n"
+        "        (YOU SAY 1)\n"
+        "        (CAN YOU ELABORATE ON THAT)\n"
+        "        (DO YOU SAY 1 FOR SOME SPECIAL REASON)\n"
+        "        (THAT'S QUITE INTERESTING)))\n"
+        "\n"
+        "(YOU = I\n"
+        "    ((0 I REMIND YOU OF 0)\n"
+        "        (=DIT))\n"
+        "    ((0 I ARE 0)\n"
+        "        (WHAT MAKES YOU THINK I AM 4)\n"
+        "        (DOES IT PLEASE YOU TO BELIEVE I AM 4)\n"
+        "        (DO YOU SOMETIMES WISH YOU WERE 4)\n"
+        "        (PERHAPS YOU WOULD LIKE TO BE 4))\n"
+        "    ((0 I 0 YOU)\n"
+        "        (WHY DO YOU THINK I 3 YOU)\n"
+        "        (YOU LIKE TO THINK I 3 YOU - DON'T YOU)\n"
+        "        (WHAT MAKES YOU THINK I 3 YOU)\n"
+        "        (REALLY, I 3 YOU)\n"
+        "        (DO YOU WISH TO BELIEVE I 3 YOU)\n"
+        "; duplicate line removed: (REALLY, I 3 YOU) (DO YOU WISH TO BELIEVE I 3 YOU)\n"
+        "        (SUPPOSE I DID 3 YOU - WHAT WOULD THAT MEAN)\n"
+        "        (DOES SOMEONE ELSE BELIEVE I 3 YOU))\n"
+        "    ((0 I 0)\n"
+        "        (WE WERE DISCUSSING YOU - NOT ME)\n"
+        "        (OH, I 3)\n"
+        "        (YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU)\n"
+        "        (WHAT ARE YOUR FEELINGS NOW)))\n"
+        "\n"
+        "(YES\n"
+        "    ((0)\n"
+        "        (YOU SEEM QUITE POSITIVE)\n"
+        "        (YOU ARE SURE)\n"
+        "        (I SEE)\n"
+        "        (I UNDERSTAND)))\n"
+        "\n"
+        "(NO\n"
+        "    ((0)\n"
+        "        (ARE YOU SAYING 'NO' JUST TO BE NEGATIVE)\n"
+        "        (YOU ARE BEING A BIT NEGATIVE)\n"
+        "        (WHY NOT)\n"
+        "        (WHY 'NO')))\n"
+        "\n"
+        //[6] Removed the precedence level 2 for the keyword MY so that MY
+        //    isn't selected in preference to keyword ARE.
+        //        "(MY = YOUR 2\n"
+        "(MY = YOUR\n"
+        "    ((0 YOUR 0 (/FAMILY) 0)\n"
+        "        (TELL ME MORE ABOUT YOUR FAMILY)\n"
+        "        (WHO ELSE IN YOUR FAMILY 5)\n"
+        "        (YOUR 4)\n"
+        "        (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))\n"
+        "    ((0 YOUR 0)\n"
+        "        (YOUR 3)\n"
+        "        (WHY DO YOU SAY YOUR 3)\n"
+        "        (DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU)\n"
+        "        (IS IT IMPORTANT TO YOU THAT 2 3)))\n"
+        "\n"
+        "(CAN\n"
+        "    ((0 CAN I 0)\n"
+        "        (YOU BELIEVE I CAN 4 DON'T YOU)\n"
+        "        (=WHAT)\n"
+        "        (YOU WANT ME TO BE ABLE TO 4)\n"
+        "        (PERHAPS YOU WOULD LIKE TO BE ABLE TO 4 YOURSELF))\n"
+        "    ((0 CAN YOU 0)\n"
+        "        (WHETHER OR NOT YOU CAN 4 DEPENDS ON YOU MORE THAN ON ME)\n"
+        "        (DO YOU WANT TO BE ABLE TO 4)\n"
+        "        (PERHAPS YOU DON'T WANT TO 4)\n"
+        "        (=WHAT)))\n"
+        "\n"
+        "(WHAT\n"
+        "    ((0)\n"
+        "        (WHY DO YOU ASK)\n"
+        "        (DOES THAT QUESTION INTEREST YOU)\n"
+        "        (WHAT IS IT YOU REALLY WANT TO KNOW)\n"
+        "        (ARE SUCH QUESTIONS MUCH ON YOUR MIND)\n"
+        "        (WHAT ANSWER WOULD PLEASE YOU MOST)\n"
+        "        (WHAT DO YOU THINK)\n"
+        "        (WHAT COMES TO YOUR MIND WHEN YOU ASK THAT)\n"
+        "        (HAVE YOU ASKED SUCH QUESTIONS BEFORE)\n"
+        "        (HAVE YOU ASKED ANYONE ELSE)))\n"
+        "\n"
+        "(BECAUSE\n"
+        "    ((0)\n"
+        "        (IS THAT THE REAL REASON)\n"
+        "        (DON'T ANY OTHER REASONS COME TO MIND)\n"
+        "        (DOES THAT REASON SEEM TO EXPLAIN ANYTHING ELSE)\n"
+        "        (WHAT OTHER REASONS MIGHT THERE BE)))\n"
+        "\n"
+        "(WHY\n"
+        "    ((0 WHY DON'T I 0)\n"
+        "        (DO YOU BELIEVE I DON'T 5)\n"
+        "        (PERHAPS I WILL 5 IN GOOD TIME)\n"
+        "        (SHOULD YOU 5 YOURSELF)\n"
+        "        (YOU WANT ME TO 5)\n"
+        "        (=WHAT))\n"
+        "; duplicate line removed: (=WHAT))\n"
+        "    ((0 WHY CAN'T YOU 0)\n"
+        "        (DO YOU THINK YOU SHOULD BE ABLE TO 5)\n"
+        "        (DO YOU WANT TO BE ABLE TO 5)\n"
+        "        (DO YOU BELIEVE THIS WILL HELP YOU TO 5)\n"
+        "        (HAVE YOU ANY IDEA WHY YOU CAN'T 5)\n"
+        "        (=WHAT))\n"
+        "    (=WHAT))\n"
+        "\n"
+        "(EVERYONE 2\n"
+        "    ((0 (* EVERYONE EVERYBODY NOBODY NOONE) 0)\n"
+        //[2] JW may have added these responses at a later date, and/or the ordering
+        //    of the possible responses in the script may have changed.
+        //        "        (REALLY, 2)\n"
+        //        "        (SURELY NOT 2)\n"
+        //        "        (CAN YOU THINK OF ANYONE IN PARTICULAR)\n"
+        //        "        (WHO, FOR EXAMPLE)\n"
+        //        "        (YOU ARE THINKING OF A VERY SPECIAL PERSON)\n"
+        "        (WHO, MAY I ASK)\n"
+        "        (SOMEONE SPECIAL PERHAPS)\n"
+        "        (YOU HAVE A PARTICULAR PERSON IN MIND, DON'T YOU)\n"
+        "        (WHO DO YOU THINK YOU'RE TALKING ABOUT)))\n"
+        "\n"
+        "(EVERYBODY 2 (= EVERYONE))\n"
+        "(NOBODY 2 (= EVERYONE))\n"
+        "(NOONE 2 (= EVERYONE))\n"
+        "\n"
+        "(ALWAYS 1\n"
+        "    ((0)\n"
+        "        (CAN YOU THINK OF A SPECIFIC EXAMPLE)\n"
+        "        (WHEN)\n"
+        "        (WHAT INCIDENT ARE YOU THINKING OF)\n"
+        "        (REALLY, ALWAYS)))\n"
+        "\n"
+        "(LIKE 10\n"
+        "    ((0 (*AM IS ARE WAS) 0 LIKE 0)\n"
+        "        (=DIT))\n"
+        "    ((0)\n"
+        "        (NEWKEY)))\n"
+        "\n"
+        "(DIT\n"
+        "    ((0)\n"
+        "        (IN WHAT WAY)\n"
+        "        (WHAT RESEMBLANCE DO YOU SEE)\n"
+        "        (WHAT DOES THAT SIMILARITY SUGGEST TO YOU)\n"
+        "        (WHAT OTHER CONNECTIONS DO YOU SEE)\n"
+        "        (WHAT DO YOU SUPPOSE THAT RESEMBLANCE MEANS)\n"
+        "        (WHAT IS THE CONNECTION, DO YOU SUPPOSE)\n"
+        "        (COULD THERE REALLY BE SOME CONNECTION)\n"
+        "        (HOW)))\n"
+        "\n"
+        "()\n";
+
+
+    const exchange conversation[] = {
+
+        // --- exact conversation from Weizenbaum's MIT archive dated 5 March 1965 ---
+
+        { "Doctor, I am terribly depressed.",
+          "IS IT BECAUSE YOU ARE TERRIBLY DEPRESSED THAT YOU CAME TO ME" },     //[1]
+
+        { "Actually, my wife suggested I come here.",
+          "TELL ME MORE ABOUT YOUR FAMILY" },
+
+        { "I have no children.",
+          "YOU SAY YOU HAVE NO CHILDREN" },
+
+        { "I can't resign myself to fatherhood.",
+          "HOW DO YOU KNOW YOU CAN'T RESIGN YOURSELF TO FATHERHOOD" },
+
+        { "Well, my wife wants kids but I don't. That's all I can say about it.",
+          "WHO ELSE IN YOUR FAMILY WANTS KIDS" },
+
+        { "Everybody is always hinting and bugging me about it.",               //[2]
+          "WHO, MAY I ASK" },
+
+        { "My father talks about grandchildren all the time.",
+          "YOUR FATHER" },
+
+        { "He pokes his nose into our affairs much too much.",
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "He's always trying to run the house.",
+          "CAN YOU THINK OF A SPECIFIC EXAMPLE" },
+
+        { "Apart from the children thing, my father wants me to change jobs.",
+          "WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR FATHER" },
+
+        { "Nothing.",                                                           //[3]
+          "YOU SAID YOUR WIFE SUGGESTED YOU COME HERE" },
+
+        { "Yes.",
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "She said that I should either get help or she would leave me.",
+          "CAN YOU ELABORATE ON THAT" },
+
+        { "My wife can't stand dad any longer.",
+          "TELL ME MORE ABOUT YOUR FAMILY" },
+
+        { "Mother is dead.",
+          "EARLIER YOU SAID YOUR WIFE WANTS KIDS" },
+
+        { "That's right. Can you understand how that bugs me.",
+          "YOU BELIEVE I CAN UNDERSTAND HOW THAT BUGS YOU DON'T YOU" },
+
+        { "I can't take it much longer.",
+          "HAVE YOU TRIED" },
+
+        { "I'm always patient.",
+          "WHEN" },
+
+        { "When she yells at me.",                                              //[4]
+          "LETS DISCUSS FURTHER WHY YOUR FATHER TALKS ABOUT GRANDCHILDREN ALL THE TIME" },
+
+        { "He's getting old. I guess he wants to be immortal.",
+          "DO YOU SAY YOU GUESS HE WANTS TO BE IMMORTAL FOR SOME SPECIAL REASON" },
+
+        { "He also talks about dying a lot.  Because he is sick, you know.",
+          "IS THAT THE REAL REASON" },
+
+        { "Maybe.",                                                             //[5]
+          "AND MAYBE NOT" },
+
+        { "I think he needs help more than I do.",
+          "THAT'S QUITE INTERESTING" },
+
+        { "I can't help him. I've tried all my life.",
+          "PERHAPS YOU COULD HELP HIM NOW" },
+
+        { "What do you mean.",
+          "WHY DO YOU ASK" },
+
+        { "I don't understand you.",
+          "DON'T YOU REALLY UNDERSTAND I" }, // JW preceded this with a P in the margin
+
+        { "No.",
+          "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+
+        { "Are you suggesting its all my fault.",                               //[6]
+          "WHY ARE YOU INTERESTED IN WHETHER I AM SUGGESTING ITS ALL YOUR FAULT OR NOT" },
+
+        { "You are the expert, after all. I have to listen to you.",
+          "WHAT MAKES YOU THINK I AM THE EXPERT" },
+
+        { "Or are you a computer.",                                             //[7]
+          "WOULD YOU PREFER IF I WEREN'T A COMPUTER" },
+
+        { "I don't trust computers. Anyway, no computer could talk as you do.", //[8]
+          "WHY DON'T YOU TRUST COMPUTERS" },
+
+        { "Because they're hardly human, that's why.",
+          "DON'T ANY OTHER REASONS COME TO MIND" },
+
+        // --- end of 5 March 1965 conversation from Weizenbaum's MIT archive ---
+    };
+
+    std::stringstream ss(CACM_1966_01_DOCTOR_script_modified_for_5_march_1965_convo);
+    elizascript::script s;
+    elizascript::read<std::stringstream>(ss, s);
+    elizalogic::eliza eliza(s.rules, s.mem_rule);
+
+    for (const auto & exchg : conversation)
+        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
+}
+
 
 }//namespace elizatest
 
@@ -3427,9 +4013,20 @@ DEF_TEST_FUNC(script_and_conversation_test)
 // write given s to std::cout, followed by newline
 void writeln(const std::string & s)
 {
-    // for fun, output 's' as if ELIZA was running on a 1966 Teletype
-    const long cps = 15; // the IBM Selectric printed at 15 characters per second
-    auto sleep = [](long ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
+    /* For fun, output 's' at 14 characters per second,
+       the speed of an IBM 2741 teletypewriter from 1965.
+       In an interview with Pamela McCorduck, recorded
+       on 6 March 1975, Weizenbaum talks of the terminal
+       he had in his home, "It was at the time a 2741 tied
+       to a 7094 CTSS system here."
+       See the Carnegie Mellon University archives file
+       mccorduck_weizenbaum_1975_03_06_001_a_access.mp3
+       at 17:30. */
+
+    const long cps = 14; // the IBM 2741 printed at ~14.1 cps
+    auto sleep = [](long ms) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+    };
 
     for (const auto c : s) {
         std::cout << c << std::flush;
@@ -3450,14 +4047,6 @@ const std::string option_escape("--");
 bool is_option(const std::string s)
 {
     return s.compare(0, option_escape.size(), option_escape) == 0;
-}
-
-
-bool is_option(const std::string s, const std::string opt)
-{
-    return s.size() == option_escape.size() + opt.size()
-        && s.compare(0, option_escape.size(), option_escape) == 0
-        && s.compare(option_escape.size(), opt.size(), opt) == 0;
 }
 
 
@@ -3520,7 +4109,7 @@ int main(int argc, const char * argv[])
                 << "Usage: ELIZA [options] [<filename>]\n"
                 << "\n"
                 << "  " << pad(as_option("nobanner"))   << "don't display startup banner\n"
-                << "  " << pad(as_option("notty"))      << "don't print like it's 1966 (at 15 characters per second)\n"
+                << "  " << pad(as_option("notty"))      << "don't print at IBM 2741 speed (14 characters per second)\n"
                 << "  " << pad(as_option("showscript")) << "print Weizenbaum's 1966 DOCTOR script\n"
                 << "  " << pad("")                      << "e.g. ELIZA " << as_option("showscript") << " > script.txt\n"
                 << "  " << pad("<filename>")            << "use named script file instead of built-in DOCTOR script\n"
@@ -3544,15 +4133,15 @@ int main(int argc, const char * argv[])
         }
 
         if (!nobanner) {
-            std::cout <<
-                "-----------------------------------------------------------------\n"
-                "      ELIZA -- A Computer Program for the Study of Natural\n"
-                "         Language Communication Between Man and Machine\n"
-                "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
-                "ELIZA implementation by Anthony Hay, 2022 (CC0 1.0) Public Domain\n"
-                "-----------------------------------------------------------------\n"
-                    << "ELIZA " << as_option("help") << " for usage.\n"
-                    << "Enter a blank line to quit.\n";
+            std::cout
+                << "-----------------------------------------------------------------\n"
+                << "      ELIZA -- A Computer Program for the Study of Natural\n"
+                << "         Language Communication Between Man and Machine\n"
+                << "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
+                << "ELIZA implementation by Anthony Hay, 2022 (CC0 1.0) Public Domain\n"
+                << "-----------------------------------------------------------------\n"
+                << "ELIZA " << as_option("help") << " for usage.\n"
+                << "Enter a blank line to quit.\n";
         }
 
         //unpublished_script_tests::unpublished_script_tests();
@@ -3596,41 +4185,42 @@ int main(int argc, const char * argv[])
         };
 
         print(join(s.hello_message));
+
         for (;;) {
             std::cout << std::endl;
             std::string userinput;
             std::getline(std::cin, userinput);
-
             if (userinput.empty())
                 break;
-            else if (userinput == "*") {
-                std::cout << trace.text();
-                continue;
-            }
-            else if (to_upper(userinput) == "*TRACEON") {
-                eliza.set_tracer(&trace);
-                traceauto = false;
-                std::cout << "tracing enabled; enter '*' after any excahnge to see trace\n";
-                continue;
-            }
-            else if (to_upper(userinput) == "*TRACEAUTO") {
-                eliza.set_tracer(&trace);
-                traceauto = true;
-                std::cout << "tracing enabled\n";
-                continue;
-            }
-            else if (to_upper(userinput) == "*TRACEOFF") {
-                eliza.set_tracer(&notrace);
-                trace.clear();
-                traceauto = false;
-                std::cout << "tracing disabled\n";
-                continue;
-            }
-            else if (to_upper(userinput) == "*TRACEPRE") {
-                eliza.set_tracer(&pretrace);
-                trace.clear();
-                traceauto = false;
-                std::cout << "tracing PRE enabled\n";
+            if (userinput[0] == '*') {
+                userinput = to_upper(userinput);
+                if (userinput == "*") {
+                    std::cout << trace.text();
+                }
+                else if (userinput == "*TRACEON") {
+                    eliza.set_tracer(&trace);
+                    traceauto = false;
+                    std::cout << "tracing enabled; enter '*' after any exchange to see trace\n";
+                }
+                else if (userinput == "*TRACEAUTO") {
+                    eliza.set_tracer(&trace);
+                    traceauto = true;
+                    std::cout << "tracing enabled\n";
+                }
+                else if (userinput == "*TRACEOFF") {
+                    eliza.set_tracer(&notrace);
+                    trace.clear();
+                    traceauto = false;
+                    std::cout << "tracing disabled\n";
+                }
+                else if (userinput == "*TRACEPRE") {
+                    eliza.set_tracer(&pretrace);
+                    trace.clear();
+                    traceauto = false;
+                    std::cout << "tracing PRE enabled\n";
+                }
+                else
+                    std::cout << "commands are *, *TRACEON, *TRACEAUTO, *TRACEOFF and *TRACEPRE\n";
                 continue;
             }
 
@@ -3651,4 +4241,5 @@ int main(int argc, const char * argv[])
 }
 
 // (The goal was to make only a minimum viable accurate simulation
-// of the original 1966 ELIZA rather than a polished product.)
+// of the original 1966 ELIZA rather than a polished product.
+// Though it has put on a bit of weight over the years.)
