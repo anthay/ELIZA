@@ -9,3 +9,5 @@ I made this before the ELIZA source code had been found, and wrote about it in [
 [Part 3](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_3.md) is about the HASH function, now that too has been found. 
 
 In a [footnote](https://github.com/anthay/ELIZA/blob/master/doc/Trying_to_recreate_RFC439.md) I document trying to recreate the PARRY/DOCTOR conversation from RFC439.
+
+My son Max Hay and I recreated ELIZA in JavaScript [here](https://github.com/anthay/ELIZA/blob/master/src/eliza.html). Try it [here](https://anthay.github.io/eliza.html).
