@@ -24,8 +24,10 @@
     There is lots more about ELIZA at elizagen.org
 */
 
-const VERSION = '0.90';
+const VERSION = '0.92';
 /*
+    0.92 Anthony Hay        2023-12-06  NEWKEY produces built-in message when keystack empty
+    0.91 Anthony Hay        2023-11-21  Add *fontsize
     0.90 Anthony Hay        2023-11-17  Add *load, *tracepre, *maxtran, *clear
     0.00 Ant & Max Hay      2023-10-31  Initial version
 */
@@ -461,8 +463,8 @@ class RuleKeyword {
             return [ACTION_NEWKEY];
         }
 
-        if (reassemblyRule.length === 1 && reassemblyRule[0].length > 1 && reassemblyRule[0][0] === '=') {
-            return [ACTION_LINKKEY, words, reassemblyRule[0].substring(1)];
+        if (reassemblyRule.length === 2 && reassemblyRule[0] === '=') {
+            return [ACTION_LINKKEY, words, reassemblyRule[1]];
         }
 
         // is it the special-case reassembly rule '( PRE ( reassembly ) ( =reference ) )'
@@ -475,10 +477,8 @@ class RuleKeyword {
             while (reassemblyRule[i] !== ")") {
                 reassembly.push(reassemblyRule[i++]);
             }
-            i += 2; // skip ')' & '('
+            i += 3; // skip ')', '(' and '='
             let link = reassemblyRule[i];
-            console.assert(link[0] === "=");
-            link = link.substring(1);
             words = reassemble(reassembly, constituents);
             return [ACTION_LINKKEY, words, link];
         }
@@ -622,6 +622,7 @@ class nullTracer {
     preTransform(keyword, words) {}
     transform(t, s) {}
     decompFailed() {}
+    newkeyFailed() {}
     usingNone(s) {}
     text() {
         return '';
@@ -648,6 +649,7 @@ class preTracer extends nullTracer {
     }
     transform(t, s) {}
     decompFailed() {}
+    newkeyFailed() {}
     usingNone(s) {}
     text() {
         return '';
@@ -676,6 +678,8 @@ class Tracer extends nullTracer {
         this.txt += this.prefix + "no keywords found in subclause: " + join(words) + '\n';
     }
     subclauseComplete(subclause, wordSubstitutions, keystack, rules) {
+        this.txt += this.prefix + "word substitutions made: "
+            + (wordSubstitutions.length === 0 ? '&lt;none&gt;' : wordSubstitutions) + '\n';
         if (keystack.length === 0) {
             if (subclause.length !== 0)
                 this.txt += this.prefix + "no keywords found in subclause: "
@@ -683,8 +687,6 @@ class Tracer extends nullTracer {
         }
         else {
             this.txt += this.prefix + "keyword found in subclause: " + subclause + '\n';
-            this.txt += this.prefix + "word substitutions made: "
-                + (wordSubstitutions.length === 0 ? '&lt;none&gt;' : wordSubstitutions) + '\n';
             this.txt += this.prefix + "keyword stack(precedence):";
             let comma = false;
             for (let keyword of keystack) {
@@ -711,7 +713,7 @@ class Tracer extends nullTracer {
         this.txt += t;
     }
     usingMemory(s) {
-        this.txt += TRACE_PREFIX + '(response is the oldest unused memory)\n';
+        this.txt += TRACE_PREFIX + 'response is the oldest unused memory\n';
         this.scrip += s;
     }
     transform(t, s) {
@@ -721,8 +723,11 @@ class Tracer extends nullTracer {
     decompFailed() {
         this.txt += TRACE_PREFIX + 'ill-formed script? No decomposition rule matched input\n';
     }
+    newkeyFailed(responseSource) {
+        this.txt += TRACE_PREFIX + 'keyword stack empty; response is a ' + responseSource + ' message\n';
+    }
     usingNone(s) {
-        this.txt += TRACE_PREFIX + '(response is the next remark from the NONE rule)\n';
+        this.txt += TRACE_PREFIX + 'response is the next remark from the NONE rule\n';
         this.scrip += s;
     }
     text() {
@@ -759,7 +764,7 @@ class Eliza {
         this.tracer = tracer;
         this.tags = collectTags(this.rules);
         this.limit = 1; // (this is Weizenbaum's "a certain counting mechanism")
-        this.noMatchMessages = ["PLEASE CONTINUE", "HMMM", "GO ON, PLEASE", "I SEE"];
+        this.noMatchMessages = ["PLEASE CONTINUE", "HMMM", "GO ON , PLEASE", "I SEE"];
         this.transformationLimit = transformationLimit;
     }
 
@@ -859,6 +864,11 @@ class Eliza {
             if (action === ACTION_LINKKEY) {
                 words = response;
                 keystack.unshift(link);
+            }
+            else if (keystack.length === 0) {
+                this.tracer.newkeyFailed('NONE');
+                //return this.noMatchMessages[this.limit - 1]; TBD
+                break;
             }
         }
 
@@ -1420,6 +1430,9 @@ class Tokenizer {
         if (ch == ')')
             return new Token('close_bracket');
 
+        if (ch == '=')
+            return new Token('symbol', '=');
+
         if (this.is_digit(ch)) {
             let t = new Token('number');
             t.value += ch;
@@ -1439,7 +1452,7 @@ class Tokenizer {
         t.value += ch;
         while (!this.eof()) {
             ch = this.peekch();
-            if (this.non_symbol(ch)) {
+            if (this.non_symbol(ch) || ch === '=') {
                 break;
             }
             t.value += ch;
@@ -1545,6 +1558,9 @@ class ElizaScriptReader {
         if (this.script.rules.has(keyword)) {
             throw new Error(this.errormsg(`keyword rule already specified for keyword '${keyword}'`));
         }
+        if (this.tok.peektok().close()) {
+            throw new Error(this.errormsg(`keyword '${keyword}' has no associated body`));
+        }
 
         for (t = this.tok.nexttok(); !t.close(); t = this.tok.nexttok()) {
             if (t.symbol("=")) {
@@ -1572,19 +1588,14 @@ class ElizaScriptReader {
                 }
             } else if (t.open()) {
                 t = this.tok.peektok();
-                if (t.symbol() && t.value.startsWith('=')) {
+                if (t.symbol("=")) {
+                    this.tok.nexttok();
                     t = this.tok.nexttok();
-                    if (t.symbol("=")) {
-                        t = this.tok.nexttok();
-                        if (!t.symbol()) {
-                            throw new Error(this.errormsg("expected equivalence class name"));
-                        }
-                        className = t.value;
-                    } else if (t.symbol() && t.value.startsWith('=')) {
-                        className = t.value.substring(1);
-                    } else {
+                    if (!t.symbol()) {
                         throw new Error(this.errormsg("expected equivalence class name"));
                     }
+                    className = t.value;
+
                     if (!this.tok.nexttok().close()) {
                         throw new Error(this.errormsg("expected ')'"));
                     }
@@ -1596,6 +1607,8 @@ class ElizaScriptReader {
                         decomposition: this.rdlist(),
                         reassembly: []
                     };
+                    if (trans.decomposition.length == 0)
+                        throw new Error(this.errormsg("decompose pattern cannot be empty"));
                     while (this.tok.peektok().open()) {
                         trans.reassembly.push(this.readReassembly());
                     }
@@ -1632,6 +1645,9 @@ class ElizaScriptReader {
         const pre = ["(", "PRE"];
         const reconstruct = this.rdlist();
         const reference = this.rdlist();
+        if (reference.length !== 2 || reference[0] !== '=') {
+            throw new Error(this.errormsg("expected '(=reference)' in PRE rule"));
+        }
         
         pre.push("(", ...reconstruct, ")");
         pre.push("(", ...reference, ")");
@@ -2854,6 +2870,7 @@ Type *help and press the Enter key to see a list of commands.
 
             let input = divConsole.value;
             writeText(input);
+            writeText('');
 
             if (input.length) {
                 if (input[0] === '*') {
@@ -2866,7 +2883,9 @@ Type *help and press the Enter key to see a list of commands.
                 if (cacmIndex >= 0) {
                     input = CACM_1966_CONVERSATION[cacmIndex];
                     cacmIndex += 2;
-                    writeText(input);
+                    //writeText(input);
+                    divConsole.value = input;
+                    return;
                 }
                 else {
                     keyHandlingComplete();
@@ -2945,6 +2964,20 @@ Type *help and press the Enter key to see a list of commands.
         else if (command == "*CRT") {
             crt = !crt;
             textBlur(crt);
+        }
+        else if (command === "*FONTSIZE") {
+            if (parts.length === 2) {
+                const n = parseInt(parts[1]);
+                if (n === NaN || n < 1) {
+                    writeText("missing or invalid number; e.g. '*fontsize 24' sets 24 pixel font");
+                }
+                else {
+                    fontSize(n);
+                }
+            }
+            else {
+                writeText("missing number; e.g. '*fontsize 24' sets 24 pixel font");
+            }
         }
         else if (command === "*SAVE") {
             writeText("saving conversation to 'conversation.txt'");
@@ -3055,43 +3088,51 @@ Type *help and press the Enter key to see a list of commands.
             traceText = conversation;
         }
         else if (command === "*HELP") {
-            writeText(`<pre>
+            writeText(`
 ELIZA is configured with Joseph Weizenbaum's 1966 DOCTOR script.
 Type about your feelings and thoughts; make the sort of statements
 you might make to a psychiatrist in an initial psychiatric
 interview. When you wish a reply to what you have said, press
 the Enter button. The reply you receive will be exactly the
-same as the original 1966 ELIZA/DOCTOR would have made.
-
+same as the original 1966 ELIZA/DOCTOR would have made.`);
+            writeText('');
+            writeText(`
+(Your conversation is private to your machine; nothing you say is
+transmitted anywhere else.)`);
+            writeText('');
+            writeText(`
 Commands have been added to this implementation that were not part
 of the original ELIZA. All of these commands begin with an asterisk.
 Type the command and then press the Enter button. The 'trace'
 referred to shows how ELIZA produced its reply and is best
 understood in conjunction with Weizenbaum's 1966 CACM paper.
-The commands are:
+The commands are:`);
 
-*amber     - change display colour; also *black, *green, *white
-*cacm      - replay conversation from Weizenbaum's 1966 CACM paper
-*clear     - clear screen and conversation and trace logs
-*crt       - toggle "Cathode-Ray Tube" text-blur on and off
-*help      - show this list of commands
-*load      - load a Weizenbaum-format script file from disk
-             (you can create an example script file with *savedoc)
-*reset     - reset ELIZA and clear conversation and trace logs
-*save      - save current conversation to a text file
-*savedoc   - save Weizenbaum's 1966 DOCTOR script to a text file
-*savetrace - save current conversation and trace to a text file
-*          - show a trace of the most recent reply
-**         - show the transformation rules used in the most recent reply
-*traceauto - turn on tracing; trace shown after every exchange
-*traceon   - turn on tracing; enter '*' after an exchange to see trace
-*tracepre  - show only input sentence and currently active keyword
-             (for watching the operation of Turing machines)
-*traceoff  - turn off tracing
-*maxtran N - specify the maximum number of transformations (default ${TRANSFORMATION_LIMIT_DEFAULT}),
-             0 means no limit (for limiting Turing machine operation;
-             also the Escape key will interrupt Turing machines)
-*version   - show version number of this implementation
+            writeText(`<pre>
+
+*amber      - change display colour; also *black, *green, *white
+*cacm       - replay conversation from Weizenbaum's 1966 CACM paper
+*clear      - clear screen and conversation and trace logs
+*crt        - toggle "Cathode-Ray Tube" text-blur on and off
+*fontsize N - set the font size to N pixels
+*help       - show this list of commands
+*load       - load a Weizenbaum-format script file from disk
+              (you can create an example script file with *savedoc)
+*reset      - reset ELIZA and clear conversation and trace logs
+*save       - save current conversation to a text file
+*savedoc    - save Weizenbaum's 1966 DOCTOR script to a text file
+*savetrace  - save current conversation and trace to a text file
+*           - show a trace of the most recent reply
+**          - show the transformation rules used in the most recent reply
+*traceauto  - turn on tracing; trace shown after every exchange
+*traceon    - turn on tracing; enter '*' after an exchange to see trace
+*tracepre   - show only input sentence and currently active keyword
+              (for watching the operation of Turing machines)
+*traceoff   - turn off tracing
+*maxtran N  - specify the maximum number of transformations (default ${TRANSFORMATION_LIMIT_DEFAULT}),
+              0 means no limit (for limiting Turing machine operation;
+              also the Escape key will interrupt Turing machines)
+*version    - show version number of this implementation
 </pre>`);
         }
         else {
@@ -3181,6 +3222,15 @@ The commands are:
         b.style.backgroundColor = bgColour;
     }
 
+    function fontSize(px) {
+        const c = document.getElementById("console");
+        c.style.fontSize = px + 'px';
+        const l = document.getElementById("log");
+        l.style.fontSize = px + 'px';
+        const b = document.body;
+        b.style.fontSize = px + 'px';
+    }
+
 });
 </script>
 
@@ -3188,17 +3238,18 @@ The commands are:
     .text {
         font-family: monospace;
         color: limegreen;
-        font-size: 2.6vh;
+        font-size: 2.6dvh;
         background-color: transparent;
+        width: 95dvw;
     }
 
     #console {
         outline: none;
         border: none;
-        width: 95vW;
+        width: 95dvw;
         color: limegreen;
         background: transparent;
-        font-size: 2.6vh;
+        font-size: 2.6dvh;
         font-family: monospace;
         position: relative;
         bottom: 2.7vh;
@@ -3212,6 +3263,9 @@ The commands are:
         background-color: #020;
         text-shadow: 0 0 3px #00ff00;
         margin-left: 2vw;
+        font-size: 2.6dvh;
+        font-family: monospace;
+        width: 95dvw;
     }
 </style>
 </header>
