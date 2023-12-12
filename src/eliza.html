@@ -1184,7 +1184,7 @@ START
 
 (YOU = I
     ((0 I REMIND YOU OF 0)
-        (=DIT))
+        (= DIT))
     ((0 I ARE 0)
         (WHAT MAKES YOU THINK I AM 4)
         (DOES IT PLEASE YOU TO BELIEVE I AM 4)
@@ -2284,34 +2284,38 @@ function testScript() {
     [status, s] = readScript('()\n(NONE\n((');
     console.assert(status === "Script error on line 3: expected ')'");
     [status, s] = readScript('()\n(NONE\n(())');
-    console.assert(status === "Script error on line 3: malformed rule");
-    [status, s] = readScript('()\n(NONE\n(()()');
+    console.assert(status === "Script error on line 3: decompose pattern cannot be empty");
+    [status, s] = readScript('()\n(NONE\n((0)()');
     console.assert(status === "Script error on line 3: expected ')'");
-    [status, s] = readScript('()\n(NONE\n(()()');
+    [status, s] = readScript('()\n(NONE\n((0)()');
     console.assert(status === "Script error on line 3: expected ')'");
-    [status, s] = readScript('()\n(NONE\n(()())');
+    [status, s] = readScript('()\n(NONE\n((0)())');
     console.assert(status === "Script error on line 3: malformed rule");
-    [status, s] = readScript('()\n(NONE\n(()()))');
+    [status, s] = readScript('()\n(NONE\n((0)()))');
     console.assert(status === "Script error: no MEMORY rule specified; see Jan 1966 CACM page 41");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY');
     console.assert(status === "Script error on line 4: expected keyword to follow MEMORY");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY KEY');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY');
     console.assert(status === "Script error on line 4: expected '('");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY KEY(');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(');
     console.assert(status === "Script error on line 4: expected 'decompose_terms = reassemble_terms'");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY KEY(0');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0');
     console.assert(status === "Script error on line 4: expected '='");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY KEY(0 =');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 =');
     console.assert(status === "Script error on line 4: expected 'decompose_terms = reassemble_terms'");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY KEY(0 = BUT YOUR 1');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1');
     console.assert(status === "Script error on line 4: expected ')'");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY KEY(0 = BUT YOUR 1)');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)');
     console.assert(status === "Script error on line 4: expected '('");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D)');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D)');
     console.assert(status === "Script error on line 4: expected ')'");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))');
     console.assert(status === "Script error: MEMORY rule keyword 'KEY' is not also a keyword in its own right; see Jan 1966 CACM page 41");
-    [status, s] = readScript('()\n(NONE\n(()()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))');
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))');
+    console.assert(status === "success");
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2)');
+    console.assert(status === "Script error on line 6: keyword 'K2' has no associated body");
+    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)');
     console.assert(status === "success");
 }
 
@@ -2339,7 +2343,7 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
         (WOULD YOU WANT TO BE 4)
         (YOU WISH I WOULD TELL YOU YOU ARE 4)
         (WHAT WOULD IT MEAN IF YOU WERE 4)
-        (=WHAT))
+        (= WHAT))
     ((0)
         (WHY DO YOU SAY 'AM')
         (I DON'T UNDERSTAND THAT)))
@@ -2349,7 +2353,7 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
         (WOULD YOU PREFER IF I WEREN'T 4)
         (PERHAPS I AM 4 IN YOUR FANTASIES)
         (DO YOU SOMETIMES THINK I AM 4)
-        (=WHAT))
+        (= WHAT))
     ((0 ARE 0)
         (DID YOU THINK THEY MIGHT NOT BE 3)
         (WOULD YOU LIKE IT IF THEY WERE NOT 3)
@@ -2366,14 +2370,14 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
 (CAN
     ((0 CAN I 0)
         (YOU BELIEVE I CAN 4 DON'T YOU)
-        (=WHAT)
+        (= WHAT)
         (YOU WANT ME TO BE ABLE TO 4)
         (PERHAPS YOU WOULD LIKE TO BE ABLE TO 4 YOURSELF))
     ((0 CAN YOU 0)
         (WHETHER OR NOT YOU CAN 4 DEPENDS ON YOU MORE THAN ON ME)
         (DO YOU WANT TO BE ABLE TO 4)
         (PERHAPS YOU DON'T WANT TO 4)
-        (=WHAT)))
+        (= WHAT)))
 (CANT = CAN'T)
 (CERTAINLY
     (=YES))
@@ -2418,7 +2422,7 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
         (REALLY, 4)
         (HAVE YOU EVER FANTASIED 4 WHILE YOU WERE AWAKE)
         (HAVE YOU DREAMT 4 BEFORE)
-        (=DREAM)
+        (= DREAM)
         (NEWKEY)))
 (ESPANOL
     (=XFREMD))
@@ -2446,7 +2450,7 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
     (=WHAT))
 (I'M = YOU'RE
     ((0 YOU'RE 0)
-        ( PRE ( YOU ARE 3 ) ( =I ) )))
+        ( PRE ( YOU ARE 3 ) ( = I ) )))
 (I = YOU
     ((0 YOU (* WANT NEED) 0)
         (WHAT WOULD IT MEAN TO YOU IF YOU GOT 4)
@@ -2466,13 +2470,13 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
         (WHAT MAKES YOU 5 JUST NOW)
         (CAN YOU EXPLAIN WHY YOU ARE SUDDENLY 5))
     ((0 YOU WAS 0)
-        (=WAS))
+        (= WAS))
     ((0 YOU (/BELIEF) YOU 0)
         (DO YOU REALLY THINK SO)
         (BUT YOU ARE NOT SURE YOU 5)
         (DO YOU REALLY DOUBT YOU 5))
     ((0 YOU 0 (/BELIEF) 0 I 0)
-        (=YOU))
+        (= YOU))
     ((0 YOU ARE 0)
         (IS IT BECAUSE YOU ARE 4 THAT YOU CAME TO ME)
         (HOW LONG HAVE YOU BEEN 4)
@@ -2513,7 +2517,7 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
     (=XFREMD))
 (LIKE 10
     ((0 (*AM IS ARE WAS) 0 LIKE 0)
-        (=DIT))
+        (= DIT))
     ((0)
         (NEWKEY)))
 (MACHINE 50
@@ -2570,7 +2574,7 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
         (DID YOU THINK I WOULD FORGET 5)
         (WHY DO YOU THINK I SHOULD RECALL 5 NOW)
         (WHAT ABOUT 5)
-        (=WHAT)
+        (= WHAT)
         (YOU MENTIONED 5))
     ((0)
         (NEWKEY)))
@@ -2591,7 +2595,7 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
         (WERE YOU 4)
         (WHAT WOULD IT MEAN IF YOU WERE 4)
         (WHAT DOES ' 4 ' SUGGEST TO YOU)
-        (=WHAT))
+        (= WHAT))
     ((0 YOU WAS 0)
         (WERE YOU REALLY)
         (WHY DO YOU TELL ME YOU WERE 4 NOW)
@@ -2625,13 +2629,13 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
         (PERHAPS I WILL 5 IN GOOD TIME)
         (SHOULD YOU 5 YOURSELF)
         (YOU WANT ME TO 5)
-        (=WHAT))
+        (= WHAT))
     ((0 WHY CAN'T YOU 0)
         (DO YOU THINK YOU SHOULD BE ABLE TO 5)
         (DO YOU WANT TO BE ABLE TO 5)
         (DO YOU BELIEVE THIS WILL HELP YOU TO 5)
         (HAVE YOU ANY IDEA WHY YOU CAN'T 5)
-        (=WHAT))
+        (= WHAT))
     (=WHAT))
 (WIFE DLIST(/FAMILY))
 (WISH DLIST(/BELIEF))
@@ -2647,10 +2651,10 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
         (I UNDERSTAND)))
 (YOU'RE = I'M
     ((0 I'M 0)
-        ( PRE ( I ARE 3 ) ( =YOU ) )))
+        ( PRE ( I ARE 3 ) ( = YOU ) )))
 (YOU = I
     ((0 I REMIND YOU OF 0)
-        (=DIT))
+        (= DIT))
     ((0 I ARE 0)
         (WHAT MAKES YOU THINK I AM 4)
         (DOES IT PLEASE YOU TO BELIEVE I AM 4)
