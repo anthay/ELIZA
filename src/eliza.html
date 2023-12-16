@@ -24,8 +24,9 @@
     There is lots more about ELIZA at elizagen.org
 */
 
-const VERSION = '0.92';
+const VERSION = '0.93';
 /*
+    0.93 Anthony Hay        2023-12-16  Recreate bug in SLIP YMATCH
     0.92 Anthony Hay        2023-12-06  NEWKEY produces built-in message when keystack empty
     0.91 Anthony Hay        2023-11-21  Add *fontsize
     0.90 Anthony Hay        2023-11-17  Add *load, *tracepre, *maxtran, *clear
@@ -213,7 +214,19 @@ function inlist(word, wordlist, tags) {
     wordlist = wordlist.trim();
 
     if (wordlist.startsWith('*')) { // (*SAD HAPPY DEPRESSED)
-        return wordlist.substring(1).trim().split(' ').includes(word);
+        // without bug:
+        //return wordlist.substring(1).trim().split(' ').includes(word);
+
+        // to recreate bug apparently in original SLIP YMATCH:
+        const t = wordlist.substring(1).trim().split(' ');
+        const word6 = word.substring(0, 6);
+        for (const w of t) {
+            for (let i = 0; i < w.length; i += 6) {
+                if (w.substring(i, i + 6) === word6)
+                    return true;
+            }
+        }
+        return false;
     }
     else if (wordlist.startsWith('/')) { // (/NOUN FAMILY)
         const t = wordlist.substring(1).trim().split(' ');
@@ -613,7 +626,7 @@ function collectTags(rules) {
 
 class nullTracer {
     beginResponse(words) {}
-    limit(n) {}
+    limit(n, builtInMsg) {}
     discardSubclause(words) {}
     subclauseComplete(subclause, wordSubstitutions, keystack, rules) {}
     memoryStack(t) {}
@@ -638,7 +651,7 @@ class preTracer extends nullTracer {
         this.print = write;
     }
     beginResponse(words) {}
-    limit(n) {}
+    limit(n, builtInMsg) {}
     discardSubclause(words) {}
     subclauseComplete(subclause, wordSubstitutions, keystack, rules) {}
     memoryStack(t) {}
@@ -671,8 +684,8 @@ class Tracer extends nullTracer {
         this.txt = this.prefix + "input: " + join(words) + '\n';
         this.scrip = '';
     }
-    limit(n) {
-        this.txt += this.prefix + "LIMIT: " + n + '\n';
+    limit(n, builtInMsg) {
+        this.txt += this.prefix + "LIMIT: " + n + ' (' + builtInMsg + ')\n';
     }
     discardSubclause(words) {
         this.txt += this.prefix + "no keywords found in subclause: " + join(words) + '\n';
@@ -713,7 +726,7 @@ class Tracer extends nullTracer {
         this.txt += t;
     }
     usingMemory(s) {
-        this.txt += TRACE_PREFIX + 'response is the oldest unused memory\n';
+        this.txt += TRACE_PREFIX + 'LIMIT=4, so response is the oldest unused memory\n';
         this.scrip += s;
     }
     transform(t, s) {
@@ -775,7 +788,7 @@ class Eliza {
         this.tracer.beginResponse(words);
 
         this.limit = (this.limit % 4) + 1;
-        this.tracer.limit(this.limit);
+        this.tracer.limit(this.limit, this.noMatchMessages[this.limit - 1]);
 
         let keystack = [];
         let topRank = 0;
@@ -1898,6 +1911,10 @@ function testInlist() {
     console.assert(inlist("HAPPY",      "( * SAD HAPPY DEPRESSED )",tags) === true);
     console.assert(inlist("DEPRESSED",  "( * SAD HAPPY DEPRESSED )",tags) === true);
     console.assert(inlist("DRUNK",      "( * SAD HAPPY DEPRESSED )",tags) === false);
+
+    console.assert(inlist("WONDER",     "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags) === true);
+    console.assert(inlist("FUL",        "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags) === true);
+    console.assert(inlist("D",          "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags) === true);
 
     let word = "NOW";
     let wordlist = "(*YOU SEE IT)";
