@@ -511,6 +511,8 @@ DEF_TEST_FUNC(to_int_test)
 // e.g. inlist("FATHER", "(/FAMILY)") -> true (assuming tags("FAMILY") -> "... FATHER ...")
 bool inlist(const std::string & word, std::string wordlist, const tagmap & tags)
 {
+    assert(!word.empty());
+
     if (wordlist.back() == ')')
         wordlist.pop_back();
     const char * cp = wordlist.data();
@@ -521,7 +523,17 @@ bool inlist(const std::string & word, std::string wordlist, const tagmap & tags)
     if (*cp == '*') { // (*SAD HAPPY DEPRESSED)
         ++cp;
         const stringlist s{split(std::string(cp))};
+#ifdef WITHOUT_ASSUMED_MATCHING_BUG
         return std::find(s.begin(), s.end(), word) != s.end();
+#else // with apparent bug (see test function for explanation)
+        stringlist t;
+        for (const auto word6 = word.substr(0, 6); const auto & w : s) {
+            for (unsigned i = 0; i < w.size(); i += 6)
+                if (w.substr(i, 6) == word6)
+                    return true;
+        }
+        return false;
+#endif
     }
     else if (*cp == '/') { // (/NOUN FAMILY)
         ++cp;
@@ -590,6 +602,68 @@ DEF_TEST_FUNC(inlist_test)
     TEST_EQUAL(inlist("HAPPY",      "( * SAD HAPPY DEPRESSED )",tags), true);
     TEST_EQUAL(inlist("DEPRESSED",  "( * SAD HAPPY DEPRESSED )",tags), true);
     TEST_EQUAL(inlist("DRUNK",      "( * SAD HAPPY DEPRESSED )",tags), false);
+
+
+    /*  In the conversations from the 1965 pilot study by Quarton, McGuire
+        and Lorch the following results suggest that there is a bug in
+        YMATCH such that the first six characters of the user input is
+        compared with each 6-character chunk of the words in the multiple
+        choice list.
+
+      - The user input
+            SOMETIMES I WONDER WHY I THINK THE WAY I DO
+        produces the response
+            WHEN YOU FEEL WONDER HOW ARE YOU EFFECTED
+        which comes from the rule
+            ((0 YOU 0(*HAPPY ELATED EXCITED GOOD WONDERFUL) 0)
+                (WHEN YOU FEEL 4 HOW ARE YOU EFFECTED)
+        suggesting that WONDER matched WONDER'FUL.
+
+      - The user input
+            IN THE PAST I HAVE ACTED UPON ASSUMPTIONS ABOUT OTHER PEOPLE'S FEELING S AND HAVE
+                FOUND MYSELF TO BE WRONG. I TRY NOT TO MAKE THOSE HASTY ASSUMPTIONSANYMORE
+        produces
+            S IS A STRONGWORD , YOU MUST HAVE SOME INSIGHTS INTO WHY YOU FEEL SO STRONGLY
+        which comes from
+            ((0 YOU 0 (*VICIOUS HOSTILE MEAN ANGRY ENVIOUS FURIOUS BITTER) 0)
+                (4 IS A STRONG WORD, YOU MUST HAVE SOME INSIGHTS INTO WHY YOU FEEL SO STRONGLY)
+        suggesting that S matched VICIOU'S
+
+      - The user input
+            I SUPPOSE THE Y NEVER REALLY HATE THEIR PRAENTS, BUT I CAN' CALL A LAKE  LACK OF
+                TRUST THE RELATIONSHIP",
+        produces
+            TELL ME MORE ABOUT YOUR FEELINGS OF BEING SAD
+        which comes from
+            ((0 YOU 0 (*SAD ASHAMED DEPRESSED UNHAPPY JURT INJURED SADDENED IRKED) 0)
+                (TELL ME MORE ABOUT YOUR FEELINGS OF BEING SAD)
+        suggesting that Y matched UNHAPP'Y
+
+      - The user input
+            BECAUSE AS MUCH AS I TELL MYSELF THIS WILL NOT HAPPEN I DO IT AGAIN IN AROUND A
+                WEEK AFTER I HAVE SAID THAT I WOULDNT PLUS THERE IS MUCH TENSION E WITH SCHOOL
+        produces
+            E IS A STRONG WORD , YOU MUST HAVE SOME INSIGHTS INTO WHY YOU FEEL SO STRONGLY
+        which comes from
+            ((0 YOU 0 (*VICIOUS HOSTILE MEAN ANGRY ENVIOUS FURIOUS BITTER) 0)
+                (4 IS A STRONG WORD, YOU MUST HAVE SOME INSIGHTS INTO WHY YOU FEEL SO STRONGLY)
+        suggesting that E matched HOSTIL'E
+
+      - The user input
+            I COULD GO ON TALKING FOR EVER IF YOU D LET ME BUT I ENJOY AND PROGRESS IN
+                THE INSIGTS THAT MAYN OTHER PEOPLE MAY HAVE. I THONK IT ADDS TO THE MEANINGULNESS
+                OF THE CONVERSATION ... OF COURSE I STARTED OFF WITH THIS BASIC PREMISE THAT WE'RE
+                HAVEING A CONVERSATION.... WHICH MAY BE INCORRECT.
+        produces
+            TELL ME MORE ABOUT YOUR FEELINGS OF BEING SAD
+        which comes from
+            ((0 YOU 0 (*SAD ASHAMED DEPRESSED UNHAPPY JURT INJURED SADDENED IRKED) 0)
+                (TELL ME MORE ABOUT YOUR FEELINGS OF BEING SAD)
+        suggesting that D matched ASHAME'D
+     */
+    TEST_EQUAL(inlist("WONDER",     "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags), true);
+    TEST_EQUAL(inlist("FUL",        "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags), true);
+    TEST_EQUAL(inlist("D",          "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags), true);
 }
 
 
@@ -1879,7 +1953,7 @@ class tracer {
 public:
     virtual ~tracer() = 0;
     virtual void begin_response(const stringlist & /*words*/) = 0;
-    virtual void limit(int /*limit*/) = 0;
+    virtual void limit(int /*limit*/, const std::string & /*built_in_msg*/) = 0;
     virtual void discard_subclause(const std::string & /*text*/) = 0;
     virtual void create_memory(const std::string & /*text*/) = 0;
     virtual void using_memory(const std::string & /*script*/) = 0;
@@ -1902,7 +1976,7 @@ class null_tracer : public tracer {
 public:
     virtual ~null_tracer() = default;
     virtual void begin_response(const stringlist & /*words*/) {}
-    virtual void limit(int /*limit*/) {}
+    virtual void limit(int /*limit*/, const std::string & /*built_in_msg*/) {}
     virtual void discard_subclause(const std::string & /*text*/) {}
     virtual void create_memory(const std::string & /*text*/) {}
     virtual void using_memory(const std::string & /*script*/) {}
@@ -1939,7 +2013,10 @@ public:
         script_.str("");
         trace_ << trace_prefix << "input: " << join(words) << '\n';
     }
-    virtual void limit(int limit) { trace_ << trace_prefix << "LIMIT: " << limit << '\n'; }
+    virtual void limit(int limit, const std::string & built_in_msg)
+    {
+        trace_ << trace_prefix << "LIMIT: " << limit << " (" << built_in_msg << ")\n";
+    }
     virtual void discard_subclause(const std::string & s)
     {
         trace_ << trace_prefix << "no keywords found in subclause: " << s << '\n';
@@ -1947,7 +2024,7 @@ public:
     virtual void create_memory(const std::string & s) { trace_ << s; }
     virtual void using_memory(const std::string & s)
     {
-        trace_ << trace_prefix << "response is the oldest unused memory\n";
+        trace_ << trace_prefix << "LIMIT=4, so the response is the oldest unused memory\n";
         script_ << s;
     }
     virtual void subclause_complete(
@@ -2033,6 +2110,7 @@ public:
     // NONE messages instead is provided for attempts to reproduce conversations
     // with some non-Weizenbaum ELIZAs.)
     void set_use_nomatch_msgs(bool f) { use_nomatch_msgs_ = f; }
+    void set_on_newkey_fail_use_none(bool f) { on_newkey_fail_use_none_ = f; }
     void set_use_limit(bool f) { limit_ = 2; }
 
     void set_delimeters(const stringlist & delims) { delimiters_ = delims; }
@@ -2050,7 +2128,7 @@ public:
 
         // JW's "a certain counting mechanism" is updated for each response
         limit_ = limit_ % 4 + 1;
-        trace_->limit(limit_);
+        trace_->limit(limit_, nomatch_msgs_[limit_ - 1]);
 
         // scan for keywords [page 38 (c)]; build the keystack; apply word substitutions
         stringlist keystack;
@@ -2161,10 +2239,12 @@ public:
                 // newkey means try next highest keyword, but keystack is empty.
                 // The 1966 CACM ELIZA paper, page 41, implies in this situation
                 // a NONE message is used. The conversations in the Quarton pilot
-                // study suggests that a built-in message is used. What to do?
+                // study suggests that a built-in message is used.
+                if (!on_newkey_fail_use_none_ && use_nomatch_msgs_) {
+                    trace_->newkey_failed("built-in nomatch");
+                    return nomatch_msgs_[limit_ - 1];
+                }
                 trace_->newkey_failed("NONE");
-                //if (use_nomatch_msgs_)
-                //    return nomatch_msgs_[limit_ - 1];
                 break; // (use NONE message)
             }
         }
@@ -2182,9 +2262,9 @@ private:
     int limit_{ 1 };
     bool use_limit_{ true };
 
-    /*  In the 1966 CACM article on page 37 Weizenbaum says "the procedure
-        recognizes a comma or a period as a delimiter." However, in the
-        MAD-SLIP source code the relevant code is
+    /*  In the 1966 CACM ELIZA paper on page 37 Weizenbaum says
+        "the procedure recognizes a comma or a period as a delimiter."
+        However, in the MAD-SLIP source code the relevant code is
 
             W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR. WORD .E. $BUT$
 
@@ -2198,6 +2278,20 @@ private:
         return std::find(delimiters_.begin(), delimiters_.end(), s) != delimiters_.end();
     }
 
+    /*  In the 1966 CACM ELIZA paper on page 41 Weizenbaum says
+
+        "A serious problem which remains to be discussed is the reaction of
+        the system in case no keywords remain to serve as transformation
+        triggers. This can arise either in case the keystack is empty when
+        NEWKEY is invoked or when the input text contained no keywords
+        initially.
+        "The simplest mechanism supplied is in the form of the special
+        reserved keyword "NONE" which must be part of any script."
+
+        However, the McGuire, Lorch, Quarton study conversations show that
+        if the keystack is empty when NEWKEY is invoked the response is a
+        nomatch message, not a NONE message. */
+    bool on_newkey_fail_use_none_{ true };
 
     // the ELIZA script in 'rulemap' form
     rulemap rules_;
@@ -2704,9 +2798,18 @@ private:
                 throw std::runtime_error(errormsg("expected '('"));
             for (t = tok_.nexttok(); !t.symbol("=") && !t.eof(); t = tok_.nexttok())
                 decomposition.push_back(t.value);
+            if (decomposition.empty())
+                throw std::runtime_error(errormsg("expected 'decompose_terms = reassemble_terms'"));
+            if (!t.symbol("="))
+                throw std::runtime_error(errormsg("expected '='"));
+
             stringlist reassembly;
             for (t = tok_.nexttok(); !t.close() && !t.eof(); t = tok_.nexttok())
                 reassembly.push_back(t.value);
+            if (reassembly.empty())
+                throw std::runtime_error(errormsg("expected 'decompose_terms = reassemble_terms'"));
+            if (!t.close())
+                throw std::runtime_error(errormsg("expected ')'"));
             reassembly_rules.push_back(reassembly);
 
             script_.mem_rule->add_transformation_rule(decomposition, reassembly_rules);
@@ -2770,8 +2873,12 @@ private:
             throw std::runtime_error(errormsg(msg));
         }
 
-        if (tok_.peektok().close())
-            throw std::runtime_error(errormsg("keyword has no associated body"));
+        if (tok_.peektok().close()) {
+            std::string msg("keyword '");
+            msg += keyword;
+            msg += "' has no associated body";
+            throw std::runtime_error(errormsg(msg));
+        }
 
         for (t = tok_.nexttok(); !t.close(); t = tok_.nexttok()) {
             if (t.symbol("=")) {
@@ -3646,6 +3753,68 @@ DEF_TEST_FUNC(script_test)
     TEST_EQUAL(join(tags.at("TAG1")), "K01 K12 K14 K16 K17 K22 K24 K26 K27 K32 K34 K36 K37 K38");
     TEST_EQUAL(join(tags.at("TAG2")), "K01 K12 K14 K16 K17 K22 K24 K27 K32 K34 K36 K37 K38");
     TEST_EQUAL(join(tags.at("TAG3")), "K32");
+
+
+    auto read_script = [](const std::string & script_text) -> std::string {
+        try {
+            elizascript::script s;
+            std::stringstream ss(script_text);
+            elizascript::read<std::stringstream>(ss, s);
+            return "success";
+        }
+        catch (const std::exception & e) {
+            return e.what();
+        }
+    };
+
+    std::string status = read_script("");
+    TEST_EQUAL(status, "Script error on line 1: expected '('");
+    status = read_script("(");
+    TEST_EQUAL(status, "Script error on line 1: expected ')'");
+    status = read_script("()");
+    TEST_EQUAL(status, "Script error: no NONE rule specified; see Jan 1966 CACM page 41");
+    status = read_script("()\n(");
+    TEST_EQUAL(status, "Script error on line 2: expected keyword|MEMORY|NONE");
+    status = read_script("()\n(NONE");
+    TEST_EQUAL(status, "Script error on line 2: malformed rule");
+    status = read_script("()\n(NONE\n(");
+    TEST_EQUAL(status, "Script error on line 3: expected '('");
+    status = read_script("()\n(NONE\n((");
+    TEST_EQUAL(status, "Script error on line 3: expected ')'");
+    status = read_script("()\n(NONE\n(())");
+    TEST_EQUAL(status, "Script error on line 3: decompose pattern cannot be empty");
+    status = read_script("()\n(NONE\n((0)()");
+    TEST_EQUAL(status, "Script error on line 3: expected ')'");
+    status = read_script("()\n(NONE\n((0)()");
+    TEST_EQUAL(status, "Script error on line 3: expected ')'");
+    status = read_script("()\n(NONE\n((0)())");
+    TEST_EQUAL(status, "Script error on line 3: malformed rule");
+    status = read_script("()\n(NONE\n((0)()))");
+    TEST_EQUAL(status, "Script error: no MEMORY rule specified; see Jan 1966 CACM page 41");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY");
+    TEST_EQUAL(status, "Script error on line 4: expected keyword to follow MEMORY");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY");
+    TEST_EQUAL(status, "Script error on line 4: expected '('");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(");
+    TEST_EQUAL(status, "Script error on line 4: expected 'decompose_terms = reassemble_terms'");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0");
+    TEST_EQUAL(status, "Script error on line 4: expected '='");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 =");
+    TEST_EQUAL(status, "Script error on line 4: expected 'decompose_terms = reassemble_terms'");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1");
+    TEST_EQUAL(status, "Script error on line 4: expected ')'");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)");
+    TEST_EQUAL(status, "Script error on line 4: expected '('");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D)");
+    TEST_EQUAL(status, "Script error on line 4: expected ')'");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))");
+    TEST_EQUAL(status, "Script error: MEMORY rule keyword 'KEY' is not also a keyword in its own right; see Jan 1966 CACM page 41");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))");
+    TEST_EQUAL(status, "success");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2)");
+    TEST_EQUAL(status, "Script error on line 6: keyword 'K2' has no associated body");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)");
+    TEST_EQUAL(status, "success");
 }
 
 
@@ -4175,7 +4344,7 @@ DEF_TEST_FUNC(test_alternative_men_are_all_alike_convo)
 }
 
 
-DEF_TEST_FUNC(test_turing_machine)
+DEF_TEST_FUNC(test_busy_beaver_turing_machine)
 {
     /*  4-state busy beaver
 
@@ -4210,7 +4379,7 @@ DEF_TEST_FUNC(test_turing_machine)
         "(QC\n"
         "    ((' 0) (PRE (O ' 2) (=QC)))\n"
         "    ((0 ') (PRE (1 ' O) (=QC)))\n"
-        "    ((0 1 ' O ' 1 0) (PRE (1   2   I ' 6 ' 7) (=QHALT))); QC      O       I       right   HALT\n"
+        "    ((0 1 ' O ' 1 0) (PRE (1   2   I ' 6 ' 7) (=QHALT))); QC      O       I       right   QHALT\n"
         "    ((0 1 ' I ' 1 0) (PRE (1 ' 2 ' I   6   7) (=QD))))  ; QC      I       I       left    QD\n"
 
         "(QD\n"
@@ -5516,7 +5685,7 @@ bool parse_cmdline(
 
 
 
-//#include "unpublished_script_tests.cpp"
+#include "unpublished_script_tests.cpp"
 
 int main(int argc, const char * argv[])
 {
@@ -5562,7 +5731,7 @@ int main(int argc, const char * argv[])
                 << "      ELIZA -- A Computer Program for the Study of Natural\n"
                 << "         Language Communication Between Man and Machine\n"
                 << "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
-                << "ELIZA implementation by Anthony Hay, 2022 (CC0 1.0) Public Domain\n"
+                << "ELIZA implementation (v0.93) by Anthony Hay, 2022  (CC0 1.0) P.D.\n"
                 << "-----------------------------------------------------------------\n"
                 << "ELIZA " << as_option("help") << " for usage.\n"
                 << "Enter a blank line to quit.\n";
