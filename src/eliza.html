@@ -7,9 +7,6 @@
 
 <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAmpJREFUWEftl0toE1EUhr9Jig1NajJtKokhqW1AUPBRRUTFhYLgSlxYUXxsCtpGxO6UYKEoFOJGELvwCYIIat1URRA36sYH6E500UK1paGxGdu8TGI6Mr2Jk4kuLIQki9zd3HPvPf/5//PPzJUYxOT/RFBVOQW4qMwISxLDY2sZkvwHOa+qXKxMXmMWSWJA6uxmuoKVl9YZ1gCo1ai+kLMOoM5AnYHaYCDrhfgO49vAHIXlzyG1HnIy2F4a4+lO+LkG7E/hVyvE9hjjpiTYR/W59GpIbgLrO1g2rs8vMpDYCpEAtNzTA9oBttegHIZ0B7iGjAliu+DHfvCegQUbxLfr8dQ6SPvBF9DnZvoF4KYP4Lz2DwCzPeA78fc78X8AFO9SLfDtMsiPoPmFiKgNMHETWu+Acgh8vdqkiP1hoFwAokdAY8ATBBZEEk3G6DFYGYSJ2+AehMaxEgAzp8H6Xq/F8VhotRQGsh6YvATuC2D5op/1vQdMKSFx+Bw0joP8oARApBfaruubLJ/BrCwNwPQANCjQdrVIFAm+DsOKK6CdOb8XtP7xnC2zBIltoBXh7RfACyPTAZMhaH4lJMnZIbkR2gNgni1TDxQaz/7MaD0NhNItHKFJWhiRk+AYFU2q27APnLeK7JEF6xshgebfYk83fYTEFt2Gc/tAOQDOGyDl8mfkwPoWpkJgfyIsXRjR45BxgyuUB5BZBbHdRgua58ExAsnNkNpgjMkjkHWJ7l5c0wWpLuMaKQvyfYgeBfkhmGJFsrRDfCe03M0DMG6t7FNtfAsqW3OJVPWf0joDtcBAda9mVb+cVvt6/htk1QrWYpnIfgAAAABJRU5ErkJggg==" />
 
-</head>
-
-<header>
 <script>
 
 
@@ -21,17 +18,21 @@
     as Weizenbaum's 1966 ELIZA running his DOCTOR script would have been.
 
     The Github repo for this code is https://github.com/anthay/ELIZA
+    The website for the best book about ELIZA is at findingeliza.org
     There is lots more about ELIZA at elizagen.org
 */
 
-const VERSION = '0.93';
+
 /*
+    0.94 Max Hay            2024-01-04  Improve console focus gain
     0.93 Anthony Hay        2023-12-16  Recreate bug in SLIP YMATCH
-    0.92 Anthony Hay        2023-12-06  NEWKEY produces built-in message when keystack empty
     0.91 Anthony Hay        2023-11-21  Add *fontsize
     0.90 Anthony Hay        2023-11-17  Add *load, *tracepre, *maxtran, *clear
-    0.00 Ant & Max Hay      2023-10-31  Initial version
+    0.00 Ant & Max Hay      2023-10-31  Initial version (with thanks to
+                                        Mark C. Marino & ChatGPT4 for help
+                                        with the initial conversion from C++)
 */
+const VERSION = '0.94';
 
 
 //////// //       //// ////////    ///    //        ///////   //////   ////  //////  
@@ -96,40 +97,41 @@ function utf32ArrayFromString(s) {
 
 
 // return given string with non-Hollerith characters replaced
-// by Hollerith alternatives, where possible, or space otherwise
+// by Hollerith alternatives, where possible, or '-' otherwise
 function filterBcd(s) {
     let result = "";
+    const nonBcdReplacementChar = '-';
     const utf32 = utf32ArrayFromString(s);
     for (let c32 of utf32) {
-        if (c32 == 0x2018           // 'LEFT SINGLE QUOTATION MARK' (U+2018)
-            || c32 == 0x2019) {     // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
-            result += '\'';         //   => 'APOSTROPHE' (U+0027)
+        switch (c32) {
+        case 0x2018:        // 'LEFT SINGLE QUOTATION MARK' (U+2018)
+        case 0x2019:        // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
+        case 0x0022:        // 'QUOTATION MARK' (U+0022)
+        case 0x0060:        // 'GRAVE ACCENT' (U+0060) [backtick]
+        case 0x00AB:        // 'LEFT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00AB)
+        case 0x00BB:        // 'RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00BB)
+        case 0x201A:        // 'SINGLE LOW-9 QUOTATION MARK' (U+201A)
+        case 0x201B:        // 'SINGLE HIGH-REVERSED-9 QUOTATION MARK' (U+201B)
+        case 0x201C:        // 'LEFT DOUBLE QUOTATION MARK' (U+201C)
+        case 0x201D:        // 'RIGHT DOUBLE QUOTATION MARK' (U+201D)
+        case 0x201E:        // 'DOUBLE LOW-9 QUOTATION MARK' (U+201E)
+        case 0x201F:        // 'DOUBLE HIGH-REVERSED-9 QUOTATION MARK' (U+201F)
+        case 0x2039:        // 'SINGLE LEFT-POINTING ANGLE QUOTATION MARK' (U+2039)
+        case 0x203A:        // 'SINGLE RIGHT-POINTING ANGLE QUOTATION MARK' (U+203A)
+            result += '\''; //   => 'APOSTROPHE' (U+0027)
             continue;
-        }
-        if (c32 == 0x0022           // 'QUOTATION MARK' (U+0022)
-            || c32 == 0x0060        // 'GRAVE ACCENT' (U+0060) [backtick]
-            || c32 == 0x00AB        // 'LEFT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00AB)
-            || c32 == 0x00BB        // 'RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00BB)
-            || c32 == 0x201A        // 'SINGLE LOW-9 QUOTATION MARK' (U+201A)
-            || c32 == 0x201B        // 'SINGLE HIGH-REVERSED-9 QUOTATION MARK' (U+201B)
-            || c32 == 0x201C        // 'LEFT DOUBLE QUOTATION MARK' (U+201C)
-            || c32 == 0x201D        // 'RIGHT DOUBLE QUOTATION MARK' (U+201D)
-            || c32 == 0x201E        // 'DOUBLE LOW-9 QUOTATION MARK' (U+201E)
-            || c32 == 0x201F        // 'DOUBLE HIGH-REVERSED-9 QUOTATION MARK' (U+201F)
-            || c32 == 0x2039        // 'SINGLE LEFT-POINTING ANGLE QUOTATION MARK' (U+2039)
-            || c32 == 0x203A) {     // 'SINGLE RIGHT-POINTING ANGLE QUOTATION MARK' (U+203A)
-            result += ' ';          //   => 'SPACE' (U+0020)
-            continue;
+        default:
+            break;
         }
         if (c32 > 127) {
-            result += '-';
+            result += nonBcdReplacementChar;
             continue;
         }
         const c = String.fromCodePoint(c32).toUpperCase();
         if (c == '?' || c == '!')
             result += '.';
         else if (!hollerithDefined(c))
-            result += '-';
+            result += nonBcdReplacementChar;
         else
             result += c;
     }
@@ -329,7 +331,7 @@ function reassemble(reassemblyRule, components) {
         if (n < 0) {
             result.push(r);
         } else if (n === 0 || n > components.length) {
-            result.push("SCRIPT-ERROR-REASSEMBLY-RULE-INDEX-OUT-OF-RANGE");
+            result.push("THINGY"); // script error: index out of range (in the style of HMMM)
         } else {
             let expanded = split(components[n - 1]);
             result = result.concat(expanded);
@@ -628,13 +630,15 @@ class nullTracer {
     beginResponse(words) {}
     limit(n, builtInMsg) {}
     discardSubclause(words) {}
-    subclauseComplete(subclause, wordSubstitutions, keystack, rules) {}
+    wordSubstitution(word, substitute) {}
+    subclauseComplete(subclause, keystack, rules) {}
     memoryStack(t) {}
     createMemory(t) {}
     usingMemory(s) {}
     preTransform(keyword, words) {}
     transform(t, s) {}
-    decompFailed() {}
+    unknownKey(keyword, useNomatchMessage) {}
+    decompFailed(useNomatchMessage) {}
     newkeyFailed() {}
     usingNone(s) {}
     text() {
@@ -653,7 +657,8 @@ class preTracer extends nullTracer {
     beginResponse(words) {}
     limit(n, builtInMsg) {}
     discardSubclause(words) {}
-    subclauseComplete(subclause, wordSubstitutions, keystack, rules) {}
+    wordSubstitution(word, substitute) {}
+    subclauseComplete(subclause, keystack, rules) {}
     memoryStack(t) {}
     createMemory(t) {}
     usingMemory(s) {}
@@ -661,7 +666,8 @@ class preTracer extends nullTracer {
         this.print(join(words) + '   :' + keyword);
     }
     transform(t, s) {}
-    decompFailed() {}
+    unknownKey(keyword, useNomatchMessage) {}
+    decompFailed(useNomatchMessage) {}
     newkeyFailed() {}
     usingNone(s) {}
     text() {
@@ -679,20 +685,32 @@ class Tracer extends nullTracer {
         this.txt = '';
         this.scrip = '';
         this.prefix = " | ";
+        this.wordSubstitutions = '';
     }
     beginResponse(words) {
         this.txt = this.prefix + "input: " + join(words) + '\n';
         this.scrip = '';
+        this.wordSubstitutions = '';
     }
     limit(n, builtInMsg) {
         this.txt += this.prefix + "LIMIT: " + n + ' (' + builtInMsg + ')\n';
     }
     discardSubclause(words) {
-        this.txt += this.prefix + "no keywords found in subclause: " + join(words) + '\n';
-    }
-    subclauseComplete(subclause, wordSubstitutions, keystack, rules) {
         this.txt += this.prefix + "word substitutions made: "
-            + (wordSubstitutions.length === 0 ? '&lt;none&gt;' : wordSubstitutions) + '\n';
+            + (this.wordSubstitutions.length === 0 ? '&lt;none&gt;' : this.wordSubstitutions) + '\n';
+        this.txt += this.prefix + "no keywords found in subclause: " + join(words) + '\n';
+        this.wordSubstitutions = '';
+    }
+    wordSubstitution(word, substitute) {
+        if (substitute != word) {
+            if (this.wordSubstitutions.length !== 0)
+                this.wordSubstitutions += ', ';
+            this.wordSubstitutions += word + '/' + substitute;
+        }
+    }
+    subclauseComplete(subclause, keystack, rules) {
+        this.txt += this.prefix + "word substitutions made: "
+            + (this.wordSubstitutions.length === 0 ? '&lt;none&gt;' : this.wordSubstitutions) + '\n';
         if (keystack.length === 0) {
             if (subclause.length !== 0)
                 this.txt += this.prefix + "no keywords found in subclause: "
@@ -733,8 +751,15 @@ class Tracer extends nullTracer {
         this.txt += t;
         this.scrip += s;
     }
-    decompFailed() {
+    unknownKey(keyword, useNomatchMessage) {
+        this.txt += TRACE_PREFIX + 'ill-formed script? "' + keyword + '" is not a keyword\n';
+        if (useNomatchMessage)
+            this.txt += TRACE_PREFIX + 'response is the built-in NOMATCH[LIMIT] message\n';
+    }
+    decompFailed(useNomatchMessage) {
         this.txt += TRACE_PREFIX + 'ill-formed script? No decomposition rule matched input\n';
+        if (useNomatchMessage)
+            this.txt += TRACE_PREFIX + 'response is the built-in NOMATCH[LIMIT] message\n';
     }
     newkeyFailed(responseSource) {
         this.txt += TRACE_PREFIX + 'keyword stack empty; response is a ' + responseSource + ' message\n';
@@ -792,7 +817,6 @@ class Eliza {
 
         let keystack = [];
         let topRank = 0;
-        let wordSubstitutions = '';
         for (let i = 0; i < words.length; i++) {
             let word = words[i];
 
@@ -801,7 +825,6 @@ class Eliza {
                     this.tracer.discardSubclause(words.slice(0, i + 1));
                     words = words.slice(i + 1);
                     i = -1;
-                    wordSubstitutions = '';
                     continue;
                 } else {
                     words = words.slice(0, i);
@@ -820,16 +843,11 @@ class Eliza {
                     }
                 }
                 let substitute = rule.applyWordSubstitution(word);
-                if (substitute != word) {
-                    if (wordSubstitutions.length !== 0) {
-                        wordSubstitutions += ', ';
-                    }
-                    wordSubstitutions += word + '/' + substitute;
-                    words[i] = substitute;
-                }
+                this.tracer.wordSubstitution(word, substitute);
+                words[i] = substitute;
             }
         }
-        this.tracer.subclauseComplete(join(words), wordSubstitutions, keystack, this.rules);
+        this.tracer.subclauseComplete(join(words), keystack, this.rules);
 
         this.memoryRule.clearTrace();
         this.tracer.memoryStack(this.memoryRule.traceMemoryStack());
@@ -852,6 +870,7 @@ class Eliza {
             this.tracer.preTransform(topKeyword, words);
 
             if (!this.rules.has(topKeyword)) {
+                this.tracer.unknownKey(topKeyword, true);
                 return this.noMatchMessages[this.limit - 1];
             }
 
@@ -870,7 +889,7 @@ class Eliza {
             }
 
             if (action === ACTION_INAPPLICABLE) {
-                this.tracer.decompFailed();
+                this.tracer.decompFailed(true);
                 return this.noMatchMessages[this.limit - 1];
             }
 
@@ -2076,7 +2095,7 @@ function testReassemble() {
     console.assert(equal(reassemblyRule, [ "1", "-1", "1" ]));
 
     reassemblyRule = [ "1", "0", "1" ];
-    expected = [ "MARY", "SCRIPT-ERROR-REASSEMBLY-RULE-INDEX-OUT-OF-RANGE", "MARY" ];
+    expected = [ "MARY", "THINGY", "MARY" ];
     console.assert(equal(reassemble(reassemblyRule, matchingComponents), expected));
     console.assert(equal(reassemblyRule, [ "1", "0", "1" ]));
 
@@ -2086,7 +2105,7 @@ function testReassemble() {
     console.assert(equal(reassemblyRule, [ "1", "6", "1" ]));
 
     reassemblyRule = [ "1", "7", "1" ];
-    expected = [ "MARY", "SCRIPT-ERROR-REASSEMBLY-RULE-INDEX-OUT-OF-RANGE", "MARY" ];
+    expected = [ "MARY", "THINGY", "MARY" ];
     console.assert(equal(reassemble(reassemblyRule, matchingComponents), expected));
     console.assert(equal(reassemblyRule, [ "1", "7", "1" ]));
 }
@@ -2857,12 +2876,13 @@ Type *help and press the Enter key to see a list of commands.
 
     elizaTest();
 
-    let [status, s] = readScript(CACM_1966_01_DOCTOR_SCRIPT);
+    let currentScriptText = CACM_1966_01_DOCTOR_SCRIPT;
+    let [status, script] = readScript(currentScriptText);
     console.assert(status === 'success');
     let tracer = new Tracer();
     const TRANSFORMATION_LIMIT_DEFAULT = 500;
     let currentTransformationLimit = TRANSFORMATION_LIMIT_DEFAULT;
-    let eliza = new Eliza(s.rules, s.memoryRule, tracer, currentTransformationLimit);
+    let eliza = new Eliza(script.rules, script.memoryRule, tracer, currentTransformationLimit);
 
     let traceOn = true;
     let traceAuto = false;
@@ -2870,9 +2890,9 @@ Type *help and press the Enter key to see a list of commands.
     let cacmIndex = -1;
     let crt = true;
 
-    writeText(join(s.helloMessage));
+    writeText(join(script.helloMessage));
     writeText('');
-    let conversation = join(s.helloMessage) + '\n\n';
+    let conversation = join(script.helloMessage) + '\n\n';
     let traceText = conversation;
 
     document.onkeydown = function(evt) {
@@ -2886,13 +2906,13 @@ Type *help and press the Enter key to see a list of commands.
         }
     };
 
-    divConsole.addEventListener('keypress', ({ key }) => {
+    divConsole.addEventListener('keypress', (e) => {
+        const key = e.key;
         if (key === 'Enter') {
-
+            e.preventDefault();
             let input = divConsole.value;
             writeText(input);
             writeText('');
-
             if (input.length) {
                 if (input[0] === '*') {
                     handleCommand(input);
@@ -2904,7 +2924,6 @@ Type *help and press the Enter key to see a list of commands.
                 if (cacmIndex >= 0) {
                     input = CACM_1966_CONVERSATION[cacmIndex];
                     cacmIndex += 2;
-                    //writeText(input);
                     divConsole.value = input;
                     return;
                 }
@@ -3095,18 +3114,52 @@ Type *help and press the Enter key to see a list of commands.
             conversation = '';
             traceText = '';
         }
+        else if (command === "*KEY") {
+            if (parts.length === 2) {
+                let key = parts[1].toUpperCase();
+                if (key === "NONE") {
+                    key = SPECIAL_RULE_NONE;
+                }
+                if (key === "MEMORY") {
+                    writeText("<pre>" + script.memoryRule.toString() + "</pre>");
+                }
+                else if (script.rules.has(key)) {
+                    writeText("<pre>" + script.rules.get(key).toString() + "</pre>");
+                }
+                else {
+                    writeText("No '" + key + "' keyword in current script");
+                }
+            }
+            else {
+                const rules = new Map([...script.rules.entries()].sort());
+                for (const [key, value] of rules) {
+                    if (key === SPECIAL_RULE_NONE) {
+                        continue;
+                    }
+                    else {
+                        write(key + ' ');
+                    }
+                }
+                writeText('(plus MEMORY and NONE)');
+            }
+        }
         else if (command === "*RESET") {
             divLog.innerHTML = '';
             traceOn = true;
             traceAuto = false;
             cacmIndex = -1;
-            let [status, s] = readScript(CACM_1966_01_DOCTOR_SCRIPT);
-            console.assert(status === 'success');
-            tracer = new Tracer;
-            eliza = new Eliza(s.rules, s.memoryRule, tracer, currentTransformationLimit);
-            writeText('<br/>' + join(s.helloMessage) + '<br/>');
-            conversation = join(s.helloMessage) + '\n\n';
-            traceText = conversation;
+            let [status, s] = readScript(currentScriptText);
+            if (status === 'success') {
+                script = s;
+                tracer = new Tracer;
+                eliza = new Eliza(script.rules, script.memoryRule, tracer, currentTransformationLimit);
+                writeText('<br/>' + join(script.helloMessage) + '<br/>');
+                conversation = join(script.helloMessage) + '\n\n';
+                traceText = conversation;
+            }
+            else {
+                writeText(status + '<br/>');
+            }
         }
         else if (command === "*HELP") {
             writeText(`
@@ -3114,12 +3167,12 @@ ELIZA is configured with Joseph Weizenbaum's 1966 DOCTOR script.
 Type about your feelings and thoughts; make the sort of statements
 you might make to a psychiatrist in an initial psychiatric
 interview. When you wish a reply to what you have said, press
-the Enter button. The reply you receive will be exactly the
+the Enter button. We believe the reply you receive will be exactly the
 same as the original 1966 ELIZA/DOCTOR would have made.`);
             writeText('');
             writeText(`
-(Your conversation is private to your machine; nothing you say is
-transmitted anywhere else.)`);
+Your conversation is private to your machine; nothing you say is
+transmitted anywhere else. (But ELIZA is not a real psychiatrist!)`);
             writeText('');
             writeText(`
 Commands have been added to this implementation that were not part
@@ -3131,29 +3184,31 @@ The commands are:`);
 
             writeText(`<pre>
 
-*amber      - change display colour; also *black, *green, *white
-*cacm       - replay conversation from Weizenbaum's 1966 CACM paper
-*clear      - clear screen and conversation and trace logs
-*crt        - toggle "Cathode-Ray Tube" text-blur on and off
-*fontsize N - set the font size to N pixels
-*help       - show this list of commands
-*load       - load a Weizenbaum-format script file from disk
-              (you can create an example script file with *savedoc)
-*reset      - reset ELIZA and clear conversation and trace logs
-*save       - save current conversation to a text file
-*savedoc    - save Weizenbaum's 1966 DOCTOR script to a text file
-*savetrace  - save current conversation and trace to a text file
-*           - show a trace of the most recent reply
-**          - show the transformation rules used in the most recent reply
-*traceauto  - turn on tracing; trace shown after every exchange
-*traceon    - turn on tracing; enter '*' after an exchange to see trace
-*tracepre   - show only input sentence and currently active keyword
-              (for watching the operation of Turing machines)
-*traceoff   - turn off tracing
-*maxtran N  - specify the maximum number of transformations (default ${TRANSFORMATION_LIMIT_DEFAULT}),
-              0 means no limit (for limiting Turing machine operation;
-              also the Escape key will interrupt Turing machines)
-*version    - show version number of this implementation
+*amber       - change display colour; also *black, *green, *white
+*cacm        - replay conversation from Weizenbaum's 1966 CACM paper
+*clear       - clear the screen and conversation and trace logs
+*crt         - toggle "Cathode-Ray Tube" text-blur on and off
+*fontsize N  - set the font size to N pixels
+*help        - show this list of commands
+*key         - show all keywords in the current script
+*key KEYWORD - show the keyword rule for the given KEYWORD
+*load        - load a Weizenbaum-format script file from disk
+               (you can create an example script file with *savedoc)
+*reset       - reset ELIZA and clear conversation and trace logs
+*save        - save the current conversation to a text file
+*savedoc     - save Weizenbaum's 1966 DOCTOR script to a text file
+*savetrace   - save current conversation and trace to a text file
+*            - show a trace of the most recent reply
+**           - show the transformation rules used in the most recent reply
+*traceauto   - turn on tracing; trace shown for every exchange
+*traceon     - turn on tracing; enter '*' after an exchange to see trace
+*tracepre    - show only input sentence and currently active keyword
+               (for watching the operation of Turing machines)
+*traceoff    - turn off tracing
+*maxtran N   - specify the maximum number of transformations (default ${TRANSFORMATION_LIMIT_DEFAULT}),
+               0 means no limit (for limiting Turing machine operation;
+               also the Escape key will interrupt Turing machines)
+*version     - show version number of this implementation
 </pre>`);
         }
         else {
@@ -3192,8 +3247,10 @@ The commands are:`);
                 inputs = [];
                 inputsPos = 0;
                 writeText(`Loading '${file.name}'...`);
-                let [status, s] = readScript(fr.result);
+                currentScriptText = fr.result;
+                let [status, s] = readScript(currentScriptText);
                 if (status === 'success') {
+                    script = s;
                     eliza = new Eliza(s.rules, s.memoryRule, tracer, currentTransformationLimit);
                     writeText('<br/>' + join(s.helloMessage) + '<br/>');
                 }
@@ -3256,44 +3313,61 @@ The commands are:`);
 </script>
 
 <style>
-    .text {
-        font-family: monospace;
-        color: limegreen;
+    * {
         font-size: 2.6dvh;
+        color: limegreen;
+        font-family: monospace;
+        text-shadow: 0 0 3px #00ff00;
+        caret-color: limegreen;
+    }
+
+    .text {
         background-color: transparent;
-        width: 95dvw;
     }
 
     #console {
         outline: none;
         border: none;
-        width: 95dvw;
-        color: limegreen;
         background: transparent;
-        font-size: 2.6dvh;
-        font-family: monospace;
         position: relative;
-        bottom: 2.7vh;
+        bottom: 0.3dvh;
         margin-left: -0.1vw;
-        text-shadow: 0 0 3px #00ff00;
-        caret-color: limegreen;
         caret-shape: block;
+        flex-grow: 1;
+        height: 100%;
+        width: 100%;
+        resize: none;
+    }
+
+    #console-container {
+        flex-grow: 1;
+    }
+
+    #log {
+        margin: 0;
     }
 
     body {
         background-color: #020;
-        text-shadow: 0 0 3px #00ff00;
         margin-left: 2vw;
-        font-size: 2.6dvh;
-        font-family: monospace;
+        margin-top: 0;
         width: 95dvw;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+    html {
+        height: 100%;
+        padding: 0;
+        display: flex;
     }
 </style>
-</header>
+</head>
 
 <p id="log" class="text"></p>
-<div class="text">
-  <input id="console" autofocus spellcheck="false">
+<div id="console-container" class="text">
+    <textarea id="console" autofocus spellcheck="false"></textarea>
 </div>
 
 </html>
