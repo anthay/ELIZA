@@ -179,6 +179,36 @@ std::string to_upper(std::string s)
 }
 
 
+// return given string s split into a list of "words"; space delimits words
+// e.g. split("one   two, three.") -> ["one", "two,", "three."]
+stringlist split(const std::string & s)
+{
+    stringlist result;
+    std::string word;
+    for (auto ch : s) {
+        if (ch == ' ') {
+            if (!word.empty()) {
+                result.push_back(word);
+                word.clear();
+            }
+        }
+        else
+            word.push_back(ch);
+    }
+    if (!word.empty())
+        result.push_back(word);
+    return result;
+}
+
+
+DEF_TEST_FUNC(split_test)
+{
+    const stringlist r1{ "one", "two,", "three,,", "don't." };
+    TEST_EQUAL(split("one   two, three,, don't."), r1);
+    TEST_EQUAL(split(" one two, three,, don't. "), r1);
+}
+
+
 // return given words joined into one space separated string
 // e.g. join(["one", "two", "", "3"]) -> "one two 3"
 std::string join(const stringlist & words)
@@ -336,7 +366,7 @@ std::u32string utf8_to_utf32(const std::string & utf8_string)
 
 
 // return given utf8_string with non-Hollerith characters replaced
-// by Hollerith alternatives, where possible, or space otherwise
+// by Hollerith alternatives, where possible, or '-' otherwise
 std::string filter_bcd(const std::string & utf8_string)
 {
     /*  Make reasonable efforts to convert the user's text into BCD.
@@ -344,30 +374,31 @@ std::string filter_bcd(const std::string & utf8_string)
         copy text from documents that contain fancy apostrophes and
         other non-BCD characters. Reinterpret or remove these. */
 
+    const char non_bcd_replacement_char = '-';
+
     std::string result;
     std::u32string utf32(utf8_to_utf32(utf8_string));
     for (auto ch : utf32) {
         const uint32_t c32 = static_cast<uint32_t>(ch);
-        
-        if (c32 == 0x2018           // 'LEFT SINGLE QUOTATION MARK' (U+2018)
-            || c32 == 0x2019) {     // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
-            result += '\'';         //   => 'APOSTROPHE' (U+0027)
+        switch (c32) {
+        case 0x2018:        // 'LEFT SINGLE QUOTATION MARK' (U+2018)
+        case 0x2019:        // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
+        case 0x0022:        // 'QUOTATION MARK' (U+0022)
+        case 0x0060:        // 'GRAVE ACCENT' (U+0060) [backtick]
+        case 0x00AB:        // 'LEFT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00AB)
+        case 0x00BB:        // 'RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00BB)
+        case 0x201A:        // 'SINGLE LOW-9 QUOTATION MARK' (U+201A)
+        case 0x201B:        // 'SINGLE HIGH-REVERSED-9 QUOTATION MARK' (U+201B)
+        case 0x201C:        // 'LEFT DOUBLE QUOTATION MARK' (U+201C)
+        case 0x201D:        // 'RIGHT DOUBLE QUOTATION MARK' (U+201D)
+        case 0x201E:        // 'DOUBLE LOW-9 QUOTATION MARK' (U+201E)
+        case 0x201F:        // 'DOUBLE HIGH-REVERSED-9 QUOTATION MARK' (U+201F)
+        case 0x2039:        // 'SINGLE LEFT-POINTING ANGLE QUOTATION MARK' (U+2039)
+        case 0x203A:        // 'SINGLE RIGHT-POINTING ANGLE QUOTATION MARK' (U+203A)
+            result += '\''; //   => 'APOSTROPHE' (U+0027)
             continue;
-        }
-        if (c32 == 0x0022           // 'QUOTATION MARK' (U+0022)
-            || c32 == 0x0060        // 'GRAVE ACCENT' (U+0060) [backtick]
-            || c32 == 0x00AB        // 'LEFT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00AB)
-            || c32 == 0x00BB        // 'RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00BB)
-            || c32 == 0x201A        // 'SINGLE LOW-9 QUOTATION MARK' (U+201A)
-            || c32 == 0x201B        // 'SINGLE HIGH-REVERSED-9 QUOTATION MARK' (U+201B)
-            || c32 == 0x201C        // 'LEFT DOUBLE QUOTATION MARK' (U+201C)
-            || c32 == 0x201D        // 'RIGHT DOUBLE QUOTATION MARK' (U+201D)
-            || c32 == 0x201E        // 'DOUBLE LOW-9 QUOTATION MARK' (U+201E)
-            || c32 == 0x201F        // 'DOUBLE HIGH-REVERSED-9 QUOTATION MARK' (U+201F)
-            || c32 == 0x2039        // 'SINGLE LEFT-POINTING ANGLE QUOTATION MARK' (U+2039)
-            || c32 == 0x203A) {     // 'SINGLE RIGHT-POINTING ANGLE QUOTATION MARK' (U+203A)
-            result += ' ';          //   => 'SPACE' (U+0020)
-            continue;
+        default:
+            break;
         }
         if (c32 > 127) {
             /*  The code point is not ASCII, which implies it's not Hollerith
@@ -375,14 +406,14 @@ std::string filter_bcd(const std::string & utf8_string)
                 just about to uppercase it with std::toupper, which
                 has undefined behaviour for characters that can't be
                 encoded in an unsigned char, we'll just replace it with dash. */
-            result += '-';
+            result += non_bcd_replacement_char;
             continue;
         }
         const char c = static_cast<char>(std::toupper(static_cast<unsigned char>(c32)));
         if (c == '?' || c == '!')
             result += '.';
         else if (!hollerith_defined(c))
-            result += '-';          // replace non-Hollerith chars with dash
+            result += non_bcd_replacement_char;
         else
             result += c;
     }
@@ -402,83 +433,29 @@ DEF_TEST_FUNC(filter_bcd_test)
     // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
     TEST_EQUAL(filter_bcd("I’m depressed"), "I'M DEPRESSED");
     // 'QUOTATION MARK' (U+0022)
-    TEST_EQUAL(filter_bcd("I'm \"depressed\""), "I'M  DEPRESSED ");
+    TEST_EQUAL(filter_bcd("I'm \"depressed\""), "I'M 'DEPRESSED'");
     // 'GRAVE ACCENT' (U+0060) [backtick]
-    TEST_EQUAL(filter_bcd("I'm `depressed`"), "I'M  DEPRESSED ");
+    TEST_EQUAL(filter_bcd("I'm `depressed`"), "I'M 'DEPRESSED'");
     // 'LEFT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00AB)
     // 'RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00BB)
-    TEST_EQUAL(filter_bcd("I'm «depressed»"), "I'M  DEPRESSED ");
+    TEST_EQUAL(filter_bcd("I'm «depressed»"), "I'M 'DEPRESSED'");
     // 'SINGLE LOW-9 QUOTATION MARK' (U+201A)
     // 'SINGLE HIGH-REVERSED-9 QUOTATION MARK' (U+201B)
-    TEST_EQUAL(filter_bcd("I'm ‚depressed‛"), "I'M  DEPRESSED ");
+    TEST_EQUAL(filter_bcd("I'm ‚depressed‛"), "I'M 'DEPRESSED'");
     // 'LEFT DOUBLE QUOTATION MARK' (U+201C)
     // 'RIGHT DOUBLE QUOTATION MARK' (U+201D)
-    TEST_EQUAL(filter_bcd("I'm “depressed”"), "I'M  DEPRESSED ");
+    TEST_EQUAL(filter_bcd("I'm “depressed”"), "I'M 'DEPRESSED'");
     // 'DOUBLE LOW-9 QUOTATION MARK' (U+201E)
     // 'DOUBLE HIGH-REVERSED-9 QUOTATION MARK' (U+201F)
-    TEST_EQUAL(filter_bcd("I'm „depressed‟"), "I'M  DEPRESSED ");
+    TEST_EQUAL(filter_bcd("I'm „depressed‟"), "I'M 'DEPRESSED'");
     // 'SINGLE LEFT-POINTING ANGLE QUOTATION MARK' (U+2039)
     // 'SINGLE RIGHT-POINTING ANGLE QUOTATION MARK' (U+203A)
-    TEST_EQUAL(filter_bcd("I'm ‹depressed›"), "I'M  DEPRESSED ");
+    TEST_EQUAL(filter_bcd("I'm ‹depressed›"), "I'M 'DEPRESSED'");
 
     const std::string all_valid_bcd{
         "0123456789=\'+ABCDEFGHI.)-JKLMNOPQR$* /STUVWXYZ,("
     };
     TEST_EQUAL(filter_bcd(all_valid_bcd), all_valid_bcd);
-}
-
-
-// return true iff given c is delimiter (see delimiter())
-bool delimiter_character(char c)
-{
-    return c == ',' || c == '.';
-};
-
-
-// return true iff given s is an ELIZA delimiter
-bool delimiter(const std::string & s)
-{
-    /*  In the 1966 CACM article on page 37 Weizenbaum says "the procedure
-        recognizes a comma or a period as a delimiter." However, in the
-        MAD-SLIP source code the relevant code is
-
-            W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR. WORD .E. $BUT$
-
-        (W'R means WHENEVER, .E. means equals and alphabetic constants are
-        bounded by $-signs.) So BUT is also a delimiter. */
-    return s == "BUT" || (s.size() == 1 && delimiter_character(s[0]));
-}
-
-
-// return given string s split into a list of "words"; delimiters are words
-// e.g. split("one   two, three.") -> ["one", "two", ",", "three", "."]
-stringlist split(const std::string & s)
-{
-    stringlist result;
-    std::string word;
-    for (auto ch : s) {
-        if (delimiter_character(ch) || ch == ' ') {
-            if (!word.empty()) {
-                result.push_back(word);
-                word.clear();
-            }
-            if (ch != ' ')
-                result.emplace_back(1, ch);
-        }
-        else
-            word.push_back(ch);
-    }
-    if (!word.empty())
-        result.push_back(word);
-    return result;
-}
-
-
-DEF_TEST_FUNC(split_test)
-{
-    const stringlist r1{ "one", "two", ",", "three", ",", ",", "don't", "." };
-    TEST_EQUAL(split("one   two, three,, don't."), r1);
-    TEST_EQUAL(split(" one two, three,, don't. "), r1);
 }
 
 
@@ -1106,7 +1083,7 @@ stringlist reassemble(const stringlist & reassembly_rule, const stringlist & com
         if (n < 0)
             result.push_back(r);
         else if (n == 0 || static_cast<size_t>(n) > components.size())
-            result.emplace_back("SCRIPT-ERROR-REASSEMBLY-RULE-INDEX-OUT-OF-RANGE");
+            result.emplace_back("THINGY"); // script error: index out of range (in the style of HMMM)
         else {
             const stringlist expanded{split(components[n - 1])};
             result.insert(result.end(), expanded.begin(), expanded.end());
@@ -1136,7 +1113,7 @@ DEF_TEST_FUNC(reassemble_test)
     TEST_EQUAL(reassemble(reassembly_rule, matching_components), expected);
 
     reassembly_rule = {"1", "0", "1"};
-    expected = {"MARY", "SCRIPT-ERROR-REASSEMBLY-RULE-INDEX-OUT-OF-RANGE", "MARY"};
+    expected = {"MARY", "THINGY", "MARY"};
     TEST_EQUAL(reassemble(reassembly_rule, matching_components), expected);
 
     reassembly_rule = {"1", "6", "1"};
@@ -1144,7 +1121,7 @@ DEF_TEST_FUNC(reassemble_test)
     TEST_EQUAL(reassemble(reassembly_rule, matching_components), expected);
 
     reassembly_rule = {"1", "7", "1"};
-    expected = {"MARY", "SCRIPT-ERROR-REASSEMBLY-RULE-INDEX-OUT-OF-RANGE", "MARY"};
+    expected = {"MARY", "THINGY", "MARY"};
     TEST_EQUAL(reassemble(reassembly_rule, matching_components), expected);
 }
 
@@ -1545,15 +1522,8 @@ DEF_TEST_FUNC(last_chunk_as_bcd_test)
 
 /*  The ELIZA script contains the opening_remarks followed by rules.
     (The formal syntax is given in the elizascript namespace below.)
-    There are two types of rule: keyword_rules and memory_rules.
-
-    Each keyword_rule may perform some sort of transformation on a
-    user input sentence. Rules are generally triggered by the
-    appearance of a particular keyword in the user input text. So one
-    way to model the script is to std::map the keyword to the associated
-    rule.
-
-    Here are the two rule types. */
+    There are two types of rule: keyword_rule and memory_rule. They
+    are represented by the following classes. */
 
 // interface and data shared by both rules
 class rule_base {
@@ -1949,19 +1919,78 @@ auto get_rule(rulemap & rules, const std::string & keyword)
 }
 
 
+// return true iff given c is delimiter (see delimiter())
+bool delimiter_character(char c)
+{
+    return c == ',' || c == '.';
+};
+
+
+// Return given string s split into a list of "words."
+// A word in s is any sequence of one or more non-space characters.
+// Any single character that also appears in given punctuation
+// is also considered a separate word.
+// e.g. split_user_input("ONE   ABUTMENT, BUT THREE.", ",.")
+//          -> ["ONE", "ABUTMENT", ",", "BUT", "THREE", "."]
+stringlist split_user_input(const std::string & s, const std::string & punctuation)
+{
+    stringlist result;
+    std::string word;
+    for (auto ch : s) {
+        if (ch == ' ' || std::find(punctuation.begin(), punctuation.end(), ch) != punctuation.end()) {
+            if (!word.empty()) {
+                result.push_back(word);
+                word.clear();
+            }
+            if (ch != ' ')
+                result.emplace_back(1, ch);
+        }
+        else
+            word.push_back(ch);
+    }
+    if (!word.empty())
+        result.push_back(word);
+    return result;
+}
+
+
+DEF_TEST_FUNC(split_user_input_test)
+{
+    TEST_EQUAL(split_user_input("ONE   TWO, THREE,, DON'T.", ",."),
+                    stringlist({ "ONE", "TWO", ",", "THREE", ",", ",", "DON'T", "." }));
+
+    TEST_EQUAL(split_user_input(" ONE TWO, THREE,, DON'T. ", ",."),
+                    stringlist({ "ONE", "TWO", ",", "THREE", ",", ",", "DON'T", "." }));
+
+    TEST_EQUAL(split_user_input(" ONE TWO, THREE,, DON'T. ", ",.'"),
+                    stringlist({ "ONE", "TWO", ",", "THREE", ",", ",", "DON", "'", "T", "." }));
+
+    TEST_EQUAL(split_user_input("ONE   ABUTMENT, BUT THREE.", ",."),
+                    stringlist({"ONE", "ABUTMENT", ",", "BUT", "THREE", "."}));
+
+    TEST_EQUAL(split_user_input("ONE   ABUTMENT, BUT THREE.", "."),
+                    stringlist({"ONE", "ABUTMENT,", "BUT", "THREE", "."}));
+
+    TEST_EQUAL(split_user_input("ONE   ABUTMENT, BUT THREE.", ""),
+                    stringlist({"ONE", "ABUTMENT,", "BUT", "THREE."}));
+}
+
+
 class tracer {
 public:
     virtual ~tracer() = 0;
     virtual void begin_response(const stringlist & /*words*/) = 0;
     virtual void limit(int /*limit*/, const std::string & /*built_in_msg*/) = 0;
     virtual void discard_subclause(const std::string & /*text*/) = 0;
+    virtual void word_substitution(const std::string & /*word*/, const std::string & /*substitute*/) = 0;
     virtual void create_memory(const std::string & /*text*/) = 0;
     virtual void using_memory(const std::string & /*script*/) = 0;
     virtual void subclause_complete(
-        const std::string & /*subclause*/, const std::string & /*word_substitutions*/,
-        const stringlist & /*keystack*/, const rulemap & /*rules*/ ) = 0;
-    virtual void unknown_key(const std::string & /*keyword*/) = 0;
-    virtual void decomp_failed() = 0;
+        const std::string & /*subclause*/,
+        const stringlist & /*keystack*/,
+        const rulemap & /*rules*/ ) = 0;
+    virtual void unknown_key(const std::string & /*keyword*/, bool /*use_nomatch_msg*/) = 0;
+    virtual void decomp_failed(bool /*use_nomatch_msg*/) = 0;
     virtual void newkey_failed(const std::string & /*response_source*/) = 0;
     virtual void transform(const std::string & /*text*/, const std::string & /*script*/) = 0;
     virtual void memory_stack(const std::string & /*text*/) = 0;
@@ -1978,13 +2007,15 @@ public:
     virtual void begin_response(const stringlist & /*words*/) {}
     virtual void limit(int /*limit*/, const std::string & /*built_in_msg*/) {}
     virtual void discard_subclause(const std::string & /*text*/) {}
+    virtual void word_substitution(const std::string & /*word*/, const std::string & /*substitute*/) {}
     virtual void create_memory(const std::string & /*text*/) {}
     virtual void using_memory(const std::string & /*script*/) {}
     virtual void subclause_complete(
-        const std::string & /*subclause*/, const std::string & /*word_substitutions*/,
-        const stringlist & /*keystack*/, const rulemap & /*rules*/ ) {}
-    virtual void unknown_key(const std::string & /*keyword*/) {}
-    virtual void decomp_failed() {}
+        const std::string & /*subclause*/,
+        const stringlist & /*keystack*/,
+        const rulemap & /*rules*/ ) {}
+    virtual void unknown_key(const std::string & /*keyword*/, bool /*use_nomatch_msg*/) {}
+    virtual void decomp_failed(bool /*use_nomatch_msg*/) {}
     virtual void newkey_failed(const std::string & /*response_source*/) {}
     virtual void transform(const std::string & /*text*/, const std::string & /*script*/) {}
     virtual void memory_stack(const std::string & /*text*/) {}
@@ -2005,12 +2036,14 @@ public:
 class string_tracer : public null_tracer {
     std::stringstream trace_;
     std::stringstream script_;
+    std::string word_substitutions_;
 public:
     virtual ~string_tracer() = default;
     virtual void begin_response(const stringlist & words)
     {
         trace_.str("");
         script_.str("");
+        word_substitutions_.clear();
         trace_ << trace_prefix << "input: " << join(words) << '\n';
     }
     virtual void limit(int limit, const std::string & built_in_msg)
@@ -2019,7 +2052,19 @@ public:
     }
     virtual void discard_subclause(const std::string & s)
     {
+        trace_ << trace_prefix << "word substitutions made: "
+            << (word_substitutions_.empty() ? "<none>" : word_substitutions_)
+            << '\n';
         trace_ << trace_prefix << "no keywords found in subclause: " << s << '\n';
+        word_substitutions_.clear();
+    }
+    virtual void word_substitution(const std::string & word, const std::string & substitute)
+    {
+        if (substitute != word) {
+            if (!word_substitutions_.empty())
+                word_substitutions_ += ", ";
+            word_substitutions_ += word + '/' + substitute;
+        }
     }
     virtual void create_memory(const std::string & s) { trace_ << s; }
     virtual void using_memory(const std::string & s)
@@ -2028,11 +2073,12 @@ public:
         script_ << s;
     }
     virtual void subclause_complete(
-        const std::string & subclause, const std::string & word_substitutions,
-        const stringlist & keystack, const rulemap & rules)
+        const std::string & subclause,
+        const stringlist & keystack,
+        const rulemap & rules)
     {
         trace_ << trace_prefix << "word substitutions made: "
-            << (word_substitutions.empty() ? "<none>" : word_substitutions)
+            << (word_substitutions_.empty() ? "<none>" : word_substitutions_)
             << '\n';
         if (keystack.empty()) {
             if (!subclause.empty())
@@ -2061,11 +2107,15 @@ public:
             trace_ << '\n';
         }
     }
-    virtual void unknown_key(const std::string & keyword) {
+    virtual void unknown_key(const std::string & keyword, bool use_nomatch_msg) {
         trace_ << trace_prefix << "ill-formed script: \"" << keyword << "\" is not a keyword\n";
+        if (use_nomatch_msg)
+            trace_ << trace_prefix << "response is the built-in NOMATCH[LIMIT] message\n";
     }
-    virtual void decomp_failed() {
+    virtual void decomp_failed(bool use_nomatch_msg) {
         trace_ << trace_prefix << "ill-formed script? No decomposition rule matched input\n";
+        if (use_nomatch_msg)
+            trace_ << trace_prefix << "response is the built-in NOMATCH[LIMIT] message\n";
     }
     virtual void newkey_failed(const std::string & response_source) {
         trace_ << trace_prefix << "keyword stack is empty; response is a " << response_source << " message\n";
@@ -2101,7 +2151,17 @@ class eliza {
 public:
     eliza(const rulemap & rules, std::shared_ptr<rule_memory> mem_rule)
         : rules_(rules), mem_rule_(mem_rule), tags_(collect_tags(rules_))
-    {}
+    {
+        /*  In the 1966 CACM ELIZA paper on page 37 Weizenbaum says
+            "the procedure recognizes a comma or a period as a delimiter."
+            However, in the MAD-SLIP source code the relevant code is
+
+                W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR. WORD .E. $BUT$
+
+            (W'R means WHENEVER, .E. means equals and alphabetic constants are
+            bounded by $-signs.) So BUT is also a delimiter. */
+        set_delimeters({ ",", ".", "BUT" });
+    }
 
     ~eliza() = default;
 
@@ -2110,20 +2170,36 @@ public:
     // NONE messages instead is provided for attempts to reproduce conversations
     // with some non-Weizenbaum ELIZAs.)
     void set_use_nomatch_msgs(bool f) { use_nomatch_msgs_ = f; }
+
     void set_on_newkey_fail_use_none(bool f) { on_newkey_fail_use_none_ = f; }
     void set_use_limit(bool f) { limit_ = 2; }
 
-    void set_delimeters(const stringlist & delims) { delimiters_ = delims; }
+    void set_delimeters(const stringlist & delims)
+    {
+        delimiters_ = delims;
+        punctuation_.clear();
+        const std::string bcd_punctuation{"='+.)-$*/,("}; // (excluding space)
+        for (const auto & d : delims) {
+            if (d.size() == 1) {
+                if (std::find(bcd_punctuation.begin(), bcd_punctuation.end(), d[0]) != bcd_punctuation.end())
+                    punctuation_ += d[0];
+            }
+        }
+    }
 
     // provide the user with a window into ELIZA's thought processes(!)
     void set_tracer(tracer * tr) { trace_ = tr; }
 
-    // produce a response to the given 'input' (this is the core ELIZA algorithm)
+
+    //////////////////////////////// ELIZA ////////////////////////////////
+    //
+    // produce a response to the given input (this is the core ELIZA algorithm)
+    //
     std::string response(const std::string & input)
     {
         // for simplicity, convert the given input string to a list of uppercase words
-        // e.g. "Hello, world!" -> ("HELLO" "." "WORLD" ".")
-        stringlist words(split(filter_bcd(input)));
+        // e.g. "Hello, world!" -> ("HELLO" "," "WORLD" ".")
+        stringlist words(split_user_input(filter_bcd(input), punctuation_));
         trace_->begin_response(words);
 
         // JW's "a certain counting mechanism" is updated for each response
@@ -2132,7 +2208,6 @@ public:
 
         // scan for keywords [page 38 (c)]; build the keystack; apply word substitutions
         stringlist keystack;
-        std::string word_substitutions;
         int top_rank = 0;
         for (auto word = words.begin(); word != words.end(); ) {
             if (delimiter(*word)) {
@@ -2142,7 +2217,6 @@ public:
                     ++word;
                     trace_->discard_subclause(join({words.begin(), word}));
                     word = words.erase(words.begin(), word);
-                    word_substitutions.clear();
                     continue;
                 }
                 else {
@@ -2169,17 +2243,13 @@ public:
                     }
                 }
                 const std::string substitute(rule->word_substitute(*word)); // [page 39 (a)]
-                if (substitute != *word) {
-                    if (!word_substitutions.empty())
-                        word_substitutions += ", ";
-                    word_substitutions += *word + '/' + substitute;
-                    *word = substitute;
-                }
+                trace_->word_substitution(*word, substitute);
+                *word = substitute;
             }
 
             ++word;
         }
-        trace_->subclause_complete(join(words), word_substitutions, keystack, rules_);
+        trace_->subclause_complete(join(words), keystack, rules_);
 
         mem_rule_->clear_trace();
         trace_->memory_stack(mem_rule_->trace_memory_stack());
@@ -2203,7 +2273,7 @@ public:
             auto r = rules_.find(top_keyword);
             if (r == rules_.end()) {
                 // e.g. could happen if a rule links to a non-existent keyword
-                trace_->unknown_key(top_keyword);
+                trace_->unknown_key(top_keyword, use_nomatch_msgs_);
                 if (use_nomatch_msgs_)
                     return nomatch_msgs_[limit_ - 1];
                 break; // (use NONE message)
@@ -2224,7 +2294,7 @@ public:
 
             if (act == rule_base::action::inapplicable) {
                 // no decomposition rule matched the input words; script error
-                trace_->decomp_failed();
+                trace_->decomp_failed(use_nomatch_msgs_);
                 if (use_nomatch_msgs_)
                     return nomatch_msgs_[limit_ - 1];
                 break; // (use NONE message)
@@ -2256,21 +2326,15 @@ public:
         trace_->using_none(none_rule->to_string());
         return join(words);
     }
+    //////////////////////////////// end ////////////////////////////////
+
 
 private:
     // JW's "a certain counting mechanism," LIMIT, cycles through 1..4, then back to 1
     int limit_{ 1 };
     bool use_limit_{ true };
-
-    /*  In the 1966 CACM ELIZA paper on page 37 Weizenbaum says
-        "the procedure recognizes a comma or a period as a delimiter."
-        However, in the MAD-SLIP source code the relevant code is
-
-            W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR. WORD .E. $BUT$
-
-        (W'R means WHENEVER, .E. means equals and alphabetic constants are
-        bounded by $-signs.) So BUT is also a delimiter. */
-    stringlist delimiters_ { ",", ".", "BUT" };
+    stringlist delimiters_;
+    std::string punctuation_;
 
     // return true iff given s is an ELIZA delimiter
     bool delimiter(const std::string & s) const
@@ -2634,10 +2698,11 @@ private:
 
     bool peekch(uint8_t & ch)
     {
-        if (bufptr_ == bufdata_)
+        if (bufptr_ == bufdata_) {
             refilbuf();
-        if (bufptr_ == bufdata_)
-            return false;
+            if (bufptr_ == bufdata_)
+                return false;
+        }
         ch = buf_[bufptr_];
         return true;
     }
@@ -5685,7 +5750,7 @@ bool parse_cmdline(
 
 
 
-//#include "unpublished_script_tests.cpp"
+#include "unpublished_script_tests.cpp"
 
 int main(int argc, const char * argv[])
 {
@@ -5695,6 +5760,8 @@ int main(int argc, const char * argv[])
         const std::string command_help{
            "  <blank line>    quit\n"
            "  *cacm           replay conversation from Weizenbaum's Jan 1966 CACM paper\n"
+           "  *key            show all keywords in the current script\n"
+           "  *key KEYWORD    show the keyword rule for the given KEYWORD\n"
            "  *               print trace of most recent exchange\n"
            "  **              print the transformation rules used in the most recent reply\n"
            "  *traceoff       turn off tracing\n"
@@ -5731,7 +5798,7 @@ int main(int argc, const char * argv[])
                 << "      ELIZA -- A Computer Program for the Study of Natural\n"
                 << "         Language Communication Between Man and Machine\n"
                 << "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
-                << "ELIZA implementation (v0.93) by Anthony Hay, 2022  (CC0 1.0) P.D.\n"
+                << "ELIZA implementation (v0.94) by Anthony Hay, 2022  (CC0 1.0) P.D.\n"
                 << "-----------------------------------------------------------------\n"
                 << "ELIZA " << as_option("help") << " for usage.\n"
                 << "Enter a blank line to quit.\n";
@@ -5791,40 +5858,66 @@ int main(int argc, const char * argv[])
                     break;
             }
             if (userinput[0] == '*') {
-                userinput = to_upper(userinput);
-                if (userinput == "*") {
+                const stringlist cmd_line{ split(to_upper(userinput)) };
+                const std::string command{ cmd_line[0] };
+                if (command == "*") {
                     std::cout << trace.text();
                 }
-                else if (userinput == "**") {
+                else if (command == "**") {
                     std::cout << trace.script();
                 }
-                else if (userinput == "*TRACEON") {
+                else if (command == "*TRACEON") {
                     eliza.set_tracer(&trace);
                     traceauto = false;
                     std::cout << "tracing enabled; enter '*' after any exchange to see trace\n";
                 }
-                else if (userinput == "*TRACEAUTO") {
+                else if (command == "*TRACEAUTO") {
                     eliza.set_tracer(&trace);
                     traceauto = true;
                     std::cout << "tracing enabled\n";
                 }
-                else if (userinput == "*TRACEOFF") {
+                else if (command == "*TRACEOFF") {
                     eliza.set_tracer(&notrace);
                     trace.clear();
                     traceauto = false;
                     std::cout << "tracing disabled\n";
                 }
-                else if (userinput == "*TRACEPRE") {
+                else if (command == "*TRACEPRE") {
                     eliza.set_tracer(&pretrace);
                     trace.clear();
                     traceauto = false;
                     std::cout << "tracing PRE enabled\n";
                 }
-                else if (userinput == "*CACM") {
+                else if (command == "*CACM") {
                     std::cout <<
                         "replaying conversation from Weizenbaum's January 1966 CACM paper\n"
                         "hit enter to see each exchange (use *traceauto to see the trace)\n";
                     cacm_index = 0;
+                }
+                else if (command == "*KEY") {
+                    if (cmd_line.size() == 2) {
+                        std::string keyword = cmd_line[1];
+                        if (keyword == "NONE")
+                            keyword = elizalogic::special_rule_none;
+                        const auto r = s.rules.find(keyword);
+                        if (r != s.rules.end()) {
+                            const auto & rule = r->second;
+                            std::cout << rule->to_string();
+                        }
+                        else if (cmd_line[1] == "MEMORY")
+                            std::cout << s.mem_rule->to_string();
+                        else
+                            std::cout << "No '" << cmd_line[1] << "' keyword in current script\n";
+                    }
+                    else {
+                        for (const auto & [key, rule] : s.rules) {
+                            if (key == elizalogic::special_rule_none)
+                                continue;
+                            else
+                                std::cout << key << " ";
+                        }
+                        std::cout << "(plus MEMORY and NONE)\n";
+                    }
                 }
                 else
                     std::cout << "Unknown command. Commands are\n" << command_help;
@@ -5854,6 +5947,6 @@ int main(int argc, const char * argv[])
     }
 }
 
-// (The goal was to make only a minimum viable accurate simulation
-// of the original 1966 ELIZA rather than a polished product.
-// Though it has put on a bit of weight over the years.)
+// I've tried to make this respond to user input exactly as the original
+// would have in 1966. I've also tried to communicate how ELIZA works and
+// to make it usable.
