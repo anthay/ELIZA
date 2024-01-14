@@ -24,6 +24,7 @@
 
 
 /*
+    0.95 Anthony Hay        2024-01-14  Add *full; fix font colour bug
     0.94 Max Hay            2024-01-04  Improve console focus gain
     0.93 Anthony Hay        2023-12-16  Recreate bug in SLIP YMATCH
     0.91 Anthony Hay        2023-11-21  Add *fontsize
@@ -32,7 +33,7 @@
                                         Mark C. Marino & ChatGPT4 for help
                                         with the initial conversion from C++)
 */
-const VERSION = '0.94';
+const VERSION = '0.95';
 
 
 //////// //       //// ////////    ///    //        ///////   //////   ////  //////  
@@ -2901,7 +2902,7 @@ Type *help and press the Enter key to see a list of commands.
             globalInterruptElizaResponse = true;
             if (cacmIndex >= 0) {
                 cacmIndex = -1;
-                writeText('--CACM conversation interrupted--');
+                writeText('-- CACM conversation interrupted --');
             }
         }
     };
@@ -2911,6 +2912,7 @@ Type *help and press the Enter key to see a list of commands.
         if (key === 'Enter') {
             e.preventDefault();
             let input = divConsole.value;
+            divConsole.value = '';
             writeText(input);
             writeText('');
             if (input.length) {
@@ -2946,7 +2948,7 @@ Type *help and press the Enter key to see a list of commands.
                 writeText('');
     
                 if (cacmIndex >= CACM_1966_CONVERSATION.length) {
-                    writeText('--end of CACM conversation--');
+                    writeText('-- end of CACM conversation --');
                     writeText('');
                     cacmIndex = -1;
                 }
@@ -3005,10 +3007,13 @@ Type *help and press the Enter key to see a list of commands.
             crt = !crt;
             textBlur(crt);
         }
+        else if (command == "*FULL") {
+            toggleFullscreen();
+        }
         else if (command === "*FONTSIZE") {
             if (parts.length === 2) {
                 const n = parseInt(parts[1]);
-                if (n === NaN || n < 1) {
+                if (Number.isNaN(n) || n < 1) {
                     writeText("missing or invalid number; e.g. '*fontsize 24' sets 24 pixel font");
                 }
                 else {
@@ -3091,7 +3096,7 @@ Type *help and press the Enter key to see a list of commands.
         else if (command === "*MAXTRAN") {
             if (parts.length === 2) {
                 const n = parseInt(parts[1]);
-                if (n === NaN || n < 0) {
+                if (Number.isNaN(n) || n < 0) {
                     writeText("missing or invalid number; e.g. '*maxtran 500' limits ELIZA to 500 transformations");
                 }
                 else {
@@ -3108,11 +3113,6 @@ Type *help and press the Enter key to see a list of commands.
         }
         else if (command === "*VERSION") {
             writeText(VERSION);
-        }
-        else if (command === "*CLEAR") {
-            divLog.innerHTML = '';
-            conversation = '';
-            traceText = '';
         }
         else if (command === "*KEY") {
             if (parts.length === 2) {
@@ -3142,6 +3142,11 @@ Type *help and press the Enter key to see a list of commands.
                 }
                 writeText('(plus MEMORY and NONE)');
             }
+        }
+        else if (command === "*CLEAR") {
+            divLog.innerHTML = '';
+            conversation = '';
+            traceText = '';
         }
         else if (command === "*RESET") {
             divLog.innerHTML = '';
@@ -3184,31 +3189,32 @@ The commands are:`);
 
             writeText(`<pre>
 
+*            - show a trace of the most recent reply
+**           - show the transformation rules used in the most recent reply
 *amber       - change display colour; also *black, *green, *white
 *cacm        - replay conversation from Weizenbaum's 1966 CACM paper
-*clear       - clear the screen and conversation and trace logs
-*crt         - toggle "Cathode-Ray Tube" text-blur on and off
+*clear       - clear screen and conversation and trace logs
+*crt         - toggle "Cathode-Ray Tube" text-blur
 *fontsize N  - set the font size to N pixels
+*full        - toggle fullscreen mode
 *help        - show this list of commands
 *key         - show all keywords in the current script
-*key KEYWORD - show the keyword rule for the given KEYWORD
+*key KEYWORD - show the transformation rule for the given KEYWORD
 *load        - load a Weizenbaum-format script file from disk
                (you can create an example script file with *savedoc)
-*reset       - reset ELIZA and clear conversation and trace logs
+*maxtran N   - specify the maximum number of transformations (default ${TRANSFORMATION_LIMIT_DEFAULT}),
+               0 means no limit (for limiting Turing machine operation;
+               also the Escape key will interrupt Turing machines)
+*reset       - restart ELIZA and clear conversation and trace logs
 *save        - save the current conversation to a text file
 *savedoc     - save Weizenbaum's 1966 DOCTOR script to a text file
 *savetrace   - save current conversation and trace to a text file
-*            - show a trace of the most recent reply
-**           - show the transformation rules used in the most recent reply
 *traceauto   - turn on tracing; trace shown for every exchange
 *traceon     - turn on tracing; enter '*' after an exchange to see trace
 *tracepre    - show only input sentence and currently active keyword
                (for watching the operation of Turing machines)
 *traceoff    - turn off tracing
-*maxtran N   - specify the maximum number of transformations (default ${TRANSFORMATION_LIMIT_DEFAULT}),
-               0 means no limit (for limiting Turing machine operation;
-               also the Escape key will interrupt Turing machines)
-*version     - show version number of this implementation
+*version     - show the version number of this implementation
 </pre>`);
         }
         else {
@@ -3287,6 +3293,16 @@ The commands are:`);
         }
     }
 
+    function toggleFullscreen() {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            document.body.parentElement.requestFullscreen().catch((err) => {
+                console.log(`toggleFullscreen(): ${err.name}: ${err.message}`);
+            });
+        }
+    }
+
     function display(textColour, bgColour) {
         const c = document.getElementById("console");
         c.style.color = textColour;
@@ -3313,14 +3329,6 @@ The commands are:`);
 </script>
 
 <style>
-    * {
-        font-size: 2.6dvh;
-        color: limegreen;
-        font-family: monospace;
-        text-shadow: 0 0 3px #00ff00;
-        caret-color: limegreen;
-    }
-
     .text {
         background-color: transparent;
     }
@@ -3337,6 +3345,8 @@ The commands are:`);
         height: 100%;
         width: 100%;
         resize: none;
+        font-size: inherit;
+        color: inherit;
     }
 
     #console-container {
@@ -3348,6 +3358,11 @@ The commands are:`);
     }
 
     body {
+        font-size: 2.6dvh;
+        color: limegreen;
+        font-family: monospace;
+        text-shadow: 0 0 3px #00ff00;
+        caret-color: limegreen;
         background-color: #020;
         margin-left: 2vw;
         margin-top: 0;
@@ -3366,8 +3381,8 @@ The commands are:`);
 </head>
 
 <p id="log" class="text"></p>
-<div id="console-container" class="text">
-    <textarea id="console" autofocus spellcheck="false"></textarea>
+<div id="console-container" class="code">
+    <textarea id="console" autofocus class="code" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
 </div>
 
 </html>
