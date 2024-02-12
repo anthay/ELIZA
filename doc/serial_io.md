@@ -21,7 +21,7 @@ clang++ -std=c++20 -pedantic -D SUPPORT_SERIAL_IO -o eliza eliza.cpp macos_seria
 
 ### Windows
 
-Build amnd run without serial I/O
+Build and run without serial I/O
 
 ```text
 cl /EHsc /W4 /std:c++20 eliza.cpp
