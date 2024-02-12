@@ -34,6 +34,10 @@
 */
 
 
+#ifdef SUPPORT_SERIAL_IO
+#include "serial_io.h"
+#endif
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -750,19 +754,19 @@ bool match(const tagmap & tags, const stringlist & pattern,
                     if (w <= word_array.size())
                         continue;
                 }
-                // pat_array[p] is a literal e.g. "ARE" or "(*SAD HAPPY DEPRESSED)"
-                if (pat_array[p].front() == '(') {
-                    // pat_array[p] is a group, is current_word in that group?
-                    if (inlist(word_array[w], pat_array[p], tags)) {
+                else { // pat_array[p] is a literal or a list
+                    if (pat_array[p].front() == '(') { // it's a list e.g. "(*SAD HAPPY)"
+                        if (inlist(word_array[w], pat_array[p], tags)) {
+                            p++;
+                            w++;
+                            continue;
+                        }
+                    }
+                    else if (pat_array[p] == word_array[w]) { // it's a literal e.g. "ARE"
                         p++;
                         w++;
                         continue;
                     }
-                }
-                else if (pat_array[p] == word_array[w]) {
-                    p++;
-                    w++;
-                    continue;
                 }
             }
         }
@@ -775,8 +779,9 @@ bool match(const tagmap & tags, const stringlist & pattern,
             if (wildcards.empty())
                 return false;   // there are no (or no more) wildcards to adjust -
                                 // the pattern does not match
-            wildcards.back().length++;
-            if (wildcards.back().words_index + wildcards.back().length <= word_array.size())
+            auto & current_wildcard = wildcards.back();
+            current_wildcard.length++;
+            if (current_wildcard.words_index + current_wildcard.length <= word_array.size())
                 break;
             wildcards.pop_back();
         }
@@ -980,6 +985,18 @@ DEF_TEST_FUNC(match_test)
     TEST_EQUAL(matching_components, expected);
 
     words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "5" };
+    expected = { "", "WHEN WILL WE THREE MEET" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "5", "0" };
+    expected = { "WHEN WILL WE THREE MEET", "" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
     pattern = { "1", "0" };
     expected = { "WHEN", "WILL WE THREE MEET" };
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
@@ -1005,6 +1022,18 @@ DEF_TEST_FUNC(match_test)
 
     words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
     pattern = { "6" };
+    expected = { };
+    TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "6" };
+    expected = { };
+    TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "6", "0" };
     expected = { };
     TEST_EQUAL(match({}, pattern, words, matching_components), false);
     TEST_EQUAL(matching_components, expected);
@@ -5651,6 +5680,13 @@ DEF_TEST_FUNC(test_11_june_1964_prof_student_convo)
 }//namespace elizatest
 
 
+
+void sleep(long ms)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+};
+
+
 // write given s to std::cout, followed by newline
 void writeln(const std::string & s)
 {
@@ -5673,10 +5709,6 @@ void writeln(const std::string & s)
        at 17:30. */
 
     const long cps = 14; // the IBM 2741 printed at ~14.1 cps
-
-    auto sleep = [](long ms) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-    };
 
     for (const auto c : s) {
         std::cout << c << std::flush;
@@ -5719,11 +5751,13 @@ bool parse_cmdline(
     int argc, const char * argv[],
     bool & showscript,
     bool & nobanner,
-    bool & notty,
+    bool & quick,
     bool & help,
+    bool & port,
+    std::string & port_name,
     std::string & script_filename)
 {
-    showscript = nobanner = notty = help = false;
+    showscript = nobanner = quick = help = port = false;
     script_filename.clear();
     for (int i = 1; i < argc; ++i) {
         if (is_option(argv[i])) {
@@ -5733,8 +5767,17 @@ bool parse_cmdline(
                 showscript = true;
             else if (as_option("nobanner") == argv[i])
                 nobanner = true;
-            else if (as_option("notty") == argv[i])
-                notty = true;
+            else if (as_option("quick") == argv[i])
+                quick = true;
+#ifdef SUPPORT_SERIAL_IO
+            else if (as_option("port") == argv[i]) {
+                ++i;
+                if (i == argc)
+                    return false;
+                port = true;
+                port_name = argv[i];
+            }
+#endif
             else
                 return false;
         }
@@ -5755,15 +5798,15 @@ bool parse_cmdline(
 int main(int argc, const char * argv[])
 {
     try {
-        bool showscript, nobanner, notty, help, traceauto = false;
-        std::string script_filename;
+        bool showscript, nobanner, quick, help, port, traceauto = false;
+        std::string port_name, script_filename;
         const std::string command_help{
            "  <blank line>    quit\n"
-           "  *cacm           replay conversation from Weizenbaum's Jan 1966 CACM paper\n"
-           "  *key            show all keywords in the current script\n"
-           "  *key KEYWORD    show the keyword rule for the given KEYWORD\n"
            "  *               print trace of most recent exchange\n"
            "  **              print the transformation rules used in the most recent reply\n"
+           "  *cacm           replay conversation from Weizenbaum's Jan 1966 CACM paper\n"
+           "  *key            show all keywords in the current script\n"
+           "  *key KEYWORD    show the transformation rule for the given KEYWORD\n"
            "  *traceoff       turn off tracing\n"
            "  *traceon        turn on tracing; enter '*' after any exchange to see trace\n"
            "  *traceauto      turn on tracing; trace shown after every exchange\n"
@@ -5771,12 +5814,19 @@ int main(int argc, const char * argv[])
            "                  (for watching the operation of Turing machines)\n"
         };
 
-        if (!parse_cmdline(argc, argv, showscript, nobanner, notty, help, script_filename) || help) {
+        if (!parse_cmdline(argc, argv, showscript, nobanner, quick, help, port, port_name, script_filename) || help) {
             (help ? std::cout : std::cerr)
                 << "Usage: ELIZA [options] [<filename>]\n"
                 << "\n"
                 << "  " << pad(as_option("nobanner"))   << "don't display startup banner\n"
-                << "  " << pad(as_option("notty"))      << "don't print at IBM 2741 speed (14 characters per second)\n"
+#ifdef SUPPORT_SERIAL_IO
+#if defined(_WIN32)
+                << "  " << pad(as_option("port COMn"))  << "use serial port COMn (e.g. COM2)\n"
+#else
+                << "  " << pad(as_option("port DEV"))   << "use serial port DEV (e.g. /dev/cu.PL2303G-USBtoUART10)\n"
+#endif
+#endif
+                << "  " << pad(as_option("quick"))      << "don't print at IBM 2741 speed (14 characters per second)\n"
                 << "  " << pad(as_option("showscript")) << "print Weizenbaum's 1966 DOCTOR script\n"
                 << "  " << pad("")                      << "e.g. ELIZA " << as_option("showscript") << " > script.txt\n"
                 << "  " << pad("<filename>")            << "use named script file instead of built-in DOCTOR script\n"
@@ -5798,20 +5848,20 @@ int main(int argc, const char * argv[])
                 << "      ELIZA -- A Computer Program for the Study of Natural\n"
                 << "         Language Communication Between Man and Machine\n"
                 << "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
-                << "ELIZA implementation (v0.94) by Anthony Hay, 2022  (CC0 1.0) P.D.\n"
+                << "ELIZA implementation (v0.95) by Anthony Hay, 2022  (CC0 1.0) P.D.\n"
                 << "-----------------------------------------------------------------\n"
-                << "ELIZA " << as_option("help") << " for usage.\n"
-                << "Enter a blank line to quit.\n";
+                << "Use command line '" << argv[0] << " " << as_option("help") << "' for usage information.\n";
         }
 
         RUN_TESTS(); // run all the tests defined with DEF_TEST_FUNC
 
-        elizascript::script s;
+
+        elizascript::script eliza_script;
         if (script_filename.empty()) {
             // use default 'internal' 1966 CACM published script
-            std::cout << (nobanner ? "\n\n"
-                : "No script filename given; using built-in 1966 DOCTOR script.\n\n\n");
-            elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
+            if (!nobanner)
+                std::cout << "No script filename given; using built-in 1966 DOCTOR script.\n";
+            elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, eliza_script);
         }
         else {
             // use the named script file
@@ -5821,33 +5871,70 @@ int main(int argc, const char * argv[])
                           << script_filename << "'\n";
                 return EXIT_FAILURE;
             }
-            if (nobanner)
-                std::cout << "\n\n";
-            else
+            if (!nobanner)
                 std::cout << "Using script file '" << script_filename << "'\n\n\n";
-            elizascript::read<std::ifstream>(script_file, s);
+            elizascript::read<std::ifstream>(script_file, eliza_script);
         }
+
+        if (!nobanner)
+            std::cout << "Enter a blank line to quit.\n\n\n";
+
 
         elizalogic::null_tracer notrace;
         elizalogic::string_tracer trace;
         elizalogic::pre_tracer pretrace;
 
-        elizalogic::eliza eliza(s.rules, s.mem_rule);
+        elizalogic::eliza eliza(eliza_script.rules, eliza_script.mem_rule);
         eliza.set_tracer(&trace);
 
+#ifdef SUPPORT_SERIAL_IO
+        serial_io serial_port;
+        if (port) {
+            if (serial_port.open(port_name, "")) {
+                std::cout
+                    << "Switching to serial port "
+                    << port_name << '\n';
+            }
+            else {
+                std::cerr << serial_port.last_error_text() << '\n';
+                return EXIT_FAILURE;
+            }
+        }
         auto print = [&](const std::string & s) {
-            if (notty)
+            if (port) {
+                serial_port.write(s);
+                serial_port.write("\r\n");
+            }
+            else if (quick)
                 std::cout << s << std::endl;
             else
                 writeln(s);
         };
+        auto input = [&](std::string & s) {
+            if (port)
+                s = serial_port.getline();
+            else
+                std::getline(std::cin, s);
+        };
+#else
+        auto print = [&](const std::string & s) {
+            if (quick)
+                std::cout << s << std::endl;
+            else
+                writeln(s);
+        };
+        auto input = [&](std::string & s) {
+            std::getline(std::cin, s);
+        };
+#endif
 
-        print(join(s.hello_message));
+        print(join(eliza_script.hello_message));
 
         for (int cacm_index = -1;;) {
-            std::cout << std::endl;
             std::string userinput;
-            std::getline(std::cin, userinput);
+
+            print("");
+            input(userinput);
 
             if (userinput.empty()) {
                 if (cacm_index >= 0) {
@@ -5890,27 +5977,29 @@ int main(int argc, const char * argv[])
                 }
                 else if (command == "*CACM") {
                     std::cout <<
-                        "replaying conversation from Weizenbaum's January 1966 CACM paper\n"
-                        "hit enter to see each exchange (use *traceauto to see the trace)\n";
+                        "Replaying conversation from Weizenbaum's January 1966 CACM paper.\n"
+                        "Hit enter to see each exchange (use *traceauto to see the trace).\n";
                     cacm_index = 0;
                 }
                 else if (command == "*KEY") {
                     if (cmd_line.size() == 2) {
+                        // print out the rule associated with the given keyword
                         std::string keyword = cmd_line[1];
                         if (keyword == "NONE")
                             keyword = elizalogic::special_rule_none;
-                        const auto r = s.rules.find(keyword);
-                        if (r != s.rules.end()) {
+                        const auto r = eliza_script.rules.find(keyword);
+                        if (r != eliza_script.rules.end()) {
                             const auto & rule = r->second;
                             std::cout << rule->to_string();
                         }
                         else if (cmd_line[1] == "MEMORY")
-                            std::cout << s.mem_rule->to_string();
+                            std::cout << eliza_script.mem_rule->to_string();
                         else
-                            std::cout << "No '" << cmd_line[1] << "' keyword in current script\n";
+                            std::cout << "No '" << cmd_line[1] << "' keyword found in current script\n";
                     }
                     else {
-                        for (const auto & [key, rule] : s.rules) {
+                        // print a list of all keywords
+                        for (const auto & [key, rule] : eliza_script.rules) {
                             if (key == elizalogic::special_rule_none)
                                 continue;
                             else
@@ -5925,6 +6014,14 @@ int main(int argc, const char * argv[])
             }
 
             const std::string response{eliza.response(userinput)};
+
+            if (!quick) {
+                // The doctor takes a moment to reflect before replying.
+                // (Weizenbaum developed ELIZA on an IBM 7094 running CTSS.
+                // It's quite likely it took a second or two before responding
+                // to the user's statements.)
+                sleep(1500);
+            }
 
             if (traceauto)
                 std::cout << trace.text();
