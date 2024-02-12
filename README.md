@@ -12,4 +12,4 @@ In a [footnote](https://github.com/anthay/ELIZA/blob/master/doc/Trying_to_recrea
 
 My son Max Hay and I recreated ELIZA in JavaScript [here](https://github.com/anthay/ELIZA/blob/master/src/eliza.html). Try it [here](https://anthay.github.io/eliza.html).
 
-[Serial I/O](https://github.com/anthay/ELIZA/blob/master/doc/serial_io.md) run ELIZA on an ASR 33 teletype. 
+I added [Serial I/O](https://github.com/anthay/ELIZA/blob/master/doc/serial_io.md) to run ELIZA on an ASR 33 teletype. 
