@@ -2,7 +2,7 @@
 
 I got ELIZA to work on an ASR 33 teletype. I wrote about it [here](https://sites.google.com/view/elizaarchaeology/blog).
 
-### macOS
+### POSIX (e.g. macOS)
 
 Build and run without serial I/O
 
@@ -13,11 +13,11 @@ clang++ -std=c++20 -pedantic -o eliza eliza.cpp
 Build and run with serial I/O
 
 ```text
-clang++ -std=c++20 -pedantic -D SUPPORT_SERIAL_IO -o eliza eliza.cpp macos_serial_io.cpp
+clang++ -std=c++20 -pedantic -D SUPPORT_SERIAL_IO -o eliza eliza.cpp posix_serial_io.cpp
 ./eliza --port /dev/cu.PL2303G-USBtoUART10
 ```
 
-(The ASR 33 should be in full duplex mode on macOS.)
+(The ASR 33 should be in full duplex mode on POSIX.)
 
 ### Windows
 
