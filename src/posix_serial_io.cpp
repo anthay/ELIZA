@@ -1,5 +1,6 @@
-// Implement serial_io for macOS.
+// Implement serial_io for POSIX.
 // Specifically to support a 110 baud ASR 33 teletype.
+// (Tested on macOS 14.2.1 Sonoma on iMac M1 only.)
 
 
 #include "serial_io.h"
