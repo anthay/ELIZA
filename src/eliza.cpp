@@ -488,11 +488,18 @@ DEF_TEST_FUNC(to_int_test)
 }
 
 
+const std::string tag_six_char_matching_behavior{"USE_SIX_CHAR_MATCHING_BEHAVIOR"};
+
 // e.g. inlist("DEPRESSED", "(*SAD HAPPY DEPRESSED)") -> true
 // e.g. inlist("FATHER", "(/FAMILY)") -> true (assuming tags("FAMILY") -> "... FATHER ...")
 bool inlist(const std::string & word, std::string wordlist, const tagmap & tags)
 {
     assert(!word.empty());
+
+    auto six_char_matching_behavior = [&]() { // return true iff behavior enabled
+        const auto t = tags.find(tag_six_char_matching_behavior);
+        return t != tags.end() && t->second == stringlist{tag_six_char_matching_behavior};
+    };
 
     if (wordlist.back() == ')')
         wordlist.pop_back();
@@ -504,17 +511,17 @@ bool inlist(const std::string & word, std::string wordlist, const tagmap & tags)
     if (*cp == '*') { // (*SAD HAPPY DEPRESSED)
         ++cp;
         const stringlist s{split(std::string(cp))};
-#ifdef WITHOUT_ASSUMED_MATCHING_BUG
-        return std::find(s.begin(), s.end(), word) != s.end();
-#else // with apparent bug (see test function for explanation)
-        stringlist t;
-        for (const auto word6 = word.substr(0, 6); const auto & w : s) {
-            for (unsigned i = 0; i < w.size(); i += 6)
-                if (w.substr(i, 6) == word6)
-                    return true;
+        if (six_char_matching_behavior()) { // (see test function for explanation)
+            stringlist t;
+            for (const auto word6 = word.substr(0, 6); const auto & w : s) {
+                for (unsigned i = 0; i < w.size(); i += 6)
+                    if (w.substr(i, 6) == word6)
+                        return true;
+            }
+            return false;
         }
-        return false;
-#endif
+        else
+            return std::find(s.begin(), s.end(), word) != s.end();
     }
     else if (*cp == '/') { // (/NOUN FAMILY)
         ++cp;
@@ -534,7 +541,7 @@ bool inlist(const std::string & word, std::string wordlist, const tagmap & tags)
 
 DEF_TEST_FUNC(inlist_test)
 {
-    const tagmap tags{ [] {
+    tagmap tags{ [] {
         tagmap tm;
         tm["FAMILY"] = {"MOTHER", "FATHER", "SISTER", "BROTHER", "WIFE", "CHILDREN"};
         tm["NOUN"] = {"MOTHER", "FATHER", "FISH", "FOUL"};
@@ -642,13 +649,24 @@ DEF_TEST_FUNC(inlist_test)
                 (TELL ME MORE ABOUT YOUR FEELINGS OF BEING SAD)
         suggesting that D matched ASHAME'D
      */
+    TEST_EQUAL(inlist("WONDER",     "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags), false);
+    TEST_EQUAL(inlist("FUL",        "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags), false);
+    TEST_EQUAL(inlist("D",          "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags), false);
+
+    tags[tag_six_char_matching_behavior] = {tag_six_char_matching_behavior};
     TEST_EQUAL(inlist("WONDER",     "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags), true);
     TEST_EQUAL(inlist("FUL",        "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags), true);
     TEST_EQUAL(inlist("D",          "(*HAPPY ELATED EXCITED GOOD WONDERFUL)", tags), true);
+    TEST_EQUAL(inlist("SAD",        "(*SAD HAPPY DEPRESSED)",   tags), true);
+    TEST_EQUAL(inlist("HAPPY",      "(*SAD HAPPY DEPRESSED)",   tags), true);
+    TEST_EQUAL(inlist("DEPRESSED",  "(*SAD HAPPY DEPRESSED)",   tags), true);
+    TEST_EQUAL(inlist("SAD",        "( * SAD HAPPY DEPRESSED )",tags), true);
+    TEST_EQUAL(inlist("HAPPY",      "( * SAD HAPPY DEPRESSED )",tags), true);
+    TEST_EQUAL(inlist("DEPRESSED",  "( * SAD HAPPY DEPRESSED )",tags), true);
+    TEST_EQUAL(inlist("DRUNK",      "( * SAD HAPPY DEPRESSED )",tags), false);
 }
 
 
-#define NON_RECURSIVE_MATCH
 /*  return true iff words match pattern; if they match, matching_components
     are the actual matched words, one for each element of pattern
 
@@ -814,18 +832,327 @@ bool match(const tagmap & tags, const stringlist & pattern,
     return true;
 }
 
-#else // implementation analogous to SLIP YMATCH
+#else // implementation similar to the SLIP YMATCH code
 
+using vecstr = std::vector<std::string>;
+
+/*  Match pat_array[p_begin..p_end) to word_array[w_begin...).
+    These things must be true
+      - the pattern segment may contain at most one 0-wildcard
+      - if the segment contains a 0-wildcard it must be the first element
+      - the segment must either be the last in the whole pattern or
+        be followed by another segment that begins with a 0-wildcard
+*/
+bool xmatch(            // return true iff words matched pattern
+    const tagmap & tags,
+    const vecstr pat_array,
+    const vecstr word_array,
+    const int p_begin,  // index into pat_array where match pattern begins
+    const int p_end,    // index into pat_array just after match pattern ends
+    const int w_begin,  // index into word_array where pattern must begin matching
+    const int fixed_len,// total number of words required to match non-0-wildcard part
+    int & w_end,        // out: index into word_array just after pattern matching ended
+    vecstr & result)    // out: matches will be written to result at [p_begin..p_end)
+{
+    if (word_array.size() - w_begin < fixed_len)
+        return false;   // there are insufficient words to match the pattern
+
+    int wildcard_len = 0;
+    int wildcard_end = 0;
+
+    const bool has_wildcard = to_int(pat_array[p_begin]) == 0;
+    if (has_wildcard) {
+        if (p_end == pat_array.size()) {
+            // this is the last segment of the whole pattern: it must match
+            // right up to the very last word
+            wildcard_len = word_array.size() - w_begin - fixed_len;
+            // if it doesn't match at the end, it doesn't match at all
+            wildcard_end = wildcard_len;
+        }
+        else {
+            // this is not the last segment of the whole pattern: it must
+            // consume the smallest number of words possible
+            wildcard_len = 0;
+            // work forwards from the minimum wildcard length to the maximum possible
+            wildcard_end = word_array.size() - w_begin - fixed_len;
+        }
+    }
+
+    // loop until a match is found or all possible wildcard_len values have been tried
+    for (;; ++wildcard_len) {
+        int p = p_begin + has_wildcard;
+        int w = w_begin + wildcard_len;
+
+        // loop to match pattern at p to words at w
+        // on exit, p == p_end implies success
+        for (; p < p_end; ++p) {
+            const int n = to_int(pat_array[p]);
+            assert(n != 0);
+            if (n > 0) { // pat_array[p] is a wildcard of specific length
+                assert(w + n <= word_array.size());
+                stringlist part;
+                for (int i = 0; i < n; ++i)
+                    part.emplace_back(word_array[w++]);
+                result[p] = join(part);
+            }
+            else { // pat_array[p] is a literal or a list
+                assert(w < word_array.size());
+                if (pat_array[p].front() == '(') { // it's a list e.g. "(*SAD HAPPY)"
+                    if (inlist(word_array[w], pat_array[p], tags))
+                        result[p] = word_array[w++];
+                    else
+                        break;
+                }
+                else if (pat_array[p] == word_array[w]) // it's a literal e.g. "ARE"
+                    result[p] = word_array[w++];
+                else
+                    break;
+            }
+        }
+        if (p == p_end) {
+            w_end = w;
+            if (has_wildcard) {
+                stringlist part;
+                for (int i = 0; i < wildcard_len; ++i)
+                    part.emplace_back(word_array[w_begin + i]);
+                result[p_begin] = join(part);
+            }
+            return true;
+        }
+        if (wildcard_len == wildcard_end)
+            break;
+    }
+
+    return false;
+}
+
+
+bool match(const tagmap & tags, const stringlist & pattern,
+        const stringlist & words, stringlist & matching_components)
+{
+    matching_components.clear();
+
+    std::vector<std::string> pat_array{ pattern.begin(), pattern.end() };
+    std::vector<std::string> word_array{ words.begin(), words.end() };
+    std::vector<std::string> matches(pat_array.size());
+
+    int w = 0;
+    for (int p_seg_end = 0; p_seg_end < pat_array.size(); ) {
+        
+        /*  locate the right boundary of the next anchor segment (an anchor
+            segment extends from the end of the previous segment, or from the
+            first element if this is the first segment, up to the end of the
+            pattern, or the next 0-wildcard, whichever comes first) */
+        int fixed_len = 0;
+        int p = p_seg_end;
+        for (; p_seg_end < pat_array.size(); ++p_seg_end) {
+            const int n =  to_int(pat_array[p_seg_end]);
+            if (n == 0) {           // element is a 0-wildcard
+                if (p_seg_end > p)
+                    break;          // this 0-wildcard isn't the first element
+            }
+            else if (n > 0)
+                fixed_len += n;     // element is a fixed length wildcard, e.g. 3
+            else
+                ++fixed_len;        // element is a literal or (*...) or (/...)
+        }
+
+        /*  The current pattern segment is the half-open interval [p, p_seg_end).
+            The segment always contains fixed size elements, unless there are
+            no fixed size elements before the next 0-wildcard or the end of the
+            pattern. If it contains a 0-wildcard that will be the first element.
+            Following the wildcard (if present) will be only fixed sized elements
+            (if any). I.e. the segment will have one of these three forms
+                 (0)
+                 (0 1 2 LITERAL (*LITERAL LITERAL) (/TAG TAG)), for example
+                 (  1 2 LITERAL (*LITERAL LITERAL) (/TAG TAG)), for example
+            Following this segment will either be a 0-wildcard or the end of the
+            pattern. This segment must match the words at w. If the segment begins
+            with a wildcard, then
+              - if what follows this segment is a 0-wildcard, this segment must
+                consume the smallest number of words possible
+              - if what follows this segment is the pattern end, this segment must
+                consume all the remaining words
+            If the segment does not begin with a 0-wildcard it must consume the
+            exact number of words described by the pattern elements. */
+
+        if (!xmatch(tags, pat_array, word_array, p, p_seg_end, w, fixed_len, w, matches))
+            return false;   // this segment didn't match the words
+    }
+    if (w < word_array.size())
+        return false;       // the pattern did not consume all words
+
+    for (auto & m : matches)
+        matching_components.emplace_back(std::move(m));
+
+    return true;
+}
 
 #endif
 
 DEF_TEST_FUNC(match_test)
 {
-    // test [0, YOU, (*WANT NEED), 0] matches [YOU, NEED, NICE, FOOD]
-    stringlist words{ "YOU", "NEED", "NICE", "FOOD" };
-    stringlist pattern{ "0", "YOU", "(*WANT NEED)", "0" };
-    stringlist expected{ "", "YOU", "NEED", "NICE FOOD" };
+    stringlist words{ "HELLO" };
+    stringlist pattern{ "HELLO" };
+    stringlist expected{ "HELLO" };
     stringlist matching_components;
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "HELLO", "WORLD" };
+    expected = { "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "HELLO", "1" };
+    expected = { "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "1", "WORLD" };
+    expected = { "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "1", "1" };
+    expected = { "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "1" };
+    expected = { };
+    TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "2" };
+    expected = { "HELLO WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "3" };
+    expected = { };
+    TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0" };
+    expected = { "HELLO WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "1" };
+    expected = { "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "1", "0" };
+    expected = { "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "0" };
+    expected = { "", "HELLO WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "WORLD" };
+    expected = { "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "HELLO", "0" };
+    expected = { "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "HELLO", "WORLD" };
+    expected = { "", "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "HELLO", "WORLD", "0" };
+    expected = { "HELLO", "WORLD", "" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "0", "1" };
+    expected = { "", "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "0", "0" };
+    expected = { "", "", "HELLO WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "HELLO", "0", "0" };
+    expected = { "HELLO", "", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "HELLO", "0" };
+    expected = { "", "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "WORLD", "0" };
+    expected = { "HELLO", "WORLD", "" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "0", "WORLD" };
+    expected = { "", "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "0", "0", "1" };
+    expected = { "", "HELLO", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "HELLO", "WORLD" };
+    pattern = { "HELLO", "0", "0", "WORLD" };
+    expected = { "HELLO", "", "", "WORLD" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "'ELLO", "'ELLO" };
+    pattern = { "0", "'ELLO" };
+    expected = { "'ELLO", "'ELLO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "'ELLO", "'ELLO" };
+    pattern = { "0", "'ELLO", "0" };
+    expected = { "", "'ELLO", "'ELLO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    // test [0, YOU, (*WANT NEED), 0] matches [YOU, NEED, NICE, FOOD]
+    words = { "YOU", "NEED", "NICE", "FOOD" };
+    pattern = { "0", "YOU", "(*WANT NEED)", "0" };
+    expected = { "", "YOU", "NEED", "NICE FOOD" };
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 
@@ -846,7 +1173,9 @@ DEF_TEST_FUNC(match_test)
     // test [1, (*WANT NEED), 1] doesn't match [YOU, WANT, NICE, FOOD]
     words = { "YOU", "WANT", "NICE", "FOOD" };
     pattern = { "1", "(*WANT NEED)", "1" };
+    expected = { };
     TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
 
     // test [1, (*WANT NEED), 2] matches [YOU, WANT, NICE, FOOD]
     words = { "YOU", "WANT", "NICE", "FOOD" };
@@ -979,6 +1308,12 @@ DEF_TEST_FUNC(match_test)
     TEST_EQUAL(matching_components, expected);
 
     words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "3", "0" };
+    expected = { "WHEN WILL WE", "THREE MEET" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
     pattern = { "5" };
     expected = { "WHEN WILL WE THREE MEET" };
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
@@ -1021,6 +1356,60 @@ DEF_TEST_FUNC(match_test)
     TEST_EQUAL(matching_components, expected);
 
     words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "1", "0", "1" };
+    expected = { "", "WHEN", "WILL WE THREE", "MEET" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "1", "0", "1", "0" };
+    expected = { "", "WHEN", "", "WILL", "WE THREE MEET" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "1", "0", "1", "0", "1" };
+    expected = { "", "WHEN", "", "WILL", "WE THREE", "MEET" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "1", "0", "1", "0", "1", "0" };
+    expected = { "", "WHEN", "", "WILL", "", "WE", "THREE MEET" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "1", "0", "1", "0", "1", "0", "1" };
+    expected = { "", "WHEN", "", "WILL", "", "WE", "THREE", "MEET" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "1", "0", "1", "0", "1", "0", "1", "0" };
+    expected = { "", "WHEN", "", "WILL", "", "WE", "", "THREE", "MEET" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "1", "0", "1", "0", "1", "0", "1", "0", "1" };
+    expected = { "", "WHEN", "", "WILL", "", "WE", "", "THREE", "", "MEET" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "1", "0", "1", "0", "1", "0", "1", "0", "1", "0" };
+    expected = { "", "WHEN", "", "WILL", "", "WE", "", "THREE", "", "MEET", "" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
+    pattern = { "0", "1", "0", "1", "0", "1", "0", "1", "0", "1", "0", "1" };
+    expected = { };
+    TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
+
+    words = { "WHEN", "WILL", "WE", "THREE", "MEET" };
     pattern = { "6" };
     expected = { };
     TEST_EQUAL(match({}, pattern, words, matching_components), false);
@@ -1042,6 +1431,72 @@ DEF_TEST_FUNC(match_test)
     pattern = { "1", "WHEN", "0" };
     expected = { };
     TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "IT'S", "MY", "EASTEREGG", "YUM" };
+    pattern = { "1",    "1",  "1",         "0",  "1" };
+    expected = { "IT'S", "MY", "EASTEREGG", "", "YUM" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "IT'S", "MY", "EASTEREGG", "YUM" };
+    pattern = { "IT'S", "1",  "1",         "0",  "1" };
+    expected = { "IT'S", "MY", "EASTEREGG", "", "YUM" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "IT'S", "MY", "EASTEREGG", "YUM" };
+    pattern = { "1",    "MY", "1",         "0",  "1" };
+    expected = { "IT'S", "MY", "EASTEREGG", "", "YUM" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "IT'S", "MY", "EASTEREGG", "YUM" };
+    pattern = { "1",    "1",  "EASTEREGG", "0",  "1" };
+    expected = { "IT'S", "MY", "EASTEREGG", "", "YUM" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "IT'S", "MY", "EASTEREGG", "YUM" };
+    pattern = { "1",    "MY", "EASTEREGG", "0",  "1" };
+    expected = { "IT'S", "MY", "EASTEREGG", "", "YUM" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "IT'S", "MY", "EASTEREGG", "YUM" };
+    pattern = { "IT'S", "1",  "EASTEREGG", "0",  "1" };
+    expected = { "IT'S", "MY", "EASTEREGG", "", "YUM" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "IT'S", "MY", "EASTEREGG", "YUM" };
+    pattern = { "IT'S", "MY", "EASTEREGG", "0",  "1" };
+    expected = { "IT'S", "MY", "EASTEREGG", "", "YUM" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "IT'S", "MY", "EASTEREGG", "YUM" };
+    pattern = { "IT'S", "MY", "EASTEREGG", "YUM" };
+    expected = { "IT'S", "MY", "EASTEREGG", "YUM" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "X", "X", "A", "X", "X", "A" };
+    pattern = { "0", "A", "0", "A" };
+    expected = { "X X", "A", "X X", "A" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "X", "X", "A", "X", "X", "A", "X", "X", "A" };
+    pattern = { "0", "A", "0", "A" };
+    expected = { "X X", "A", "X X A X X", "A" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+
+    words =   { "X", "X", "A", "X", "X", "A", "X", "X", "A" };
+    pattern = { "0", "A", "0", "A", "0" };
+    expected = { "X X", "A", "X X", "A", "X X A" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 
     words = { "MY", "FAIR", "LADY" };
@@ -5848,7 +6303,7 @@ int main(int argc, const char * argv[])
                 << "      ELIZA -- A Computer Program for the Study of Natural\n"
                 << "         Language Communication Between Man and Machine\n"
                 << "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
-                << "ELIZA implementation (v0.95) by Anthony Hay, 2022  (CC0 1.0) P.D.\n"
+                << "ELIZA implementation (v0.96) by Anthony Hay, 2022  (CC0 1.0) P.D.\n"
                 << "-----------------------------------------------------------------\n"
                 << "Use command line '" << argv[0] << " " << as_option("help") << "' for usage information.\n";
         }
