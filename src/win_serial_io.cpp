@@ -247,7 +247,7 @@ private:
 // just pass all serial_io calls through to implementation above
 
 serial_io::serial_io()
-    : impl_(new serial_io::implementation)
+    : impl_(std::make_unique<implementation>())
 {
 }
 
