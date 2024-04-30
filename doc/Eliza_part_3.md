@@ -18,7 +18,7 @@ This is the code that implements the SLIP `HASH(D,N)` function used in ELIZA. It
 
 Weizenbaum developed SLIP, so he may have written `HASH`. However, another folder in the archive contained a listing with the handwritten title "MAY 21, 1966 / LISTING OF 1620 SLIP SYSTEM / DICK SITES / DAVID P. KELLEHER", so they may be the `HASH` authors.
 
-At the time of writing, the archive has not been made public. If and when it is, it is likely to be available through [elizagen.org](https://sites.google.com/view/elizagen-org/the-original-eliza).
+At the time of writing, the archive has not been made public. If and when it is, it is likely to be available through [elizagen.org](https://sites.google.com/view/elizagen-org/original-eliza).
 
 
 
@@ -506,7 +506,7 @@ Anthony Hay, May 2022, Devon, England
 
 ## Acknowledgements
 
-Thank you [Jeff Shrager](https://sites.google.com/view/jeffshrager-org/home) for finding the [original ELIZA source code](https://sites.google.com/view/elizagen-org/the-original-eliza) and for taking an interest in my own efforts to recreate ELIZA.
+Thank you [Jeff Shrager](https://sites.google.com/view/jeffshrager-org/home) for finding the [original ELIZA source code](https://sites.google.com/view/elizagen-org/original-eliza) and for taking an interest in my own efforts to recreate ELIZA.
 
 Jeff also found a group of people who share an interest in ELIZA and I’ve enjoyed talking to and learning from them
 
