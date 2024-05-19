@@ -13,3 +13,23 @@ In a [footnote](https://github.com/anthay/ELIZA/blob/master/doc/Trying_to_recrea
 My son Max Hay and I recreated ELIZA in JavaScript [here](https://github.com/anthay/ELIZA/blob/master/src/eliza.html). Try it [here](https://anthay.github.io/eliza.html).
 
 I added [serial I/O](https://github.com/anthay/ELIZA/blob/master/doc/serial_io.md) to run ELIZA on an ASR 33 teletype. 
+
+---
+
+### To build and run ELIZA
+
+Note that the whole of ELIZA is in the one file [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) (unless you wish to also use the serial I/O code mentioned above).
+
+POSIX (e.g. macOS) (I used Apple clang version 15.0.0 that came with Xcode):
+
+```text
+clang++ -std=c++20 -pedantic -o eliza eliza.cpp
+./eliza
+```
+
+Windows (I used Microsoft Visual Studio 2019 Community Edition Command Prompt):
+
+```text
+cl /EHsc /W4 /std:c++20 eliza.cpp
+eliza
+```
