@@ -2539,7 +2539,7 @@ public:
         trace_ << trace_prefix << "word substitutions made: "
             << (word_substitutions_.empty() ? "<none>" : word_substitutions_)
             << '\n';
-        trace_ << trace_prefix << "no keywords found in subclause: " << s << '\n';
+        trace_ << trace_prefix << "no transformation keywords found in subclause: " << s << '\n';
         word_substitutions_.clear();
     }
     virtual void word_substitution(const std::string & word, const std::string & substitute)
@@ -2567,7 +2567,7 @@ public:
         if (keystack.empty()) {
             if (!subclause.empty())
                 trace_ << trace_prefix
-                    << "no keywords found in subclause: " << subclause << '\n';
+                    << "no transformation keywords found in subclause: " << subclause << '\n';
         }
         else {
             trace_ << trace_prefix << "keyword found in subclause: " + subclause + '\n';
@@ -3961,7 +3961,69 @@ const char * const CACM_1966_01_DOCTOR_script =
     "\n"
     "()\n"
     "\n"
-    "; --- End of ELIZA script ---\n";
+    "; --- End of ELIZA script ---\n"
+    "\n"
+    "\n"
+    "; The ELIZA script syntax:\n"
+    ";\n"
+    "; eliza_script        : opening_remarks ['START'] rules ['(' ')']             ;\n"
+    "; opening_remarks     : '(' {word | punctuation} ')'                          ;\n"
+    "; rules               : keyword_rule {keyword_rule} memory_rule none_rule     ;\n"
+    ";\n"
+    "; keyword_rule        : '(' keyword rule ')'                                  ;\n"
+    "; keyword             : word                                                  ;\n"
+    "; rule                : '=' substitute_word\n"
+    ";                     | 'DLIST' tags\n"
+    ";                     | ['=' substitute_word]\n"
+    ";                         ['DLIST' tags]\n"
+    ";                         [precedence]\n"
+    ";                         reference\n"
+    ";                     | ['=' substitute_word]\n"
+    ";                         ['DLIST' tags]\n"
+    ";                         [precedence]\n"
+    ";                         transformation {transformation}\n"
+    ";                         [reference]                                         ;\n"
+    ";\n"
+    "; memory_rule         : '(' 'MEMORY' keyword\n"
+    ";                         '(' decompose_terms '=' reassemble_terms ')'\n"
+    ";                         '(' decompose_terms '=' reassemble_terms ')'\n"
+    ";                         '(' decompose_terms '=' reassemble_terms ')'\n"
+    ";                         '(' decompose_terms '=' reassemble_terms ')' ')'    ;\n"
+    ";\n"
+    "; none_rule           : '(' 'NONE' '(' '(' '0' ')'\n"
+    ";                         reassemble_pattern {reassemble_pattern} ')' ')'     ;\n"
+    ";\n"
+    "; substitute_word     : word                                                  ;\n"
+    "; precedence          : integer                                               ;\n"
+    "; reference           : '(' '=' keyword ')'                                   ;\n"
+    ";\n"
+    "; transformation      : '(' decompose_pattern\n"
+    ";                         reassemble_rule {reassemble_rule} ')'               ;\n"
+    "; decompose_pattern   : '(' decompose_terms ')'                               ;\n"
+    "; decompose_terms     : decompose_term {decompose_term}                       ;\n"
+    "; decompose_term      : word | match_count | tags | any_of                    ;\n"
+    "; match_count         : integer                                               ;\n"
+    "; tags                : '(' '/' word {word} ')'                               ;\n"
+    "; any_of              : '(' '*' word {word} ')'                               ;\n"
+    ";\n"
+    "; reassemble_rule     : reassemble_pattern\n"
+    ";                     | reference\n"
+    ";                     | newkey\n"
+    ";                     | pre_transform_ref                                     ;\n"
+    ";\n"
+    "; reassemble_pattern  : '(' reassemble_terms ')'                              ;\n"
+    "; reassemble_terms    : reassemble_term {reassemble_term}                     ;\n"
+    "; reassemble_term     : word | punctuation | match_index                      ;\n"
+    "; match_index         : integer                                               ;\n"
+    "; newkey              : '(' 'NEWKEY' ')'                                      ;\n"
+    "; pre_transform_ref   : '(' 'PRE' reassemble_pattern reference ')'            ;\n"
+    ";\n"
+    "; word                : word_char {word_char}                                 ;\n"
+    "; word_char           : 'A'-'Z' | '-' | ''' (i.e. a single quote)             ;\n"
+    "; punctuation         : ',' | '.'                                             ;\n"
+    "; integer             : digit {digit}                                         ;\n"
+    "; digit               : '0'-'9'                                               ;\n"
+    "\n";
 
 
 }//namespace elizascript
@@ -4737,7 +4799,6 @@ DEF_TEST_FUNC(script_and_conversation_test)
         "    (0 YOUR 0 = EARLIER YOU SAID YOUR 3)\n"
         "    (0 YOUR 0 = BUT YOUR 3)\n"
         "    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n";
-
 
 
     elizascript::script s;
@@ -6303,7 +6364,7 @@ int main(int argc, const char * argv[])
                 << "      ELIZA -- A Computer Program for the Study of Natural\n"
                 << "         Language Communication Between Man and Machine\n"
                 << "DOCTOR script by Joseph Weizenbaum, 1966  (CC0 1.0) Public Domain\n"
-                << "ELIZA implementation (v0.96) by Anthony Hay, 2022  (CC0 1.0) P.D.\n"
+                << "ELIZA implementation (v0.97) by Anthony Hay, 2022  (CC0 1.0) P.D.\n"
                 << "-----------------------------------------------------------------\n"
                 << "Use command line '" << argv[0] << " " << as_option("help") << "' for usage information.\n";
         }
