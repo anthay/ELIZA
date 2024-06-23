@@ -24,6 +24,7 @@
 
 
 /*
+    0.96 Anthony Hay        2024-06-23  Add script syntax to *savedoc output
     0.95 Anthony Hay        2024-01-14  Add *full; fix font colour bug
     0.94 Max Hay            2024-01-04  Improve console focus gain
     0.93 Anthony Hay        2023-12-16  Recreate bug in SLIP YMATCH
@@ -33,7 +34,7 @@
                                         Mark C. Marino & ChatGPT4 for help
                                         with the initial conversion from C++)
 */
-const VERSION = '0.95';
+const VERSION = '0.96';
 
 
 //////// //       //// ////////    ///    //        ///////   //////   ////  //////  
@@ -1357,6 +1358,68 @@ START
 ()
 
 ; --- End of ELIZA script ---
+
+
+; The ELIZA script syntax:
+;
+; eliza_script        : opening_remarks ['START'] rules ['(' ')']             ;
+; opening_remarks     : '(' {word | punctuation} ')'                          ;
+; rules               : keyword_rule {keyword_rule} memory_rule none_rule     ;
+;
+; keyword_rule        : '(' keyword rule ')'                                  ;
+; keyword             : word                                                  ;
+; rule                : '=' substitute_word
+;                     | 'DLIST' tags
+;                     | ['=' substitute_word]
+;                         ['DLIST' tags]
+;                         [precedence]
+;                         reference
+;                     | ['=' substitute_word]
+;                         ['DLIST' tags]
+;                         [precedence]
+;                         transformation {transformation}
+;                         [reference]                                         ;
+;
+; memory_rule         : '(' 'MEMORY' keyword
+;                         '(' decompose_terms '=' reassemble_terms ')'
+;                         '(' decompose_terms '=' reassemble_terms ')'
+;                         '(' decompose_terms '=' reassemble_terms ')'
+;                         '(' decompose_terms '=' reassemble_terms ')' ')'    ;
+;
+; none_rule           : '(' 'NONE' '(' '(' '0' ')'
+;                         reassemble_pattern {reassemble_pattern} ')' ')'     ;
+;
+; substitute_word     : word                                                  ;
+; precedence          : integer                                               ;
+; reference           : '(' '=' keyword ')'                                   ;
+;
+; transformation      : '(' decompose_pattern
+;                         reassemble_rule {reassemble_rule} ')'               ;
+; decompose_pattern   : '(' decompose_terms ')'                               ;
+; decompose_terms     : decompose_term {decompose_term}                       ;
+; decompose_term      : word | match_count | tags | any_of                    ;
+; match_count         : integer                                               ;
+; tags                : '(' '/' word {word} ')'                               ;
+; any_of              : '(' '*' word {word} ')'                               ;
+;
+; reassemble_rule     : reassemble_pattern
+;                     | reference
+;                     | newkey
+;                     | pre_transform_ref                                     ;
+;
+; reassemble_pattern  : '(' reassemble_terms ')'                              ;
+; reassemble_terms    : reassemble_term {reassemble_term}                     ;
+; reassemble_term     : word | punctuation | match_index                      ;
+; match_index         : integer                                               ;
+; newkey              : '(' 'NEWKEY' ')'                                      ;
+; pre_transform_ref   : '(' 'PRE' reassemble_pattern reference ')'            ;
+;
+; word                : word_char {word_char}                                 ;
+; word_char           : 'A'-'Z' | '-' | ''' (i.e. a single quote)             ;
+; punctuation         : ',' | '.'                                             ;
+; integer             : digit {digit}                                         ;
+; digit               : '0'-'9'                                               ;
+
 `;
 
 
@@ -2858,6 +2921,7 @@ function elizaTest() {
 //       //     // //  ////       // //     // //       //       
 //    // //     // //   /// //    // //     // //       //       
  //////   ///////  //    //  //////   ///////  //////// //////// 
+
 
 
 window.addEventListener('load', () => {
