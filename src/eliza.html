@@ -1640,22 +1640,24 @@ class ElizaScriptReader {
     }
 
     readKeywordRule() {
-        let keyword, keywordSubstitution = "";
+        let keyword = "";
+        let msg_keyword = "";
+        let keywordSubstitution = "";
         let precedence = 0;
         let tags = [];
         let transformation = [];
         let className = "";
 
         let t = this.tok.nexttok();
-        keyword = t.value;
+        msg_keyword = keyword = t.value;
         if (keyword === "NONE") {
             keyword = SPECIAL_RULE_NONE;
         }
         if (this.script.rules.has(keyword)) {
-            throw new Error(this.errormsg(`keyword rule already specified for keyword '${keyword}'`));
+            throw new Error(this.errormsg(`keyword rule already specified for keyword '${msg_keyword}'`));
         }
         if (this.tok.peektok().close()) {
-            throw new Error(this.errormsg(`keyword '${keyword}' has no associated body`));
+            throw new Error(this.errormsg(`keyword '${msg_keyword}' has no associated body`));
         }
 
         for (t = this.tok.nexttok(); !t.close(); t = this.tok.nexttok()) {
