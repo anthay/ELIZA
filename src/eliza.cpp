@@ -3399,7 +3399,7 @@ private:
 
     bool read_keyword_rule()
     {
-        std::string keyword, keyword_substitution;
+        std::string keyword, keyword_substitution, msg_keyword;
         int precedence = 0;
         stringlist tags;
         struct transform {
@@ -3411,20 +3411,20 @@ private:
 
         token t = tok_.nexttok();
         assert(t.symbol());
-        keyword = t.value;
+        keyword = msg_keyword = t.value;
         if (keyword == "NONE")
             keyword = elizalogic::special_rule_none;
 
         if (script_.rules.find(keyword) != script_.rules.end()) {
             std::string msg("keyword rule already specified for keyword '");
-            msg += keyword;
+            msg += msg_keyword;
             msg += "'";
             throw std::runtime_error(errormsg(msg));
         }
 
         if (tok_.peektok().close()) {
             std::string msg("keyword '");
-            msg += keyword;
+            msg += msg_keyword;
             msg += "' has no associated body";
             throw std::runtime_error(errormsg(msg));
         }
