@@ -1,4 +1,4 @@
-# A Simulation in C++ of Joseph Weizenbaum’s 1966 ELIZA
+# Joseph Weizenbaum’s 1966 ELIZA recreated in C++
 
 I’ve made in C++ what I think is an accurate simulation of the original ELIZA. It is a console application that takes as input the original format script file, which looks like a series of S-expressions, and then waits for the user to type a line of text before responding with a line of text of its own.
 
