@@ -24,6 +24,7 @@
 
 
 /*
+    0.97 Anthony Hay        2024-06-25  Be more forgiving of non-Hollerith characters
     0.96 Anthony Hay        2024-06-23  Add script syntax to *savedoc output
     0.95 Anthony Hay        2024-01-14  Add *full; fix font colour bug
     0.94 Max Hay            2024-01-04  Improve console focus gain
@@ -34,7 +35,7 @@
                                         Mark C. Marino & ChatGPT4 for help
                                         with the initial conversion from C++)
 */
-const VERSION = '0.96';
+const VERSION = '0.97';
 
 
 //////// //       //// ////////    ///    //        ///////   //////   ////  //////  
@@ -70,12 +71,12 @@ const hollerithEncoding = (() => {
     return toBcd;
 })();
 
-// Return true iff given c is in the Hollerith character set
-function hollerithDefined(c) {
-    const code = c.charCodeAt(0);
-    if (code >= HOLLERITHENCODING_TABLE_SIZE)
+// Return true iff given u8 is in the Hollerith character set
+function hollerithDefined(u8) {
+    console.assert(typeof(u8) === "number");
+    if (u8 >= HOLLERITHENCODING_TABLE_SIZE)
         return false;
-    return hollerithEncoding[code] !== HOLLERITH_UNDEFINED;
+    return hollerithEncoding[u8] !== HOLLERITH_UNDEFINED;
 }
 
 
@@ -97,10 +98,15 @@ function utf32ArrayFromString(s) {
     return result;
 }
 
+function utf8ArrayFromString(s) {
+    const encoder = new TextEncoder();
+    const utf8Array = encoder.encode(s);
+    return Array.from(utf8Array);
+}
 
-// return given string with non-Hollerith characters replaced
-// by Hollerith alternatives, where possible, or '-' otherwise
-function filterBcd(s) {
+
+// return given string uppercased and with certain punctuation filtered
+function elizaUppercase(s) {
     let result = "";
     const nonBcdReplacementChar = '-';
     const utf32 = utf32ArrayFromString(s);
@@ -121,21 +127,17 @@ function filterBcd(s) {
         case 0x2039:        // 'SINGLE LEFT-POINTING ANGLE QUOTATION MARK' (U+2039)
         case 0x203A:        // 'SINGLE RIGHT-POINTING ANGLE QUOTATION MARK' (U+203A)
             result += '\''; //   => 'APOSTROPHE' (U+0027)
-            continue;
+            break;
+
+        case 0x0021:        // 'EXCLAMATION MARK' (U+0021)
+        case 0x003F:        // 'QUESTION MARK' (U+003F)
+            result += '.';  //   => 'FULL STOP' (U+002E)
+            break;
+
         default:
+            result += String.fromCodePoint(c32).toUpperCase();
             break;
         }
-        if (c32 > 127) {
-            result += nonBcdReplacementChar;
-            continue;
-        }
-        const c = String.fromCodePoint(c32).toUpperCase();
-        if (c == '?' || c == '!')
-            result += '.';
-        else if (!hollerithDefined(c))
-            result += nonBcdReplacementChar;
-        else
-            result += c;
     }
     return result;
 }
@@ -355,25 +357,29 @@ function hash(d, n) {
 }
 
 
-// return the 36-bit Hollerith encoding of the word s, appropriately
+// return the 36-bit Hollerith encoding of the word str, appropriately
 // space padded, or the last chunk of the word if over 6 characters long
-function lastChunkAsBcd(s) {
+function lastChunkAsBcd(str) {
     let result = BigInt(0);
 
-    const append = (c) => {
-        console.assert(hollerithDefined(c));
-        result = (result << BigInt(6) | BigInt(hollerithEncoding[c.charCodeAt(0)]));
+    const append = (u8) => {
+        result <<= BigInt(6);
+        if (hollerithDefined(u8))
+            result |= BigInt(hollerithEncoding[u8]);
+        else
+            result |= BigInt(u8) & BigInt(0x3F);
     };
 
     let count = 0;
-    if (s) {
+    if (str) {
+        const s = utf8ArrayFromString(str);
         for (let c of s.slice(Math.floor((s.length - 1) / 6) * 6)) {
             append(c);
             count++;
         }
     }
     while (count++ < 6) {
-        append(' ');
+        append(0x20); // space pad to six characters
     }
 
     return result;
@@ -811,7 +817,7 @@ class Eliza {
     // return ELIZA's response to the given input string
     async response(input) {
         console.assert(typeof(input) === "string");
-        let words = split(filterBcd(input));
+        let words = split(elizaUppercase(input));
         this.tracer.beginResponse(words);
 
         this.limit = (this.limit % 4) + 1;
@@ -1904,17 +1910,17 @@ function testEqual() {
 }
 
 
-function testfilterBcd() {
-    console.assert(filterBcd("") === "");
-    console.assert(filterBcd("HELLO") === "HELLO");
-    console.assert(filterBcd("Hello! How are you?") === "HELLO. HOW ARE YOU.");
-    console.assert(filterBcd("Æmilia, Æsop & Phœbë") === "-MILIA, -SOP - PH-B-");
+function testElizaUppercase() {
+    console.assert(elizaUppercase("") === "");
+    console.assert(elizaUppercase("HELLO") === "HELLO");
+    console.assert(elizaUppercase("Hello! How are you?") === "HELLO. HOW ARE YOU.");
+    console.assert(elizaUppercase("Æmilia, æsop & Phœbë") === "ÆMILIA, ÆSOP & PHŒBË");
 
     // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
-    console.assert(filterBcd("I’m depressed") === "I'M DEPRESSED");
+    console.assert(elizaUppercase("I’m depressed") === "I'M DEPRESSED");
 
     const allValidBCD = "0123456789=\'+ABCDEFGHI.)-JKLMNOPQR$* /STUVWXYZ,(";
-    console.assert(filterBcd(allValidBCD) === allValidBCD);
+    console.assert(elizaUppercase(allValidBCD) === allValidBCD);
 }
 
 
@@ -2199,6 +2205,7 @@ function testLastChunkAsBcd() {
     console.assert(lastChunkAsBcd("ALWAYS")         === BigInt("0o214366217062"));
     console.assert(lastChunkAsBcd("INVENTED")       === BigInt("0o252460606060"));
     console.assert(lastChunkAsBcd("123456ABCDEF")   === BigInt("0o212223242526"));
+    console.assert(lastChunkAsBcd("Ç")              === BigInt("0o030760606060"));
 }
 
 
@@ -2900,7 +2907,7 @@ const ORIGINAL_1966_CACM_SCRIPT_BUT_REORDERED =
 
 function elizaTest() {
     testEqual();
-    testfilterBcd();
+    testElizaUppercase();
     testSplit();
     testJoin();
     testToInt();
