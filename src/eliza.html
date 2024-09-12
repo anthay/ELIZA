@@ -599,9 +599,13 @@ class RuleMemory {
         console.assert(this.transforms.length === 4);
         let transformation = this.transforms[hash(lastChunkAsBcd(words[words.length - 1]), 2)];
         const [success, constituents] = match(tags, transformation.decomposition, words);
-        if (!success)
+        if (!success) {
+            this.trace += TRACE_PREFIX;
+            this.trace += "cannot form new memory: decomposition pattern (";
+            this.trace += join(transformation.decomposition);
+            this.trace += ") does not match user text\n";
             return;
-
+        }
         const newMemory = join(reassemble(transformation.reassemblyRules[0], constituents));
         this.trace += TRACE_PREFIX + "new memory: " + newMemory + '\n';
         this.memories.push(newMemory);
@@ -2458,7 +2462,6 @@ function testScript() {
     console.assert(status === "Script error on line 6: keyword 'K2' has no associated body");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)');
     console.assert(status === "success");
-
     [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 0)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
     console.assert(status === "Script error on line 4: reassembly index '0' out of range [1..1]");
     [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 2)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
