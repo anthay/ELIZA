@@ -335,13 +335,36 @@ function reassemble(reassemblyRule, components) {
         if (n < 0) {
             result.push(r);
         } else if (n === 0 || n > components.length) {
-            result.push("THINGY"); // script error: index out of range (in the style of HMMM)
+            // index out of range should never happen because indexes
+            // are checked when the script is processed
+            result.push("HMMM");
         } else {
             let expanded = split(components[n - 1]);
             result = result.concat(expanded);
         }
     }
     return result;
+}
+
+
+function reassemblyIndexesValid(decompositionRule, reassemblyRule) {
+    console.assert(Array.isArray(decompositionRule));
+    console.assert(Array.isArray(reassemblyRule));
+    let indexOutOfRangeMsg = '';
+    const lastDisassemblyPartIndex = decompositionRule.length;
+
+    for (const r of reassemblyRule) {
+        let n = toInt(r);
+        if (n < 0) {
+            continue; // it's not an index
+        }
+        if (n === 0 || n > lastDisassemblyPartIndex) {
+            indexOutOfRangeMsg = `reassembly index '${n}' out of range [1..${lastDisassemblyPartIndex}]`;
+            return [false, indexOutOfRangeMsg];
+        }
+    }
+
+    return [true, ''];
 }
 
 
@@ -1714,7 +1737,12 @@ class ElizaScriptReader {
                     if (trans.decomposition.length == 0)
                         throw new Error(this.errormsg("decompose pattern cannot be empty"));
                     while (this.tok.peektok().open()) {
-                        trans.reassembly.push(this.readReassembly());
+                        const reassembly = this.readReassembly();
+                        const [valid, message] = reassemblyIndexesValid(trans.decomposition, reassembly);
+                        if (!valid) {
+                            throw new Error(this.errormsg(message));
+                        }
+                        trans.reassembly.push(reassembly);
                     }
                     if (!this.tok.nexttok().close()) {
                         throw new Error(this.errormsg("expected ')'"));
@@ -1770,7 +1798,7 @@ class ElizaScriptReader {
 
         t = this.tok.nexttok();
         if (!t.symbol()) {
-            throw new Error(this.errormsg("expected keyword to follow MEMORY"));
+            throw new Error(this.errormsg("expected keyword to follow MEMORY; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))"));
         }
 
         if (this.script.memoryRule.keyword) {
@@ -1781,7 +1809,7 @@ class ElizaScriptReader {
 
         for (let i = 0; i < 4; ++i) {
             if (!this.tok.nexttok().open()) {
-                throw new Error(this.errormsg("expected '('"));
+                throw new Error(this.errormsg("expected '('; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))"));
             }
 
             const decomposition = [];
@@ -1792,7 +1820,7 @@ class ElizaScriptReader {
                 throw new Error(this.errormsg("expected 'decompose_terms = reassemble_terms'"));
             }
             if (!t.symbol("=")) {
-                throw new Error(this.errormsg("expected '='"));
+                throw new Error(this.errormsg("expected '='; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))"));
             }
 
             const reassembly = [];
@@ -1803,7 +1831,11 @@ class ElizaScriptReader {
                 throw new Error(this.errormsg("expected 'decompose_terms = reassemble_terms'"));
             }
             if (!t.close()) {
-                throw new Error(this.errormsg("expected ')'"));
+                throw new Error(this.errormsg("expected ')'; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))"));
+            }
+            const [valid, message] = reassemblyIndexesValid(decomposition, reassembly);
+            if (!valid) {
+                throw new Error(this.errormsg(message));
             }
             const reassembly_rules = [];
             reassembly_rules.push(reassembly);
@@ -1812,7 +1844,7 @@ class ElizaScriptReader {
         }
 
         if (!this.tok.nexttok().close()) {
-            throw new Error(this.errormsg("expected ')'"));
+            throw new Error(this.errormsg("expected ')'; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))"));
         }
 
         return true;
@@ -2167,7 +2199,7 @@ function testReassemble() {
     console.assert(equal(reassemblyRule, [ "1", "-1", "1" ]));
 
     reassemblyRule = [ "1", "0", "1" ];
-    expected = [ "MARY", "THINGY", "MARY" ];
+    expected = [ "MARY", "HMMM", "MARY" ];
     console.assert(equal(reassemble(reassemblyRule, matchingComponents), expected));
     console.assert(equal(reassemblyRule, [ "1", "0", "1" ]));
 
@@ -2177,7 +2209,7 @@ function testReassemble() {
     console.assert(equal(reassemblyRule, [ "1", "6", "1" ]));
 
     reassemblyRule = [ "1", "7", "1" ];
-    expected = [ "MARY", "THINGY", "MARY" ];
+    expected = [ "MARY", "HMMM", "MARY" ];
     console.assert(equal(reassemble(reassemblyRule, matchingComponents), expected));
     console.assert(equal(reassemblyRule, [ "1", "7", "1" ]));
 }
@@ -2403,21 +2435,21 @@ function testScript() {
     [status, s] = readScript('()\n(NONE\n((0)()))');
     console.assert(status === "Script error: no MEMORY rule specified; see Jan 1966 CACM page 41");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY');
-    console.assert(status === "Script error on line 4: expected keyword to follow MEMORY");
+    console.assert(status === "Script error on line 4: expected keyword to follow MEMORY; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY');
-    console.assert(status === "Script error on line 4: expected '('");
+    console.assert(status === "Script error on line 4: expected '('; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(');
     console.assert(status === "Script error on line 4: expected 'decompose_terms = reassemble_terms'");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0');
-    console.assert(status === "Script error on line 4: expected '='");
+    console.assert(status === "Script error on line 4: expected '='; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 =');
     console.assert(status === "Script error on line 4: expected 'decompose_terms = reassemble_terms'");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1');
-    console.assert(status === "Script error on line 4: expected ')'");
+    console.assert(status === "Script error on line 4: expected ')'; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)');
-    console.assert(status === "Script error on line 4: expected '('");
+    console.assert(status === "Script error on line 4: expected '('; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D)');
-    console.assert(status === "Script error on line 4: expected ')'");
+    console.assert(status === "Script error on line 4: expected ')'; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))');
     console.assert(status === "Script error: MEMORY rule keyword 'KEY' is not also a keyword in its own right; see Jan 1966 CACM page 41");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))');
@@ -2426,6 +2458,23 @@ function testScript() {
     console.assert(status === "Script error on line 6: keyword 'K2' has no associated body");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)');
     console.assert(status === "success");
+
+    [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 0)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
+    console.assert(status === "Script error on line 4: reassembly index '0' out of range [1..1]");
+    [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 2)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
+    console.assert(status === "Script error on line 4: reassembly index '2' out of range [1..1]");
+    [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 X 0 = 3 2 1)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
+    console.assert(status === "success");
+    [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 X 0 = 3 2 1 4)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
+    console.assert(status === "Script error on line 4: reassembly index '4' out of range [1..3]");
+    [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (0)))");
+    console.assert(status === "Script error on line 7: reassembly index '0' out of range [1..7]");
+    [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (8)))");
+    console.assert(status === "Script error on line 7: reassembly index '8' out of range [1..7]");
+    [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((0 (/NOUN FAMILY) 0 (* CAT MAT) 0) (6)))\n(K4=K3)");
+    console.assert(status === "Script error on line 7: reassembly index '6' out of range [1..5]");
+    [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = A)(0 = B)(0 = C)(0 = D))\n(KEY((0 KEY 0)(PRE(4)(=KEY))))\n(K4=KEY)");
+    console.assert(status === "Script error on line 5: reassembly index '4' out of range [1..3]");
 }
 
 
@@ -2953,6 +3002,10 @@ Type *help and press the Enter key to see a list of commands.
     let currentScriptText = CACM_1966_01_DOCTOR_SCRIPT;
     let [status, script] = readScript(currentScriptText);
     console.assert(status === 'success');
+    if (status !== 'success') {
+        writeText(status);
+        writeText('');
+    }
     let tracer = new Tracer();
     const TRANSFORMATION_LIMIT_DEFAULT = 500;
     let currentTransformationLimit = TRANSFORMATION_LIMIT_DEFAULT;
@@ -3272,7 +3325,7 @@ The commands are:`);
 *full        - toggle fullscreen mode
 *help        - show this list of commands
 *key         - show all keywords in the current script
-*key KEYWORD - show the transformation rule for the given KEYWORD
+*key KEYWORD - show the rule for the given KEYWORD
 *load        - load a Weizenbaum-format script file from disk
                (you can create an example script file with *savedoc)
 *maxtran N   - specify the maximum number of transformations (default ${TRANSFORMATION_LIMIT_DEFAULT}),
