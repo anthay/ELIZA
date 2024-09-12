@@ -1243,6 +1243,7 @@ bool match(const tagmap & tags, const stringlist & pattern,
 
 #endif
 
+
 DEF_TEST_FUNC(match_test)
 {
     stringlist words{ "HELLO" };
@@ -1819,8 +1820,11 @@ stringlist reassemble(const stringlist & reassembly_rule, const stringlist & com
         int n = to_int(r);
         if (n < 0)
             result.push_back(r);
-        else if (n == 0 || static_cast<size_t>(n) > components.size())
-            result.emplace_back("THINGY"); // script error: index out of range (in the style of HMMM)
+        else if (n == 0 || static_cast<size_t>(n) > components.size()) {
+            // index out of range should never happen because indexes
+            // are checked when the script is processed
+            result.emplace_back("HMMM");
+        }
         else {
             const stringlist expanded{split(components[n - 1])};
             result.insert(result.end(), expanded.begin(), expanded.end());
@@ -1850,7 +1854,7 @@ DEF_TEST_FUNC(reassemble_test)
     TEST_EQUAL(reassemble(reassembly_rule, matching_components), expected);
 
     reassembly_rule = {"1", "0", "1"};
-    expected = {"MARY", "THINGY", "MARY"};
+    expected = {"MARY", "HMMM", "MARY"};
     TEST_EQUAL(reassemble(reassembly_rule, matching_components), expected);
 
     reassembly_rule = {"1", "6", "1"};
@@ -1858,8 +1862,32 @@ DEF_TEST_FUNC(reassemble_test)
     TEST_EQUAL(reassemble(reassembly_rule, matching_components), expected);
 
     reassembly_rule = {"1", "7", "1"};
-    expected = {"MARY", "THINGY", "MARY"};
+    expected = {"MARY", "HMMM", "MARY"};
     TEST_EQUAL(reassemble(reassembly_rule, matching_components), expected);
+}
+
+
+bool reassembly_indexes_valid(
+    const stringlist & decomposition_rule,
+    const stringlist & reassembly_rule,
+    std::string & index_out_of_range_msg)
+{
+    index_out_of_range_msg.clear();
+    const size_t last_dissassembly_part_index = decomposition_rule.size();
+    for (const auto & r : reassembly_rule) {
+        int n = to_int(r);
+        if (n < 0)
+            continue; // it's not an index
+        if (n == 0 || static_cast<size_t>(n) > last_dissassembly_part_index) {
+            index_out_of_range_msg = std::string("reassembly index '")
+                + std::to_string(n)
+                + "' out of range [1.."
+                + std::to_string(last_dissassembly_part_index)
+                + "]";
+            return false;
+        }
+    }
+    return true;
 }
 
 
@@ -1955,9 +1983,9 @@ DEF_TEST_FUNC(reassemble_test)
     of the top bit has no effect on the result.
 */
 
-// recreate the SLIP HASH function: return an n-bit hash value for
-// the given 36-bit datum d, for values of n in range 0..15
-uint_least32_t hash(uint_least64_t d, int n)
+// Recreate the SLIP HASH function: return an n-bit hash value, for n in [0..15],
+// for the given 36-bit datum d. (Uses the von Neumann middle square method.)
+int hash(uint_least64_t d, int n)
 {
     /*  This code implements the SLIP HASH algorithm from the FAP
         code shown above.
@@ -1984,12 +2012,11 @@ uint_least32_t hash(uint_least64_t d, int n)
         calculation. */
     assert(0 <= n && n <= 15);
 
-    d &= 0x7FFFFFFFFULL;        // clear the "sign" bit
-    d *= d;                     // square it
-    d >>= 35 - n / 2;           // move middle n bits to least sig. bits
-    return d & (1ULL << n) - 1; // mask off all but n least sig. bits
+    d &= 0x7FFFFFFFFULL;        // clear all but least significant 35 bits
+    d *= d;                     // square it (any overflow may be safely ignored)
+    d >>= 35 - n / 2;           // shift middle n bits to least significant bits
+    return d & (1ULL << n) - 1; // clear all but least significant n bits
 }
-
 
 DEF_TEST_FUNC(hash_test)
 {
@@ -2405,8 +2432,13 @@ public:
         const auto & transformation = trans_[hash(last_chunk_as_bcd(words.back()), 2)];
 
         stringlist constituents;
-        if (!match(tags, transformation.decomposition, words, constituents))
+        if (!match(tags, transformation.decomposition, words, constituents)) {
+            trace_ << trace_prefix
+                 << "cannot form new memory: decomposition pattern ("
+                 << join(transformation.decomposition)
+                 << ") does not match user text\n";
             return;
+        }
 
         const auto new_memory{join(reassemble(transformation.reassembly_rules[0], constituents))};
         trace_ << trace_prefix << "new memory: " << new_memory << '\n';
@@ -3530,6 +3562,27 @@ public:
             msg += "' is not also a keyword in its own right; see Jan 1966 CACM page 41";
             throw std::runtime_error(msg);
         }
+#if 0
+        std::cout << "----------------\n";
+        const int dict_size = 5;
+        stringlist dict[1 << dict_size];
+        int count = 0;
+        for (const auto & tag : script_.rules) {
+            if (tag.first == elizalogic::special_rule_none)
+                continue;
+            //std::cout << tag.first << " '" << tag.first.substr(0, 6) << "' " << elizalogic::hash(elizalogic::last_chunk_as_bcd(tag.first.substr(0, 6)), dict_size) << "\n";
+            dict[elizalogic::hash(elizalogic::last_chunk_as_bcd(tag.first.substr(0, 6)), dict_size)].push_back(tag.first);
+            ++count;
+        }
+        std::cout << count << " total entries\n";
+        for (int i = 0; i < (1 << dict_size); ++i) {
+            std::cout << i << ":";
+            for (const auto k : dict[i]) {
+                std::cout << " " << k;
+            }
+            std::cout << "\n";
+        }
+#endif
     }
 
 private:
@@ -3598,13 +3651,16 @@ private:
     */
     bool read_memory_rule()
     {
+#define MEMFORM "; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))"
+
         token t = tok_.nexttok();
         assert(t.symbol("MEMORY"));
+        if (script_.mem_rule)
+            throw std::runtime_error(errormsg("MEMORY rule already specified"));
+
         t = tok_.nexttok();
         if (!t.symbol())
-            throw std::runtime_error(errormsg("expected keyword to follow MEMORY"));
-        if (script_.mem_rule)
-            throw std::runtime_error(errormsg("multiple MEMORY rules specified"));
+            throw std::runtime_error(errormsg("expected keyword to follow MEMORY" MEMFORM));
         script_.mem_rule = std::make_shared<elizalogic::rule_memory>(t.value);
 
         for (int i = 0; i < elizalogic::rule_memory::num_transformations; ++i) {
@@ -3612,30 +3668,36 @@ private:
             std::vector<stringlist> reassembly_rules;
 
             if (!tok_.nexttok().open())
-                throw std::runtime_error(errormsg("expected '('"));
+                throw std::runtime_error(errormsg("expected '('" MEMFORM));
             for (t = tok_.nexttok(); !t.symbol("=") && !t.eof(); t = tok_.nexttok())
                 decomposition.push_back(t.value);
             if (decomposition.empty())
-                throw std::runtime_error(errormsg("expected 'decompose_terms = reassemble_terms'"));
+                throw std::runtime_error(errormsg("expected 'decompose_terms = reassemble_terms'" MEMFORM));
             if (!t.symbol("="))
-                throw std::runtime_error(errormsg("expected '='"));
+                throw std::runtime_error(errormsg("expected '='" MEMFORM));
 
             stringlist reassembly;
             for (t = tok_.nexttok(); !t.close() && !t.eof(); t = tok_.nexttok())
                 reassembly.push_back(t.value);
             if (reassembly.empty())
-                throw std::runtime_error(errormsg("expected 'decompose_terms = reassemble_terms'"));
+                throw std::runtime_error(errormsg("expected 'decompose_terms = reassemble_terms'" MEMFORM));
             if (!t.close())
-                throw std::runtime_error(errormsg("expected ')'"));
+                throw std::runtime_error(errormsg("expected ')'" MEMFORM));
             reassembly_rules.push_back(reassembly);
+
+            std::string index_out_of_range_msg;
+            if (!elizalogic::reassembly_indexes_valid(decomposition, reassembly, index_out_of_range_msg))
+                throw std::runtime_error(errormsg(index_out_of_range_msg));
 
             script_.mem_rule->add_transformation_rule(decomposition, reassembly_rules);
         }
 
         if (!tok_.nexttok().close())
-            throw std::runtime_error(errormsg("expected ')'"));
+            throw std::runtime_error(errormsg("expected ')'" MEMFORM));
 
         return true;
+
+#undef MEMFORM
     }
 
 
@@ -3732,6 +3794,9 @@ private:
                         throw std::runtime_error(errormsg("decompose pattern cannot be empty"));
                     do {
                         trans.reassembly.push_back(read_reassembly());
+                        std::string index_out_of_range_msg;
+                        if (!elizalogic::reassembly_indexes_valid(trans.decomposition, trans.reassembly.back(), index_out_of_range_msg))
+                            throw std::runtime_error(errormsg(index_out_of_range_msg));
                     } while (tok_.peektok().open());
                     if (!tok_.nexttok().close())
                         throw std::runtime_error(errormsg("expected ')'"));
@@ -4671,21 +4736,21 @@ DEF_TEST_FUNC(script_test)
     status = read_script("()\n(NONE\n((0)()))");
     TEST_EQUAL(status, "Script error: no MEMORY rule specified; see Jan 1966 CACM page 41");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY");
-    TEST_EQUAL(status, "Script error on line 4: expected keyword to follow MEMORY");
+    TEST_EQUAL(status, "Script error on line 4: expected keyword to follow MEMORY; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY");
-    TEST_EQUAL(status, "Script error on line 4: expected '('");
+    TEST_EQUAL(status, "Script error on line 4: expected '('; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(");
-    TEST_EQUAL(status, "Script error on line 4: expected 'decompose_terms = reassemble_terms'");
+    TEST_EQUAL(status, "Script error on line 4: expected 'decompose_terms = reassemble_terms'; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0");
-    TEST_EQUAL(status, "Script error on line 4: expected '='");
+    TEST_EQUAL(status, "Script error on line 4: expected '='; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 =");
-    TEST_EQUAL(status, "Script error on line 4: expected 'decompose_terms = reassemble_terms'");
+    TEST_EQUAL(status, "Script error on line 4: expected 'decompose_terms = reassemble_terms'; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1");
-    TEST_EQUAL(status, "Script error on line 4: expected ')'");
+    TEST_EQUAL(status, "Script error on line 4: expected ')'; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)");
-    TEST_EQUAL(status, "Script error on line 4: expected '('");
+    TEST_EQUAL(status, "Script error on line 4: expected '('; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D)");
-    TEST_EQUAL(status, "Script error on line 4: expected ')'");
+    TEST_EQUAL(status, "Script error on line 4: expected ')'; expected form is (MEMORY keyword (decomp1=reassm1)(decomp2=reassm2)(decomp3=reassm3)(decomp4=reassm4))");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))");
     TEST_EQUAL(status, "Script error: MEMORY rule keyword 'KEY' is not also a keyword in its own right; see Jan 1966 CACM page 41");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))");
@@ -4694,6 +4759,28 @@ DEF_TEST_FUNC(script_test)
     TEST_EQUAL(status, "Script error on line 6: keyword 'K2' has no associated body");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)");
     TEST_EQUAL(status, "success");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(MEMORY");
+    TEST_EQUAL(status, "Script error on line 7: MEMORY rule already specified");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C) (1 2 3)))");
+    TEST_EQUAL(status, "success");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
+    TEST_EQUAL(status, "success");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 0)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
+    TEST_EQUAL(status, "Script error on line 4: reassembly index '0' out of range [1..1]");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 2)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
+    TEST_EQUAL(status, "Script error on line 4: reassembly index '2' out of range [1..1]");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 X 0 = 3 2 1)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
+    TEST_EQUAL(status, "success");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 X 0 = 3 2 1 4)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
+    TEST_EQUAL(status, "Script error on line 4: reassembly index '4' out of range [1..3]");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (0)))");
+    TEST_EQUAL(status, "Script error on line 7: reassembly index '0' out of range [1..7]");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (8)))");
+    TEST_EQUAL(status, "Script error on line 7: reassembly index '8' out of range [1..7]");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((0 (/NOUN FAMILY) 0 (* CAT MAT) 0) (6)))\n(K4=K3)");
+    TEST_EQUAL(status, "Script error on line 7: reassembly index '6' out of range [1..5]");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = A)(0 = B)(0 = C)(0 = D))\n(KEY((0 KEY 0)(PRE(4)(=KEY))))\n(K4=KEY)");
+    TEST_EQUAL(status, "Script error on line 5: reassembly index '4' out of range [1..3]");
 }
 
 
