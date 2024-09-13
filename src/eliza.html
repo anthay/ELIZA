@@ -1587,6 +1587,7 @@ class Tokenizer {
             t.value += ch;
             ch = this.nextch();
         }
+        t.value = elizaUppercase(t.value);
         return t;
     }
     eof() {
@@ -2460,7 +2461,7 @@ function testScript() {
     console.assert(status === "success");
     [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2)');
     console.assert(status === "Script error on line 6: keyword 'K2' has no associated body");
-    [status, s] = readScript('()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)');
+    [status, s] = readScript('()\n(none\n((0)()))\r\n(memory key(0 = but your 1)(0 = b)(0 = c)(0 = d))\n(key((0)(test)))\n(k2=key)');
     console.assert(status === "success");
     [status, s] = readScript("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 0)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(K3 ((A B C 0 1 2 3) (1 2 3 4 5 6 7)))");
     console.assert(status === "Script error on line 4: reassembly index '0' out of range [1..1]");
@@ -3329,8 +3330,8 @@ The commands are:`);
 *help        - show this list of commands
 *key         - show all keywords in the current script
 *key KEYWORD - show the rule for the given KEYWORD
-*load        - load a Weizenbaum-format script file from disk
-               (you can create an example script file with *savedoc)
+*load        - load an ELIZA script file (UTF-8 encoded) from disk (you
+               can download the DOCTOR script as an example with *savedoc)
 *maxtran N   - specify the maximum number of transformations (default ${TRANSFORMATION_LIMIT_DEFAULT}),
                0 means no limit (for limiting Turing machine operation;
                also the Escape key will interrupt Turing machines)
