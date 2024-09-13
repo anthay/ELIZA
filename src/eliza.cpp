@@ -3468,6 +3468,7 @@ private:
             t.value.push_back(ch);
             nextch(ch);
         }
+        t.value = elizalogic::eliza_uppercase(t.value);
         return t;
     }
 
@@ -4757,7 +4758,7 @@ DEF_TEST_FUNC(script_test)
     TEST_EQUAL(status, "success");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2)");
     TEST_EQUAL(status, "Script error on line 6: keyword 'K2' has no associated body");
-    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)");
+    status = read_script("()\n(NONE\n((0)()))\r\n(memory key(0 = but your 1)(0 = b)(0 = c)(0 = d))\n(key((0)(test)))\n(k2=key)");
     TEST_EQUAL(status, "success");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = BUT YOUR 1)(0 = B)(0 = C)(0 = D))\n(KEY((0)(TEST)))\n(K2=KEY)\n(MEMORY");
     TEST_EQUAL(status, "Script error on line 7: MEMORY rule already specified");
@@ -6700,7 +6701,7 @@ int main(int argc, const char * argv[])
                 << "  " << pad(as_option("quick"))      << "don't print at IBM 2741 speed (14 characters per second)\n"
                 << "  " << pad(as_option("showscript")) << "print Weizenbaum's 1966 DOCTOR script\n"
                 << "  " << pad("")                      << "e.g. ELIZA " << as_option("showscript") << " > script.txt\n"
-                << "  " << pad("<filename>")            << "use named script file instead of built-in DOCTOR script\n"
+                << "  " << pad("<filename>")            << "use named script file (UTF-8) instead of built-in DOCTOR\n"
                 << "  " << pad("")                      << "e.g. ELIZA script.txt\n"
                 << "\nIn a conversation with ELIZA, these inputs have special meaning:\n"
                 << command_help;
