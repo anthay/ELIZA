@@ -282,7 +282,7 @@ PERHAPS YOU WOULD LIKE TO BE A GIANT ELECTRONIC BRAIN
 
 Eliza always has the last word.
 
-See [1966_01_CACM_article_Eliza_script.txt](https://github.com/anthay/ELIZA/blob/master/src/1966_01_CACM_article_Eliza_script.txt) for a transcription of the complete DOCTOR script from the 1966 CACM paper.
+See [1966_01_CACM_article_Eliza_script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/1966_01_CACM_article_Eliza_script.txt) for a transcription of the complete DOCTOR script from the 1966 CACM paper.
 
 Anthony Hay, February 2021.
 
