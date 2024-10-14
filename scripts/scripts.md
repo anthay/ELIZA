@@ -26,6 +26,7 @@ MAN-MACHINE NATURAL LANGUAGE EXCHANGES BASED ON SELECTED FEATURES OF
 ```
 
 This script will not work with the 1966 CACM ELIZA.
+(But [YAPYAP-script-for-1966-CACM-ELIZA.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script-for-1966-CACM-ELIZA.txt) will.)
 
 
 ### Modern scripts
@@ -45,11 +46,6 @@ a script that implements Turing's Example I in his On Computable Numbers (Procee
 [ELIZA-script-Turing-example2.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-Turing-example2.txt) is
 a script that implements Turing's Example II in his On Computable Numbers (Proceedings of the London Mathematical Society, Nov. 12, 1936, page 234):
 "II. As a slightly more difficult example we can construct a machine to compute the sequence 001011011101111011111... ."
-
-[YAPYAP-script-for-1966-CACM-ELIZA.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script-for-1966-CACM-ELIZA.txt) is
-a modified version of the above YAPYAP-script.txt. The script is compatible with Joseph Weizenbaum's 1966 ELIZA as described
-in his 1966 CACM paper. To achieve this compatibility, the "forced-choice" parts of the original script have been removed,
-and occurrences of "END)" replaced with the appropriate number of closing parenthesis.
 
 
 ### To run 1966 CACM-compatible scripts on ELIZA
