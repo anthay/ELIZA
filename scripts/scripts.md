@@ -6,7 +6,13 @@
 a verbatim transcription (with added whitespace) of the script published as an appendix to Joseph Weizenbaum's ELIZA paper published
 in the January 1966 Communications of the Association of Computing Machinery (CACM). This script is built-in to both
 [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) and [eliza.html](https://github.com/anthay/ELIZA/blob/master/src/eliza.html).
-This is the only known contemporaneous script compatibe with Weizenbaum's 1966 CACM ELIZA.
+This is one of only two known contemporaneous scripts compatibe with Weizenbaum's 1966 CACM ELIZA.
+
+[script-02-000311051-1965-03-06-TAPE-100.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-100.txt) is
+a verbatim transcription (with added whitespace) of the script following the ELIZA source code in a computer listing from Joseph Weizenbaum's MIT
+archive ([02-000311051.pdf](https://hdl.handle.net/1721.3/201699)) This script is compatible with Weizenbaum's 1966 CACM ELIZA.
+([script-02-000311051-1965-03-06-TAPE-102.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-102.txt) is 
+a verbatim transcription (with added whitespace) of the script preceeding the ELIZA source code in that listing. It has bugs and won't run as-is.)
 
 
 ### Modern scripts
@@ -27,7 +33,6 @@ a script that implements Turing's Example I in his On Computable Numbers (Procee
 a script that implements Turing's Example II in his On Computable Numbers (Proceedings of the London Mathematical Society, Nov. 12, 1936, page 234):
 "II. As a slightly more difficult example we can construct a machine to compute the sequence 001011011101111011111... ."
 
----
 
 ### To run 1966 CACM-compatible scripts on ELIZA
 
@@ -47,7 +52,8 @@ eliza ELIZA-script-equal-number-Turing-machine.txt
 
 For the Javascript eliza.html, type `*load` and hit return then select the script you wish to run in the file selector dialogue box.
 
----
+
+### Watching Turing machines run
 
 When running Turing machine scripts it may be of interest to see the "tape" at each change of state. In both eliza.cpp and eliza.html the
 `*tracepre` command will show this. For example, here the equal-number script was selected in the file-selection dialog invoked by the
