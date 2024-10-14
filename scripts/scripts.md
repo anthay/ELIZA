@@ -14,6 +14,19 @@ archive ([02-000311051.pdf](https://hdl.handle.net/1721.3/201699)) This script i
 ([script-02-000311051-1965-03-06-TAPE-102.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-102.txt) is 
 a verbatim transcription (with added whitespace) of the script preceeding the ELIZA source code in that listing. It has bugs and won't run as-is.)
 
+[YAPYAP-script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script.txt) is
+a verbatim transcription (with added whitespace) of a script used in a 1965 pilot study by Quarton,
+McGuire and Lorch titled
+
+```text
+MAN-MACHINE NATURAL LANGUAGE EXCHANGES BASED ON SELECTED FEATURES OF
+                     UNRESTRICTED INPUT-I.
+          THE DEVELOPMENT OF THE TIME-SHARED COMPUTER
+      AS A RESEARCH TOOL IN STUDYING DYADIC COMMUNICATION
+```
+
+This script will not work with the 1966 CACM ELIZA.
+
 
 ### Modern scripts
 
@@ -32,6 +45,11 @@ a script that implements Turing's Example I in his On Computable Numbers (Procee
 [ELIZA-script-Turing-example2.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-Turing-example2.txt) is
 a script that implements Turing's Example II in his On Computable Numbers (Proceedings of the London Mathematical Society, Nov. 12, 1936, page 234):
 "II. As a slightly more difficult example we can construct a machine to compute the sequence 001011011101111011111... ."
+
+[YAPYAP-script-for-1966-CACM-ELIZA.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script-for-1966-CACM-ELIZA.txt) is
+a modified version of the above YAPYAP-script.txt. The script is compatible with Joseph Weizenbaum's 1966 ELIZA as described
+in his 1966 CACM paper. To achieve this compatibility, the "forced-choice" parts of the original script have been removed,
+and occurrences of "END)" replaced with the appropriate number of closing parenthesis.
 
 
 ### To run 1966 CACM-compatible scripts on ELIZA
