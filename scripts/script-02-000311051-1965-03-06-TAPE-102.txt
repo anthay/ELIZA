@@ -1,0 +1,239 @@
+; Transcript of an ELIZA script printed in a listing preceeding the ELIZA
+; source code in MIT archive document 02-000311051.pdf. The listing was
+; found in a folder titled COMPUTER CONVERSATIONS 1965 and has the header
+;
+;    "PRINT,T0109,2531,.TAPE.,102      T0109 2531    1748.8     03/06"
+;
+; The date the listing was printed is therefore assumed to be 6 March 1965.
+;
+; This is a verbatim transcript except for whitespace, which has been
+; changed for readability.
+;
+; NOTE: This script is not well formed: the list (DON'T YOU KNOW), which
+; should probably be in the list of reassemble rules for the keyword PERHAPS,
+; is instead located at the keyword level.
+
+(HOW DO YOU DO.  I AM THE DOCTOR.  PLEASE SIT DOWN AT THE TYPEWRITER AND TELL ME YOUR PROBLEM.)
+
+(IF 3
+    ((0 IF 0)
+        (DO YOU THINK ITS LIKELY THAT 3)
+        (DO YOU WISH THAT 3)
+        (WHAT DO YOU THINK ABOUT 3)
+        (REALLY, 2 3)))
+
+(MEMORY MY
+    (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
+    (0 YOUR 0 = EARLIER YOU SAID YOUR 3)
+    (0 YOUR 0 = BUT YOUR 3)
+    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))
+
+(NONE
+    ((0)
+        (I AM NOT SURE I UNDERSTAND YOU FULLY)
+        (PLEASE GO ON)
+        (WHAT DOES THAT SUGGEST TO YOU)
+        (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))
+
+(PERHAPS
+    ((0)
+        (YOU DON'T SEEM QUITE CERTAIN)
+        (WHY THE UNCERTAIN TONE)
+        (CAN'T YOU BE MORE POSITIVE)
+        (YOU AREN'T SURE)))
+
+(MAYBE
+    (=PERHAPS))
+
+(DON'T YOU KNOW)
+
+(AM = ARE
+    ((0 ARE YOU 0)
+        (DO YOU BELIEVE YOU ARE 4)
+        (WOULD YOU WANT TO BE 4)
+        (YOU WISH I WOULD TELL YOU YOU ARE 4)
+        (WHAT WOULD IT MEAN IF YOU WERE 4))
+    ((0)
+        (WHY DO YOU SAY 'AM')
+        (I DON'T UNDERSTAND THAT)))
+
+(ARE = AM
+    ((0 AM I 0)
+        (WHY ARE YOU INTERESTED IN WHETHER I AM 4 OR NOT)
+        (WOULD YOU PREFER IF I WEREN'T 4)
+        (PERHAPS I AM 4 IN YOUR FANTASIES)
+        (DO YOU SOMETIMES THINK I AM 4))
+    ((0 AM 0)
+        (DID YOU THINK THEY MIGHT NOT BE 3)
+        (WOULD YOU LIKE IT IF THEY WERE NOT 3)
+        (WHAT IF THEY WERE NOT 3)
+        (POSSIBLY THEY ARE 3)))
+
+(YOUR = MY
+    ((0 MY 0)
+        (WHY ARE YOU CONCERNED OVER MY 3)
+        (WHAT ABOUT YOUR OWN 3)
+        (ARE YOU WORRIED ABOUT SOMEONE ELSES 3)
+        (REALLY, MY 3)))
+
+(WAS = WERE)
+(WERE = WAS)
+(ME = YOU)
+(YOU'RE = I'M)
+(I'M = YOU'RE)
+(MYSELF = YOURSELF)
+(YOURSELF = MYSELF)
+
+(MOTHER DLIST(/NOUN FAMILY))
+(FATHER DLIST(/NOUN FAMILY))
+(SISTER DLIST(/FAMILY))
+(BROTHER DLIST(/FAMILY))
+(WIFE DLIST(/FAMILY))
+(CHILDREN DLIST(/FAMILY))
+
+(I = YOU
+    ((0 YOU ARE 0 I 0)
+        (PERHAPS YOU ARE 4 SOMEONE ELSE)
+        (ARE YOU 4 ANYONE)
+        (ARE YOU 4 ANYONE IN YOUR FAMILY)
+        (PERHAPS YOU WISH I WERE 4 YOU 6))
+    ((0 YOU ARE 0)
+        (IS IT BECAUSE YOU ARE 4 THAT YOU CAME TO ME)
+        (HOW LONG HAVE YOU BEEN 4)
+        (DO YOU BELIEVE IT NORMAL TO BE 4)
+        (DO YOU ENJOY BEING 4))
+    ((0 YOU CAN'T 0)
+        (HOW DO YOU KNOW YOU CAN'T 4)
+        (HAVE YOU TRIED)
+        (PERHAPS YOU COULD 4 NOW)
+        (DO YOU REALLY WANT TO BE ABLE TO 4))
+    ((0 YOU DON'T 0)
+        (DON'T YOU REALLY 4)
+        (WHY DON'T YOU 4)
+        (DO YOU WISH TO BE ABLE TO 4)
+        (DOES THAT TROUBLE YOU))
+    ((0 YOU FEEL 0)
+        (TELL ME MORE ABOUT SUCH FEELINGS)
+        (DO YOU OFTEN FEEL 4)
+        (DO YOU ENJOY FEELING 4)
+        (OF WHAT DOES FEELING 4 REMIND YOU))
+    ((0 YOU 0 I 0)
+        (PERHAPS IN YOUR FANTASY WE 3 EACH OTHER)
+        (DO YOU WISH TO 3 ME)
+        (YOU SEEM TO NEED TO 3 ME)
+        (DO YOU 3 ANYONE ELSE))
+    ((0)
+        (YOU SAY 1)
+        (CAN YOU ELABORATE ON THAT)
+        (DO YOU SAY 1 FOR SOME SPECIAL REASON)
+        (THAT'S QUITE INTERESTING)))
+
+(YOU = I
+    ((0 I 0 YOU 0)
+        (WHY DO YOU THINK I 3 YOU)
+        (DID YOUR PARENTS 3 YOU))
+    ((0 I AM 0)
+        (WHAT MAKES YOU THINK I AM 4)
+        (DOES IT PLEASE YOU TO BELIEVE I AM 4)
+        (DO YOU SOMETIMES WISH YOU WERE 4)
+        (PERHAPS YOU WOULD LIKE TO BE 4))
+    ((0 I 0)
+        (WE WERE DISCUSSING YOU - NOT ME)
+        (OH, I 3)
+        (YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU)
+        (WHAT ARE YOUR FEELINGS NOW)))
+
+(YES
+    ((0)
+        (YOU SEEM QUITE POSITIVE)
+        (YOU ARE SURE)
+        (I SEE)
+        (I UNDERSTAND)))
+
+(NO
+    ((0)
+        (ARE YOU SAYING 'NO' JUST TO BE NEGATIVE)
+        (YOU ARE BEING A BIT NEGATIVE)
+        (WHY NOT)
+        (WHY 'NO')))
+
+(MY = YOUR
+    ((0 YOUR 0 (/FAMILY) 0)
+        (TELL ME MORE ABOUT YOUR FAMILY)
+        (WHO ELSE IN YOUR FAMILY 5)
+        (YOUR 4)
+        (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))
+    ((0 YOUR 0)
+        (YOUR 3)
+        (WHY DO YOU SAY YOUR 3)
+        (DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU)
+        (IS IT IMPORTANT TO YOU THAT 2 3)))
+
+(CAN
+    ((0 CAN I 0)
+        (YOU BELIEVE I CAN 4 DON'T YOU)
+        (YOU WANT BE TO BE ABLE TO 4)
+        (PERHAPS YOU WOULD LIKE TO BE ABLE TO 4 YOURSELF))
+    ((0 CAN YOU 0)
+        (WHETHER OR NOT YOU CAN 4 DEPENDS ON YOU MORE THAN ON ME)
+        (DO YOU WANT TO BE ABLE TO 4)
+        (PERHAPS YOU DON'T WANT TO 4)))
+
+(WHAT
+    ((0)
+        (WHY DO YOU ASK)
+        (DOES THAT QUESTION INTEREST YOU)
+        (WHAT IS IT YOU REALLY WANT TO KNOW)))
+
+(BECAUSE
+    ((0)
+        (IS THAT THE REAL REASON)
+        (DON'T ANY OTHER REASONS COME TO MIND)
+        (DOES THAT REASON SEEM TO EXPLAIN ANYTHING ELSE)
+        (WHAT OTHER REASONS MIGHT THERE BE)))
+
+(WHY
+    ((0 WHY DON'T I 0)
+        (DO YOU BELIEVE I DON'T 5)
+        (PERHAPS I WILL 5 IN GOOD TIME)
+        (SHOULD YOU 5 YOURSELF)
+        (YOU WANT ME TO 5))
+    ((0 WHY CAN'T YOU 0)
+        (DO YOU THINK YOU SHOULD BE ABLE TO 5)
+        (DO YOU WANT TO BE ABLE TO 5)
+        (DO YOU BELIEVE THIS WILL HELP YOU TO 5)
+        (HAVE YOU ANY IDEA WHY YOU CAN'T 5))
+    ((0 WHY 0)
+        (WHY DO YOU THINK 3)
+        (IS IT TRUE THAT 3)
+        (DOES THAT QUESTION INTEREST YOU)
+        (DO YOU WORRY MUCH ABOUT WHY 3)))
+
+(EVERYONE 2
+    ((0)
+        (REALLY, EVERYONE)
+        (CAN YOU THINK OF ANYONE IN PARTICULAR)
+        (WHO, FOR EXAMPLE)
+        (YOU ARE THINKING OF A VERY SPECIAL PERSON)
+        (WHO, MAY I ASK)
+        (SOMEONE SPECIAL PERHAPS)
+        (YOU HAVE A PARTICULAR PERSON IN MIND, DON'T YOU)
+        (WHO DO YOU THINK YOU'RE TALKING ABOUT)))
+
+(EVERYBODY 2
+    (= EVERYONE))
+
+(NOBODY 2
+    (=EVERYONE))
+
+(NOONE 2
+    (=EVERYONE))
+
+(ALWAYS 1
+    ((0)
+        (CAN YOU THINK OF A SPECIFIC EXAMPLE)
+        (WHEN)
+        (WHAT INCIDENT ARE YOU THINKING OF)
+        (REALLY, ALWAYS)))
+
+()
