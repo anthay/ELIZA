@@ -15,6 +15,7 @@ My son Max Hay and I recreated ELIZA in JavaScript [here](https://github.com/ant
 I added [serial I/O](https://github.com/anthay/ELIZA/blob/master/doc/serial_io.md) to run ELIZA on an ASR 33 teletype.
 
 I helped show that 1966 CACM ELIZA is [Turing complete](https://sites.google.com/view/elizagen-org/blog/eliza-is-turing-complete).
+There are several Turing machine ELIZA scripts [here](https://github.com/anthay/ELIZA/blob/master/scripts/scripts.md).
 
 ---
 
