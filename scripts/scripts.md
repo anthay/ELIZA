@@ -72,7 +72,8 @@ For the Javascript eliza.html, type `*load` and hit return then select the scrip
 When running Turing machine scripts it may be of interest to see the "tape" at each change of state. In both eliza.cpp and eliza.html the
 `*tracepre` command will show this. For example, here the equal-number script was selected in the file-selection dialog invoked by the
 `*load` command. Then the `*tracpre` command was given to turn on tracing. The Turing machine was started with the input `equal a a b b b a a b`.
-Each line of the trace shows the text input (the tape) to the PRE script rule, a colon and the currently selected keyword (the state).
+Each line of the trace shows the text input (the tape), a colon and the currently selected keyword (the state) just prior to executing
+the script rule associated with the selected keyword.
 
 ```text
 *load
