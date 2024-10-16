@@ -6629,7 +6629,8 @@ bool parse_cmdline(
     std::string & port_name,
     std::string & script_filename)
 {
-    showscript = nobanner = quick = help = port = false;
+    showscript = nobanner = help = port = false;
+    quick = true;
     script_filename.clear();
     for (int i = 1; i < argc; ++i) {
         if (is_option(argv[i])) {
@@ -6641,6 +6642,8 @@ bool parse_cmdline(
                 nobanner = true;
             else if (as_option("quick") == argv[i])
                 quick = true;
+            else if (as_option("slow") == argv[i])
+                quick = false;
 #ifdef SUPPORT_SERIAL_IO
             else if (as_option("port") == argv[i]) {
                 ++i;
@@ -6677,7 +6680,8 @@ int main(int argc, const char * argv[])
            "  *               print trace of most recent exchange\n"
            "  **              print the transformation rules used in the most recent reply\n"
            "  *cacm           replay conversation from Weizenbaum's Jan 1966 CACM paper\n"
-           "  *key            show all keywords in the current script\n"
+           "  *help           show this list of commands\n"
+           "  *key            show all keywords in the current script (and their precedence)\n"
            "  *key KEYWORD    show the transformation rule for the given KEYWORD\n"
            "  *traceoff       turn off tracing\n"
            "  *traceon        turn on tracing; enter '*' after any exchange to see trace\n"
@@ -6698,9 +6702,10 @@ int main(int argc, const char * argv[])
                 << "  " << pad(as_option("port DEV"))   << "use serial port DEV (e.g. /dev/cu.PL2303G-USBtoUART10)\n"
 #endif
 #endif
-                << "  " << pad(as_option("quick"))      << "don't print at IBM 2741 speed (14 characters per second)\n"
+                << "  " << pad(as_option("quick"))      << "print at full speed (default)\n"
                 << "  " << pad(as_option("showscript")) << "print Weizenbaum's 1966 DOCTOR script\n"
                 << "  " << pad("")                      << "e.g. ELIZA " << as_option("showscript") << " > script.txt\n"
+                << "  " << pad(as_option("slow"))       << "print at IBM 2741 TTY speed (14 characters per second)\n"
                 << "  " << pad("<filename>")            << "use named script file (UTF-8) instead of built-in DOCTOR\n"
                 << "  " << pad("")                      << "e.g. ELIZA script.txt\n"
                 << "\nIn a conversation with ELIZA, these inputs have special meaning:\n"
@@ -6871,13 +6876,21 @@ int main(int argc, const char * argv[])
                     }
                     else {
                         // print a list of all keywords
+                        using pair = std::pair<std::string, int>;
+                        std::vector<pair> v;
                         for (const auto & [key, rule] : eliza_script.rules) {
                             if (key == elizalogic::special_rule_none)
                                 continue;
                             else
-                                std::cout << key << " ";
+                                v.emplace_back(key, rule->precedence());
                         }
-                        std::cout << "(plus MEMORY and NONE)\n";
+                        std::sort(v.begin(), v.end(),
+                            [](const pair & a, const pair & b) {
+                                return a.second > b.second || (a.second == b.second && a.first < b.first);
+                            });
+                        for (const auto & p : v)
+                            std::cout << p.first << '(' << p.second << ")\n";
+                        std::cout << "(" << v.size() << " keywords, plus MEMORY and NONE)\n";
                     }
                 }
                 else
