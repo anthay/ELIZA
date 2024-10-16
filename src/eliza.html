@@ -3261,16 +3261,24 @@ Type *help and press the Enter key to see a list of commands.
                 }
             }
             else {
-                const rules = new Map([...script.rules.entries()].sort());
+                const rules = Array.from(script.rules.entries()).sort((a, b) => {
+                    if (a[1].getPrecedence() !== b[1].getPrecedence()) {
+                        return b[1].getPrecedence() - a[1].getPrecedence();
+                    } else {
+                        return a[0].localeCompare(b[0]);
+                    }
+                });
+                var count = 0;
                 for (const [key, value] of rules) {
                     if (key === SPECIAL_RULE_NONE) {
                         continue;
                     }
                     else {
-                        write(key + ' ');
+                        count++;
+                        write(key + '(' + value.precedence + ')<br/>');
                     }
                 }
-                writeText('(plus MEMORY and NONE)');
+                writeText('(' + count + ' keywords, plus MEMORY and NONE)');
             }
         }
         else if (command === "*CLEAR") {
@@ -3328,7 +3336,7 @@ The commands are:`);
 *fontsize N  - set the font size to N pixels
 *full        - toggle fullscreen mode
 *help        - show this list of commands
-*key         - show all keywords in the current script
+*key         - show all keywords (with precedence) in the current script
 *key KEYWORD - show the rule for the given KEYWORD
 *load        - load an ELIZA script file (UTF-8 encoded) from disk (you
                can download the DOCTOR script as an example with *savedoc)
