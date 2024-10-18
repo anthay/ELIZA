@@ -3269,14 +3269,13 @@ Type *help and press the Enter key to see a list of commands.
                     }
                 });
                 var count = 0;
-                for (const [key, value] of rules) {
+                for (const [key, rule] of rules) {
                     if (key === SPECIAL_RULE_NONE) {
                         continue;
                     }
-                    else {
-                        count++;
-                        write(key + '(' + value.precedence + ')<br/>');
-                    }
+                    count++;
+                    const pad = (rule.precedence < 10) ? '&nbsp;' : '';
+                    writeText(pad + rule.precedence + ' ' + key);
                 }
                 writeText('(' + count + ' keywords, plus MEMORY and NONE)');
             }
