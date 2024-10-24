@@ -6,13 +6,16 @@
 a verbatim transcription (with added whitespace) of the script published as an appendix to Joseph Weizenbaum's ELIZA paper published
 in the January 1966 Communications of the Association of Computing Machinery (CACM). This script is built-in to both
 [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) and [eliza.html](https://github.com/anthay/ELIZA/blob/master/src/eliza.html).
-This is one of only two known contemporaneous scripts compatibe with Weizenbaum's 1966 CACM ELIZA.
+This is one of only two known scripts compatibe with Weizenbaum's 1966 CACM ELIZA.
 
 [script-02-000311051-1965-03-06-TAPE-100.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-100.txt) is
 a verbatim transcription (with added whitespace) of the script following the ELIZA source code in a computer listing from Joseph Weizenbaum's MIT
 archive ([02-000311051.pdf](https://hdl.handle.net/1721.3/201699)) This script is compatible with Weizenbaum's 1966 CACM ELIZA.
 ([script-02-000311051-1965-03-06-TAPE-102.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-102.txt) is 
 a verbatim transcription (with added whitespace) of the script preceeding the ELIZA source code in that listing. It has bugs and won't run as-is.)
+
+The above two scripts are the only ones I am aware of that are compatible with 1966 CACM ELIZA. All other contemporaneous scripts are for
+later versions of ELIZA.
 
 [YAPYAP-script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script.txt) is
 a verbatim transcription (with added whitespace) of a script used in a 1965 pilot study by Quarton,
@@ -26,7 +29,8 @@ MAN-MACHINE NATURAL LANGUAGE EXCHANGES BASED ON SELECTED FEATURES OF
 ```
 
 This script will not work with the 1966 CACM ELIZA.
-(But [YAPYAP-script-for-1966-CACM-ELIZA.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script-for-1966-CACM-ELIZA.txt) will.)
+(But [YAPYAP-script-for-1966-CACM-ELIZA.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script-for-1966-CACM-ELIZA.txt), which has had
+the non-1966 CACM ELIZA parts in YAPYAP removed, will.)
 
 
 ### Modern scripts
