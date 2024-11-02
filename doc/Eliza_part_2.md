@@ -107,7 +107,7 @@ ENDTXT     W'R IT .E. 0                                             001120
 
 In the above quoted text from the CACM paper Weizenbaum says that a rule from the MEMORY list is “randomly selected.” But from the above code on line 001230 we can see that in fact the selection is not random but based on a hash function of the user’s input text, `I=HASH.(BOT.(INPUT),2)+1`. _Therefore, conversations with Eliza do not in fact have a random element and are reproducible._
 
-We do not yet have the implementation of the HASH function.
+We do not yet have the implementation of the HASH function. ([We do now.](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_3.md))
 
 
 
@@ -182,7 +182,7 @@ MAD arrays are declared with a `DIMENSION` statement. `DIMENSION D(N)` allocates
 
 #### Character strings
 
-Weizenbaum developed ELIZA on an IBM 7094, which has a 36-bit word size. Characters on this machine were encoded into 6 bits, so each machine word could contain up to 6 characters. In SLIP a string is recorded in one or more SLIP cells. If a string contained more than 6 characters it would be continued into the following SLIP cell. Each cell, except the last, has its sign bit set to indicate the string is continued. (I don't understand how the sign bit doesn't interfere with the first character in the cell.)
+Weizenbaum developed ELIZA on an IBM 7094, which has a 36-bit word size. Characters on this machine were encoded into 6 bits, so each machine word could contain up to 6 characters. In SLIP a string is broken into words and symbols by the SLIP function TREAD[^3] and stored as a SLIP list, with each word or symbol stored in its own cell. If a word is longer than six characters the sign bit is set in the cell link word and it is continued in the next cell. So a single word may span as many cells as necessary, with all but the last cell having its sign bit set.
 
 
 
@@ -300,3 +300,6 @@ Anthony Hay, March 2022, Devon.
 [^1]: ELIZA: A computer program for the study of natural language communication between man and machine. Communications of the ACM, 9, 36-45. Currently available here: <https://web.stanford.edu/class/linguist238/p36-weizenabaum.pdf>
 
 [^2]: Ibid. page 36
+
+[^3]: "X: TREAD. (L,N) (text read) This function reads text from the tape unit specified by the integer N, and puts the text into list format, and assigns it the name L. All characters including commas and parentheses are considered to be literals. Spaces are interpreted as element separators. Each element is inserted left-justified into a separate SLIP cell. If an element contains more than 6 characters it is continued in the following cell and the first cell is marked with a "1" in its sign position."<https://www.google.co.uk/books/edition/University_of_Michigan_Executive_System/f7oSAQAAMAAJ>
+
