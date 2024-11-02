@@ -27,13 +27,13 @@ READ(7)         NEXT=SEQLR.(S,F)                                                
                 PRINT COMMENT $*$                                               001540
                 TPRINT.(NEXT,0)                                                 001550
                 PRINT FORMAT SNUMB,I                                            001560
-                PRINT COMENT $ $                                                001570
+                PRINT COMMENT $ $                                               001570
                 T'O READ(7)                                                     001580
 DISPLA          CONTINUE                                                        001590
                 PRINT COMMENT $ $                                               001600
                 PRINT COMMENT $MEMORY LIST FOLLOWS$                             001610
                 PRINT COMMENT $ $                                               001620
-                T'H MEMLIST, FOR I=1 , 1, I .G. 4                               001630
+                T'H MEMLST, FOR I=1 , 1, I .G. 4                                001630
 MEMLST          TXTPRT.(MYTRAN(I),0)                                            001640
                 T'O CHANGE                                                      001650
             E'L                                                                 001660
