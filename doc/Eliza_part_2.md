@@ -301,5 +301,5 @@ Anthony Hay, March 2022, Devon.
 
 [^2]: Ibid. page 36
 
-[^3]: "X: TREAD. (L,N) (text read) This function reads text from the tape unit specified by the integer N, and puts the text into list format, and assigns it the name L. All characters including commas and parentheses are considered to be literals. Spaces are interpreted as element separators. Each element is inserted left-justified into a separate SLIP cell. If an element contains more than 6 characters it is continued in the following cell and the first cell is marked with a "1" in its sign position."<https://www.google.co.uk/books/edition/University_of_Michigan_Executive_System/f7oSAQAAMAAJ>
+[^3]: "X:TREAD.(L,N) (text read) This function reads text from the tape unit specified by the integer N, and puts the text into list format, and assigns it the name L. All characters including commas and parentheses are considered to be literals. Spaces are interpreted as element separators. Each element is inserted left-justified into a separate SLIP cell. If an element contains more than 6 characters it is continued in the following cell and the first cell is marked with a "1" in its sign position." <https://www.google.co.uk/books/edition/University_of_Michigan_Executive_System/f7oSAQAAMAAJ>
 
