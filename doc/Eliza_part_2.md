@@ -233,9 +233,9 @@ I've changed my implementation to reflect the new information described above. I
 **********************************************************************
 [vcvarsall.bat] Environment initialized for: 'x64'
 
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community>cd \Eliza
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community>cd \eliza
 
-C:\Eliza>cl /EHsc /W4 eliza.cpp
+C:\eliza>cl /EHsc /W4 eliza.cpp
 Microsoft (R) C/C++ Optimizing Compiler Version 19.29.30140 for x64
 Copyright (C) Microsoft Corporation.  All rights reserved.
 
@@ -246,7 +246,7 @@ Copyright (C) Microsoft Corporation.  All rights reserved.
 /out:eliza.exe
 eliza.obj
 
-C:\>eliza
+C:\eliza>eliza
 -----------------------------------------------------------------
       ELIZA -- A Computer Program for the Study of Natural
          Language Communication Between Man and Machine
@@ -289,7 +289,7 @@ YOUR ONE LUCKY PRIZE
 
 
 
-C:\Eliza>
+C:\eliza>
 ```
 
 Anthony Hay, March 2022, Devon.
