@@ -2641,7 +2641,7 @@ private:
     void trace_begin(const stringlist & words) {
         trace_.str("");
         trace_
-            << trace_prefix << "keyword: " << keyword_ << '\n'
+            << trace_prefix << "selected keyword: " << keyword_ << '\n'
             << trace_prefix << "input: " << join(words) << '\n';
     }
     void trace_nomatch() {
@@ -2651,7 +2651,7 @@ private:
         trace_ << trace_prefix << "reference to equivalence class: " << ref << '\n';
     }
     void trace_decomp(const stringlist & d, const stringlist & constituents) {
-        trace_ << trace_prefix << "matching decompose pattern: " << join(d) << '\n';
+        trace_ << trace_prefix << "matching decompose pattern: (" << join(d) << ")\n";
         trace_ << trace_prefix << "decomposition parts: ";
         for (int id = 1; const auto & c : constituents) {
             if (id > 1)
@@ -2661,7 +2661,7 @@ private:
         trace_ << '\n';
     }
     void trace_reassembly(const stringlist & r) {
-        trace_ << trace_prefix << "selected reassemble rule: " << join(r) << '\n';
+        trace_ << trace_prefix << "selected reassemble rule: (" << join(r) << ")\n";
     }
 };
 
@@ -2870,8 +2870,8 @@ public:
                     << "no transformation keywords found in subclause: " << subclause << '\n';
         }
         else {
-            trace_ << trace_prefix << "keyword found in subclause: " + subclause + '\n';
-            trace_ << trace_prefix << "keyword stack(precedence):";
+            trace_ << trace_prefix << "found keywords in subclause: " + subclause + '\n';
+            trace_ << trace_prefix << "keyword(precedence) stack:";
             bool comma = false;
             for (auto& keyword : keystack) {
                 trace_ << (comma ? ", " : " ") << keyword << "(";
@@ -3563,27 +3563,6 @@ public:
             msg += "' is not also a keyword in its own right; see Jan 1966 CACM page 41";
             throw std::runtime_error(msg);
         }
-#if 0
-        std::cout << "----------------\n";
-        const int dict_size = 5;
-        stringlist dict[1 << dict_size];
-        int count = 0;
-        for (const auto & tag : script_.rules) {
-            if (tag.first == elizalogic::special_rule_none)
-                continue;
-            //std::cout << tag.first << " '" << tag.first.substr(0, 6) << "' " << elizalogic::hash(elizalogic::last_chunk_as_bcd(tag.first.substr(0, 6)), dict_size) << "\n";
-            dict[elizalogic::hash(elizalogic::last_chunk_as_bcd(tag.first.substr(0, 6)), dict_size)].push_back(tag.first);
-            ++count;
-        }
-        std::cout << count << " total entries\n";
-        for (int i = 0; i < (1 << dict_size); ++i) {
-            std::cout << i << ":";
-            for (const auto k : dict[i]) {
-                std::cout << " " << k;
-            }
-            std::cout << "\n";
-        }
-#endif
     }
 
 private:
@@ -6681,7 +6660,7 @@ int main(int argc, const char * argv[])
            "  **              print the transformation rules used in the most recent reply\n"
            "  *cacm           replay conversation from Weizenbaum's Jan 1966 CACM paper\n"
            "  *help           show this list of commands\n"
-           "  *key            show all keywords in the current script (and their precedence)\n"
+           "  *key            show all keywords in the current script (with precedence)\n"
            "  *key KEYWORD    show the transformation rule for the given KEYWORD\n"
            "  *traceoff       turn off tracing\n"
            "  *traceon        turn on tracing; enter '*' after any exchange to see trace\n"
@@ -6889,7 +6868,7 @@ int main(int argc, const char * argv[])
                                 return a.second > b.second || (a.second == b.second && a.first < b.first);
                             });
                         for (const auto & p : v)
-                            std::cout << p.first << '(' << p.second << ")\n";
+                            std::cout << std::setw(3) << p.second << " " << p.first << "\n";
                         std::cout << "(" << v.size() << " keywords, plus MEMORY and NONE)\n";
                     }
                 }
