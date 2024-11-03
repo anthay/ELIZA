@@ -465,7 +465,7 @@ class RuleKeyword {
     }
     applyTransformation(words, tags) {
         this.trace =
-            TRACE_PREFIX + 'keyword: ' + this.keyword + '\n' +
+            TRACE_PREFIX + 'selected keyword: ' + this.keyword + '\n' +
             TRACE_PREFIX + 'input: ' + join(words) + '\n';
         let constituents = [];
 
@@ -490,7 +490,7 @@ class RuleKeyword {
         let rule = this.transforms[r];
         const reassemblyRule = rule.reassemblyRules[rule.nextReassemblyRule];
 
-        this.trace += TRACE_PREFIX + 'matching decompose pattern: ' + join(rule.decomposition) + '\n';
+        this.trace += TRACE_PREFIX + 'matching decompose pattern: (' + join(rule.decomposition) + ')\n';
         this.trace += TRACE_PREFIX + 'decomposition parts: ';
         for (let id = 0; id < constituents.length; ++id) {
             if (id)
@@ -498,7 +498,7 @@ class RuleKeyword {
             this.trace += (id + 1) + ':"' + constituents[id] + '"';
         }
         this.trace += '\n';
-        this.trace += TRACE_PREFIX + 'selected reassemble rule: ' + join(reassemblyRule) + '\n';
+        this.trace += TRACE_PREFIX + 'selected reassemble rule: (' + join(reassemblyRule) + ')\n';
 
         rule.nextReassemblyRule++;
         if (rule.nextReassemblyRule === rule.reassemblyRules.length) {
@@ -752,8 +752,8 @@ class Tracer extends nullTracer {
                     + subclause + '\n'
         }
         else {
-            this.txt += this.prefix + "keyword found in subclause: " + subclause + '\n';
-            this.txt += this.prefix + "keyword stack(precedence):";
+            this.txt += this.prefix + "found keywords in subclause: " + subclause + '\n';
+            this.txt += this.prefix + "keyword(precedence) stack:";
             let comma = false;
             for (let keyword of keystack) {
                 this.txt += (comma ? ', ' : ' ') + keyword + '(';
