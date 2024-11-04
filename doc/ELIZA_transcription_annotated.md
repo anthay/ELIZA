@@ -94,6 +94,9 @@ READ(6)     OBJCT=SEQLR.(S,F)                                                   
             T'O CHANGE                                                          002170
            R* * * * * * * * * * END OF MODIFICATION ROUTINE                     002180
             E'N                                                                 002200
+```
+
+```code
         TPRINT  MAD
             EXTERNAL FUNCTION (LST)                                             000010
             NORMAL MODE IS INTEGER                                              000020
@@ -129,6 +132,53 @@ P           TXTPRT.(OUT,0)                                                      
 DONE        IRALST.(OUT)                                                        000330
             F'N                                                                 000340
             E'N                                                                 000350
+```
+
+The TPRINT.(LST) function prints the given script rule list to the terminal.
+
+- **000060...000120** This loop copies the given LST to a temporary list called OUT.
+   The loop terminates at the end of the list (FA > 0 on line 000070) or at the first sublist (FA = 0 on line 000080).
+
+  - **000110** While copying from LST to OUT, the sign of the cells is also copied. (Recall that the sign bit is used to
+    indicate that the word in the current cell is continued in the next cell.)
+
+- **000130** All of the cells in LST prior to the first sublist have been copied to OUT. Print OUT to the terminal.
+
+- **000140** Move the reader back to the first sublist encountered in LST.
+
+- **000150** NEXT is the next transformation rule. Recall that a transformation rule is a list containing a decomposition
+   sublist, followed by one or more reassembly sublists. There is also a special-case transformation rule that consists
+   of only (= keyword).
+
+- **000160** Is this a special-case (= keyword) form? If so, just print it (000170) and loop back to MORE to print the next
+   transformation rule (there shouldn’t be any because (= keyword) always succeeds).
+
+- **000200** If at the end of the list of transformation rules goto DONE.
+
+- **000210** Print a blank line
+
+- **000220** Create a reader to enumerate the sublists in the current transformation rule.
+
+- **000230** TERM is the next cell in the transformation rule.
+
+- **000240** If TERM is a datum it represents the index of the reassembly rule to use next. (ELIZA uses reassembly rules
+   in turn. It keeps track of which reassembly rule to use next by inserting an index into the in-memory representation
+   of the script.) If TERM is the index, just print it as a decimal integer (000250) and loop back to MEHR.
+
+- **000290** If at the end of the list of reassembly rules goto MORE.
+
+- **000300** Print the current decomposition or reassembly rule.
+
+- **000320** Print the copy of the script rule. In this case the script rule had no associated transformation rules. E.g. (YOURSELF = MYSELF)
+
+- **000330** Return the cells in the OUT list to the list of free cells.
+
+F’N = FUNCTION RETURN; E’N = END OF FUNCTION
+
+Note that line 00090 is missing, presumed removed.
+
+
+```code
         LPRINT  MAD
             EXTERNAL FUNCTION (LST,TAPE)                                        006340
             NORMAL MODE IS INTEGER                                              006350
