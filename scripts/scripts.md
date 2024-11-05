@@ -1,21 +1,27 @@
 # ELIZA Scripts
 
-### Contemporaneous scripts
+## Contemporaneous scripts compatible with 1966 CACM ELIZA
 
-[1966_01_CACM_article_Eliza_script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/1966_01_CACM_article_Eliza_script.txt) is
+I am aware of three scripts from the 1960s that are compatible with 1966 CACM ELIZA. These are...
+
+- [1966_01_CACM_article_Eliza_script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/1966_01_CACM_article_Eliza_script.txt) is
 a verbatim transcription (with added whitespace) of the script published as an appendix to Joseph Weizenbaum's ELIZA paper published
 in the January 1966 Communications of the Association of Computing Machinery (CACM). This script is built-in to both
 [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) and [eliza.html](https://github.com/anthay/ELIZA/blob/master/src/eliza.html).
-This is one of only two known scripts compatibe with Weizenbaum's 1966 CACM ELIZA.
+It has 66 keywords.
 
-[script-02-000311051-1965-03-06-TAPE-100.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-100.txt) is
+- [script-02-000311051-1965-03-06-TAPE-100.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-100.txt) is
 a verbatim transcription (with added whitespace) of the script following the ELIZA source code in a computer listing from Joseph Weizenbaum's MIT
-archive ([02-000311051.pdf](https://hdl.handle.net/1721.3/201699)) This script is compatible with Weizenbaum's 1966 CACM ELIZA.
-([script-02-000311051-1965-03-06-TAPE-102.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-102.txt) is 
-a verbatim transcription (with added whitespace) of the script preceeding the ELIZA source code in that listing. It has bugs and won't run as-is.)
+archive ([02-000311051.pdf](https://hdl.handle.net/1721.3/201699)). It has 35 keywords.
 
-The above two scripts are the only ones I am aware of that are compatible with 1966 CACM ELIZA. All other contemporaneous scripts are for
-later versions of ELIZA.
+- [script-02-000311051-1965-03-06-TAPE-102.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-102.txt) is 
+a verbatim transcription (with added whitespace) of the script preceeding the ELIZA source code in that listing. It won't run as-is because the
+line (DON'T YOU KNOW) is out-of-place. If you remove this line (or move it into the PERHAPS rule where it was probably meant to be) the script is valid.
+It has 33 keywords and is, perhaps unsurprisingly, very similar to the script-02-000311051-1965-03-06-TAPE-100.txt mentioned above.
+
+
+
+## Contemporaneous scripts incompatible with 1966 CACM ELIZA
 
 [YAPYAP-script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script.txt) is
 a verbatim transcription (with added whitespace) of a script used in a 1965 pilot study by Quarton,
@@ -33,7 +39,7 @@ This script will not work with the 1966 CACM ELIZA.
 the non-1966 CACM ELIZA parts in YAPYAP removed, will.)
 
 
-### Modern scripts
+## Modern scripts for 1966 CACM ELIZA
 
 [ELIZA-script-equal-number-Turing-machine.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-equal-number-Turing-machine.txt) is
 a script that implements a Turing machine for 1966 CACM ELIZA to determine if an input contains an equal number of As and Bs. The input `EQUAL A B B A`
@@ -52,7 +58,7 @@ a script that implements Turing's Example II in his On Computable Numbers (Proce
 "II. As a slightly more difficult example we can construct a machine to compute the sequence 001011011101111011111... ."
 
 
-### To run 1966 CACM-compatible scripts on ELIZA
+#### To run 1966 CACM-compatible scripts on ELIZA
 
 Having compiled eliza.cpp, run it with the script path on the command line. E.g.:
 
@@ -71,7 +77,7 @@ eliza ELIZA-script-equal-number-Turing-machine.txt
 For the Javascript eliza.html, type `*load` and hit return then select the script you wish to run in the file selector dialogue box.
 
 
-### Watching Turing machines run
+#### Watching Turing machines run
 
 When running Turing machine scripts it may be of interest to see the "tape" at each change of state. In both eliza.cpp and eliza.html the
 `*tracepre` command will show this. For example, here the equal-number script was selected in the file-selection dialog invoked by the
