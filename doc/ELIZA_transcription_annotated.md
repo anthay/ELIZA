@@ -96,6 +96,9 @@ READ(6)     OBJCT=SEQLR.(S,F)                                                   
             E'N                                                                 002200
 ```
 
+
+### TPRINT.(LST)
+
 ```code
         TPRINT  MAD
             EXTERNAL FUNCTION (LST)                                             000010
@@ -136,47 +139,49 @@ DONE        IRALST.(OUT)                                                        
 
 The TPRINT.(LST) function prints the given script rule list to the terminal.
 
-- **000060...000120** This loop copies the given LST to a temporary list called OUT.
-   The loop terminates at the end of the list (FA > 0 on line 000070) or at the first sublist (FA = 0 on line 000080).
+- **TPRINT/000060...000120** This loop copies the given LST to a temporary list called OUT.
+   The loop terminates at the end of the list (FA > 0 on line TPRINT/000070) or at the first sublist (FA = 0 on line TPRINT/000080).
 
-  - **000110** While copying from LST to OUT, the sign of the cells is also copied. (Recall that the sign bit is used to
+  - **TPRINT/000110** While copying from LST to OUT, the sign of the cells is also copied. (Recall that the sign bit is used to
     indicate that the word in the current cell is continued in the next cell.)
 
-- **000130** All of the cells in LST prior to the first sublist have been copied to OUT. Print OUT to the terminal.
+- **TPRINT/000130** All of the cells in LST prior to the first sublist have been copied to OUT. Print OUT to the terminal.
 
-- **000140** Move the reader back to the first sublist encountered in LST.
+- **TPRINT/000140** Move the reader back to the first sublist encountered in LST.
 
-- **000150** NEXT is the next transformation rule. Recall that a transformation rule is a list containing a decomposition
+- **TPRINT/000150** NEXT is the next transformation rule. Recall that a transformation rule is a list containing a decomposition
    sublist, followed by one or more reassembly sublists. There is also a special-case transformation rule that consists
    of only (= keyword).
 
-- **000160** Is this a special-case (= keyword) form? If so, just print it (000170) and loop back to MORE to print the next
+- **TPRINT/000160** Is this a special-case (= keyword) form? If so, just print it (TPRINT/000170) and loop back to MORE to print the next
    transformation rule (there shouldn’t be any because (= keyword) always succeeds).
 
-- **000200** If at the end of the list of transformation rules goto DONE.
+- **TPRINT/000200** If at the end of the list of transformation rules goto DONE.
 
-- **000210** Print a blank line
+- **TPRINT/000210** Print a blank line
 
-- **000220** Create a reader to enumerate the sublists in the current transformation rule.
+- **TPRINT/000220** Create a reader to enumerate the sublists in the current transformation rule.
 
-- **000230** TERM is the next cell in the transformation rule.
+- **TPRINT/000230** TERM is the next cell in the transformation rule.
 
-- **000240** If TERM is a datum it represents the index of the reassembly rule to use next. (ELIZA uses reassembly rules
+- **TPRINT/000240** If TERM is a datum it represents the index of the reassembly rule to use next. (ELIZA uses reassembly rules
    in turn. It keeps track of which reassembly rule to use next by inserting an index into the in-memory representation
-   of the script.) If TERM is the index, just print it as a decimal integer (000250) and loop back to MEHR.
+   of the script.) If TERM is the index, just print it as a decimal integer (TPRINT/000250) and loop back to MEHR.
 
-- **000290** If at the end of the list of reassembly rules goto MORE.
+- **TPRINT/000290** If at the end of the list of reassembly rules goto MORE.
 
-- **000300** Print the current decomposition or reassembly rule.
+- **TPRINT/000300** Print the current decomposition or reassembly rule.
 
-- **000320** Print the copy of the script rule. In this case the script rule had no associated transformation rules. E.g. (YOURSELF = MYSELF)
+- **TPRINT/000320** Print the copy of the script rule. In this case the script rule had no associated transformation rules. E.g. (YOURSELF = MYSELF)
 
-- **000330** Return the cells in the OUT list to the list of free cells.
+- **TPRINT/000330** Return the cells in the OUT list to the list of free cells.
 
 F’N = FUNCTION RETURN; E’N = END OF FUNCTION
 
-Note that line 00090 is missing, presumed removed.
+Note that line TPRINT/00090 is missing, presumed removed.
 
+
+### LPRINT.(LST,TAPE)
 
 ```code
         LPRINT  MAD
@@ -262,6 +267,7 @@ NUMBER      K=A*262144                                                          
             E'N                                                                 000100
 ```
 
+# ELIZA
 
 This is the top level function that implements ELIZA’s behavior. Broadly, this involves
 
@@ -298,38 +304,40 @@ KEYLST      LIST.(KEY(I))                                                       
 ```
 First declare and initialize some variables.
 
-- **000020** declare two arrays, KEY and MYTRAN:
-  - KEY(0) ... KEY(31) is used as a hashmap of keywords and their associated transformation rules. KEY(32) is the special case "NONE" transformation rule.
+- **ELIZA/000020** declare two arrays, KEY and MYTRAN:
+  - KEY(0) ... KEY(31) is used as a hashmap of keywords and their associated transformation rules.
+     KEY(32) is the special case "NONE" transformation rule.
   - MYTRAN(1) ... MYTRAN(4) is used as a hashmap for the four MEMORY rules. (MYTRAN(0) is unused.)
 
-- **000030** INITAS “[...] forms the list of available space from all core storage not otherwise used. This must be the first executable statement in all programs using the SLIP functions.”
+- **ELIZA/000030** INITAS “[...] forms the list of available space from all core storage not otherwise used.
+   This must be the first executable statement in all programs using the SLIP functions.”
 
-- **000070** SNUMB is the format specification and is declared on line 410 to be “I3 * ”; this allows the user to enter a decimal integer of up to three digits. The number the user enters is stored in the variable SCRIPT. When this version of ELIZA starts it asks the user “WHICH SCRIPT DO YOU WISH TO PLAY”. The user must enter the id of the tape unit where the ELIZA script has been mounted.
+- **ELIZA/000070** SNUMB is the format specification and is declared on line 410 to be “I3 * ”; this allows the user
+   to enter a decimal integer of up to three digits. The number the user enters is stored in the variable SCRIPT.
+   When this version of ELIZA starts it asks the user “WHICH SCRIPT DO YOU WISH TO PLAY”. The user must enter
+   the id of the tape unit where the ELIZA script has been mounted.
 
-- **000080...000110** declare four variables that will be used as lists.
+- **ELIZA/000080...000110** declare four variables that will be used as lists.
 
-- **000120** declare LIMIT to be an integer variable with the initial value 1.
+- **ELIZA/000120** declare LIMIT to be an integer variable with the initial value 1.
 
-- **000130** call the SLIP function TREAD to read the text in the first list in the script (from the tape unit with the id specified by the user above). The text is stored in the list called INPUT and then copied to the list called JUNK. (The first list in a script is the message ELIZA is to print at the start of a conversation, e.g. “HOW DO YOU DO.  PLEASE TELL ME YOUR PROBLEM.”)
+- **ELIZA/000130** call the SLIP function TREAD to read the text in the first list in the script (from the tape unit
+   with the id specified by the user above). The text is stored in the list called INPUT and then copied to the list
+   called JUNK. (The first list in a script is the message ELIZA is to print at the start of a conversation,
+   e.g. “HOW DO YOU DO.  PLEASE TELL ME YOUR PROBLEM.”)
 
-- **000140** delete the cells in the INPUT list.
+- **ELIZA/000140** delete the cells in the INPUT list.
 
-- **000150...000160** initialize MYTRAN(1) ... MYTRAN(4) as lists.
+- **ELIZA/000220...000230** initialize KEY(0) ... KEY(32) as lists.
 
-- **000170** declare MINE to be an integer variable with the initial value 0.
-
-- **000180** declare MYLIST to be a list.
-
-- **000220...000230** initialize KEY(0) ... KEY(32) as lists.
-
-The effect of line 000130 is to read the opening remarks text from the script into the list variable called JUNK.
-The name is a bit odd, but once the opening remarks have been printed (line 000290) the list storage is recovered (line 000300),
+The effect of line ELIZA/000130 is to read the opening remarks text from the script into the list variable called JUNK.
+The name is a bit odd, but once the opening remarks have been printed (line ELIZA/000290) the list storage is recovered (line ELIZA/000300),
 and the JUNK variable is reused later for some other purpose – it’s a temporary scratch pad. Reusing variables is a little
 frowned upon today but would have been common practice when memory was tight. An IBM 7094, used by Weizenbaum to develop ELIZA,
 had 32,768 36-bit words of core memory (RAM).
 'm not sure why the text is read into INPUT and then copied to JUNK instead of being read straight into JUNK.
 
-Note that lines 000040, 000050, 000190, 000200 and 000210 are not present in the listing.
+Note that lines ELIZA/000040, ELIZA/000050, ELIZA/000190, ELIZA/000200 and ELIZA/000210 are not present in the listing.
 Also, there is no ENTRY TO ELIZA statement. Every other function has an ENTRY TO <function name> statement.
 
 
