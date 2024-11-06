@@ -2,7 +2,7 @@
 
 ## Contemporaneous scripts compatible with 1966 CACM ELIZA
 
-I am aware of three scripts from the 1960s that are compatible with 1966 CACM ELIZA. These are...
+I am aware of just three scripts from the 1960s that are compatible with 1966 CACM ELIZA. These are...
 
 - [1966_01_CACM_article_Eliza_script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/1966_01_CACM_article_Eliza_script.txt) is
 a verbatim transcription (with added whitespace) of the script published as an appendix to Joseph Weizenbaum's ELIZA paper published
@@ -16,9 +16,10 @@ archive ([02-000311051.pdf](https://hdl.handle.net/1721.3/201699)). It has 35 ke
 
 - [script-02-000311051-1965-03-06-TAPE-102.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-102.txt) is 
 a verbatim transcription (with added whitespace) of the script preceeding the ELIZA source code in that listing. It won't run as-is because the
-line (DON'T YOU KNOW) is out-of-place. If you remove this line (or move it into the PERHAPS rule where it was probably meant to be) the script is valid.
+line (DON'T YOU KNOW) is out-of-place. If you remove this line, or move it into the PERHAPS rule where it was probably meant to be, the script is valid.
 It has 33 keywords and is, perhaps unsurprisingly, very similar to the script-02-000311051-1965-03-06-TAPE-100.txt mentioned above.
 
+I hope that some day more scripts and conversations may be found in the archives of the people who used ELIZA.
 
 
 ## Contemporaneous scripts incompatible with 1966 CACM ELIZA
@@ -40,6 +41,9 @@ the non-1966 CACM ELIZA parts in YAPYAP removed, will.)
 
 
 ## Modern scripts for 1966 CACM ELIZA
+
+Peter Millican wrote a [paper](https://sites.google.com/view/elizagen-org/blog/eliza-is-turing-complete) explaining why 1966 CACM ELIZA is Turing complete.
+Here are some ELIZA scripts I wrote that demonstrate this...
 
 [ELIZA-script-equal-number-Turing-machine.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-equal-number-Turing-machine.txt) is
 a script that implements a Turing machine for 1966 CACM ELIZA to determine if an input contains an equal number of As and Bs. The input `EQUAL A B B A`
@@ -74,7 +78,10 @@ Windows
 eliza ELIZA-script-equal-number-Turing-machine.txt
 ```
 
-For the Javascript eliza.html, type `*load` and hit return then select the script you wish to run in the file selector dialogue box.
+If no script is specified on the command line the built-in DOCTOR script is used.
+
+For the Javascript version open eliza.html as a webpage, then type `*load` and hit return.
+You can then select the script you wish to run in the file selector dialogue box.
 
 
 #### Watching Turing machines run
@@ -160,5 +167,4 @@ EQUAL A A B B B A A B :EQUAL
 YES, THERE ARE THE SAME NUMBER OF A AND B LETTERS
 ```
 
-Peter Millican wrote a [paper](https://sites.google.com/view/elizagen-org/blog/eliza-is-turing-complete) explaining why 1966 CACM ELIZA is Turing complete.
 
