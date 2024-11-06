@@ -220,6 +220,48 @@ DONE        EXECUTE PLACE.(0,-1)                                                
             EXECUTE IRALST.(STACK)                                              006660
             FUNCTION RETURN LST                                                 006670
             END OF FUNCTION                                                     006680
+```
+The LPRINT.(LST,TAPE) function writes the given LST to the given TAPE unit. LST is written as an S-expression.
+
+- **LPRINT/006370** `BLANK is set to 6 spaces.`
+- **LPRINT/006380** `give the output function (PLACE) the id of the tape unit it should write to`
+- **LPRINT/006390** `LEFTP  = “  (   “`
+- **LPRINT/006400** `RIGHTP = “  )   “`
+- **LPRINT/006410** `BOTH   = “ (  ) “`
+
+(Octal 60 is the BCD character code for space, octal 74 is left parenthesis, octal 34 is right parenthesis.)
+
+- **LPRINT/006420** `Create a new list called STACK and push a sequence reader for LST on to it.`
+- **LPRINT/006430** `Take the sequence reader off the STACK and assign it to S.`
+- **LPRINT/006440** `output “(“`
+- **LPRINT/006450** `get the next WORD from the current sequence S.`
+- **LPRINT/006460** `if WORD is a datum {`
+- **LPRINT/006470** `    output WORD`
+- **LPRINT/006480** `    if WORD is not continued in the next cell, output a blank`
+- **LPRINT/006490** `    goto LPRINT/006450`
+- **LPRINT/006500** `} else if at end of sequence S (i.e. WORD is back at the list header) {`
+- **LPRINT/006510** `    output “)”`
+- **LPRINT/006520** `    if STACK empty goto LPRINT/006650`
+- **LPRINT/006530** `    get the previous sequence reader off the STACK`
+- **LPRINT/006540** `    goto LPRINT/006450`
+- **LPRINT/006550** `} else {   // WORD must be a sublist`
+- **LPRINT/006560** `    if WORD is an empty list {`
+- **LPRINT/006570** `        output “( )”`
+- **LPRINT/006580** `        goto LPRINT/006450`
+- **LPRINT/006590** `    } else {`
+- **LPRINT/006600** `        push the current sequence reader onto the STACK`
+- **LPRINT/006610** `        create a new sequence reader for the sublist WORD`
+- **LPRINT/006620** `        goto LPRINT/006440`
+- **LPRINT/006630** `    }`
+- **LPRINT/006640** `}`
+- **LPRINT/006650** `flush the output buffer to the tape unit`
+- **LPRINT/006660** `erase the STACK`
+- **LPRINT/006670** `the LPRINT return value is the LST it was given`
+
+
+### TESTS.(CAND,S)
+
+```code
         TESTS   MAD
             EXTERNAL FUNCTION(CAND,S)                                           000010
             NORMAL MODE IS INTEGER                                              000020
