@@ -352,40 +352,40 @@ KEYLST      LIST.(KEY(I))                                                       
 ```
 First declare and initialize some variables.
 
-- **ELIZA/000020** declare two arrays, KEY and MYTRAN:
+- **000020** declare two arrays, KEY and MYTRAN:
   - KEY(0) ... KEY(31) is used as a hashmap of keywords and their associated transformation rules.
      KEY(32) is the special case "NONE" transformation rule.
   - MYTRAN(1) ... MYTRAN(4) is used as a hashmap for the four MEMORY rules. (MYTRAN(0) is unused.)
 
-- **ELIZA/000030** INITAS “[...] forms the list of available space from all core storage not otherwise used.
+- **000030** INITAS “[...] forms the list of available space from all core storage not otherwise used.
    This must be the first executable statement in all programs using the SLIP functions.”
 
-- **ELIZA/000070** SNUMB is the format specification and is declared on line 410 to be “I3 * ”; this allows the user
+- **000070** SNUMB is the format specification and is declared on line 410 to be “I3 * ”; this allows the user
    to enter a decimal integer of up to three digits. The number the user enters is stored in the variable SCRIPT.
    When this version of ELIZA starts it asks the user “WHICH SCRIPT DO YOU WISH TO PLAY”. The user must enter
    the id of the tape unit where the ELIZA script has been mounted.
 
-- **ELIZA/000080...000110** declare four variables that will be used as lists.
+- **000080...000110** declare four variables that will be used as lists.
 
-- **ELIZA/000120** declare LIMIT to be an integer variable with the initial value 1.
+- **000120** declare LIMIT to be an integer variable with the initial value 1.
 
-- **ELIZA/000130** call the SLIP function TREAD to read the text in the first list in the script (from the tape unit
+- **000130** call the SLIP function TREAD to read the text in the first list in the script (from the tape unit
    with the id specified by the user above). The text is stored in the list called INPUT and then copied to the list
    called JUNK. (The first list in a script is the message ELIZA is to print at the start of a conversation,
    e.g. “HOW DO YOU DO.  PLEASE TELL ME YOUR PROBLEM.”)
 
-- **ELIZA/000140** delete the cells in the INPUT list.
+- **000140** delete the cells in the INPUT list.
 
-- **ELIZA/000220...000230** initialize KEY(0) ... KEY(32) as lists.
+- **000220...000230** initialize KEY(0) ... KEY(32) as lists.
 
-The effect of line ELIZA/000130 is to read the opening remarks text from the script into the list variable called JUNK.
-The name is a bit odd, but once the opening remarks have been printed (line ELIZA/000290) the list storage is recovered (line ELIZA/000300),
+The effect of line 000130 is to read the opening remarks text from the script into the list variable called JUNK.
+The name is a bit odd, but once the opening remarks have been printed (line 000290) the list storage is recovered (line 000300),
 and the JUNK variable is reused later for some other purpose – it’s a temporary scratch pad. Reusing variables is a little
 frowned upon today but would have been common practice when memory was tight. An IBM 7094, used by Weizenbaum to develop ELIZA,
 had 32,768 36-bit words of core memory (RAM).
 'm not sure why the text is read into INPUT and then copied to JUNK instead of being read straight into JUNK.
 
-Note that lines ELIZA/000040, ELIZA/000050, ELIZA/000190, ELIZA/000200 and ELIZA/000210 are not present in the listing.
+Note that lines 000040, 000050, 000190, 000200 and 000210 are not present in the listing.
 Also, there is no ENTRY TO ELIZA statement. Every other function has an ENTRY TO <function name> statement.
 
 
@@ -413,6 +413,29 @@ MEM             LSSCPY.(POPTOP.(INPUT),MYTRAN(I))                               
            1    (TOP.(INPUT),5)))                                               000440
                 T'O BEGIN                                                       000450
             E'L                                                                 000460
+```
+
+This section reads the script into memory. Every keyword except NONE and MEMORY is inserted into the KEY hashmap,
+hashed on the keyword. The NONE rule is recorded in KEY(32) and the four MEMORY rules are recorded in MYTRAN(1) ... MYTRAN(4).
+
+- **000250, 000260** clear the INPUT list. Any cells that were in the INPUT list are returned to the list of free cells.
+
+- **000270** read the next list from the script.
+
+- **000280...000320** an empty list indicates the end of the ELIZA script file. If the list just read is empty,
+  print the opening remarks (JUNK) that were read from the script on line 000130, clear JUNK and jump to the
+  START label; exit script reading mode and enter conversation mode.
+
+- **000330...000350** if the list is the NONE rule, copy it to KEY(32), then jump back to the BEGIN label to continue reading the script.
+
+- **000360...000410** if the list is the MEMORY rule, copy the four transformation rules to MYTRAN(1) ... MYTRAN(4),
+  then jump back to the BEGIN label to continue reading the script.
+
+- **000420...000460** the list is not any of the above special cases, it’s a normal keyword, so call the HASH function to generate an integer between 0...31 derived from the keyword, or the first six characters of the keyword if it is more than six characters long. The generated integer is used as an index into the KEY array. Append the transformation rules associated with this keyword to the list at that index in KEY. Then jump back to the BEGIN label to continue reading the script.
+
+
+
+```code
            R* * * * * * * * * * BEGIN MAJOR LOOP                                000470
 START       TREAD.(MTLIST.(INPUT),0)                                            000480
             KEYWRD=0                                                            000490
