@@ -139,46 +139,46 @@ DONE        IRALST.(OUT)                                                        
 
 The TPRINT.(LST) function prints the given script rule list to the terminal.
 
-- **TPRINT/000060...000120** This loop copies the given LST to a temporary list called OUT.
-   The loop terminates at the end of the list (FA > 0 on line TPRINT/000070) or at the first sublist (FA = 0 on line TPRINT/000080).
+- **000060...000120** This loop copies the given LST to a temporary list called OUT.
+   The loop terminates at the end of the list (FA > 0 on line TPRINT/000070) or at the first sublist (FA = 0 on line 000080).
 
-  - **TPRINT/000110** While copying from LST to OUT, the sign of the cells is also copied. (Recall that the sign bit is used to
+  - **000110** While copying from LST to OUT, the sign of the cells is also copied. (Recall that the sign bit is used to
     indicate that the word in the current cell is continued in the next cell.)
 
-- **TPRINT/000130** All of the cells in LST prior to the first sublist have been copied to OUT. Print OUT to the terminal.
+- **000130** All of the cells in LST prior to the first sublist have been copied to OUT. Print OUT to the terminal.
 
-- **TPRINT/000140** Move the reader back to the first sublist encountered in LST.
+- **000140** Move the reader back to the first sublist encountered in LST.
 
-- **TPRINT/000150** NEXT is the next transformation rule. Recall that a transformation rule is a list containing a decomposition
+- **000150** NEXT is the next transformation rule. Recall that a transformation rule is a list containing a decomposition
    sublist, followed by one or more reassembly sublists. There is also a special-case transformation rule that consists
    of only (= keyword).
 
-- **TPRINT/000160** Is this a special-case (= keyword) form? If so, just print it (TPRINT/000170) and loop back to MORE to print the next
+- **000160** Is this a special-case (= keyword) form? If so, just print it (000170) and loop back to MORE to print the next
    transformation rule (there shouldn’t be any because (= keyword) always succeeds).
 
-- **TPRINT/000200** If at the end of the list of transformation rules goto DONE.
+- **000200** If at the end of the list of transformation rules goto DONE.
 
-- **TPRINT/000210** Print a blank line
+- **000210** Print a blank line
 
-- **TPRINT/000220** Create a reader to enumerate the sublists in the current transformation rule.
+- **000220** Create a reader to enumerate the sublists in the current transformation rule.
 
-- **TPRINT/000230** TERM is the next cell in the transformation rule.
+- **000230** TERM is the next cell in the transformation rule.
 
-- **TPRINT/000240** If TERM is a datum it represents the index of the reassembly rule to use next. (ELIZA uses reassembly rules
+- **000240** If TERM is a datum it represents the index of the reassembly rule to use next. (ELIZA uses reassembly rules
    in turn. It keeps track of which reassembly rule to use next by inserting an index into the in-memory representation
-   of the script.) If TERM is the index, just print it as a decimal integer (TPRINT/000250) and loop back to MEHR.
+   of the script.) If TERM is the index, just print it as a decimal integer (000250) and loop back to MEHR.
 
-- **TPRINT/000290** If at the end of the list of reassembly rules goto MORE.
+- **000290** If at the end of the list of reassembly rules goto MORE.
 
-- **TPRINT/000300** Print the current decomposition or reassembly rule.
+- **000300** Print the current decomposition or reassembly rule.
 
-- **TPRINT/000320** Print the copy of the script rule. In this case the script rule had no associated transformation rules. E.g. (YOURSELF = MYSELF)
+- **000320** Print the copy of the script rule. In this case the script rule had no associated transformation rules. E.g. (YOURSELF = MYSELF)
 
-- **TPRINT/000330** Return the cells in the OUT list to the list of free cells.
+- **000330** Return the cells in the OUT list to the list of free cells.
 
 F’N = FUNCTION RETURN; E’N = END OF FUNCTION
 
-Note that line TPRINT/00090 is missing, presumed removed.
+Note that line 00090 is missing, presumed removed.
 
 
 ### LPRINT.(LST,TAPE)
@@ -223,40 +223,46 @@ DONE        EXECUTE PLACE.(0,-1)                                                
 ```
 The LPRINT.(LST,TAPE) function writes the given LST to the given TAPE unit. LST is written as an S-expression.
 
-- **LPRINT/006370** `BLANK is set to 6 spaces.`
-- **LPRINT/006380** `give the output function (PLACE) the id of the tape unit it should write to`
-- **LPRINT/006390** `LEFTP  = “  (   “`
-- **LPRINT/006400** `RIGHTP = “  )   “`
-- **LPRINT/006410** `BOTH   = “ (  ) “`
+Here is the above MAD code as informal pseudocode:
 
-(Octal 60 is the BCD character code for space, octal 74 is left parenthesis, octal 34 is right parenthesis.)
+```code
 
-- **LPRINT/006420** `Create a new list called STACK and push a sequence reader for LST on to it.`
-- **LPRINT/006430** `Take the sequence reader off the STACK and assign it to S.`
-- **LPRINT/006440** `output “(“`
-- **LPRINT/006450** `get the next WORD from the current sequence S.`
-- **LPRINT/006460** `if WORD is a datum {`
-- **LPRINT/006470** `    output WORD`
-- **LPRINT/006480** `    if WORD is not continued in the next cell, output a blank`
-- **LPRINT/006490** `    goto LPRINT/006450`
-- **LPRINT/006500** `} else if at end of sequence S (i.e. WORD is back at the list header) {`
-- **LPRINT/006510** `    output “)”`
-- **LPRINT/006520** `    if STACK empty goto LPRINT/006650`
-- **LPRINT/006530** `    get the previous sequence reader off the STACK`
-- **LPRINT/006540** `    goto LPRINT/006450`
-- **LPRINT/006550** `} else {   // WORD must be a sublist`
-- **LPRINT/006560** `    if WORD is an empty list {`
-- **LPRINT/006570** `        output “( )”`
-- **LPRINT/006580** `        goto LPRINT/006450`
-- **LPRINT/006590** `    } else {`
-- **LPRINT/006600** `        push the current sequence reader onto the STACK`
-- **LPRINT/006610** `        create a new sequence reader for the sublist WORD`
-- **LPRINT/006620** `        goto LPRINT/006440`
-- **LPRINT/006630** `    }`
-- **LPRINT/006640** `}`
-- **LPRINT/006650** `flush the output buffer to the tape unit`
-- **LPRINT/006660** `erase the STACK`
-- **LPRINT/006670** `the LPRINT return value is the LST it was given`
+LPRINT.(LST,TAPE)
+{
+        BLANK is set to 6 spaces
+        give the output function (PLACE) the id of the tape unit it should write to
+        LEFTP  = "  (   "               // (Octal 60 is the BCD character code for space,
+        RIGHTP = "  )   "               //  octal 74 is left parenthesis,
+        BOTH   = " (  ) "               //  octal 34 is right parenthesis.)
+        create a new list called STACK and push a sequence reader for LST on to it
+        pop the sequence reader off the STACK and assign it to S
+BEGIN:  output "  (   "
+NEXT:   get the next WORD from the current sequence S
+        if WORD is a datum {
+            output WORD
+            if WORD is not continued in the next cell, output a blank
+            goto NEXT
+        } else if at end of sequence S (i.e. WORD is back at the list header) {
+            output "  )   "
+            if STACK empty goto DONE
+            pop the previous sequence reader off the STACK and assign it to S
+            goto NEXT
+        } else {                        // WORD must be a sublist
+            if WORD is an empty list {
+                output " (  ) "
+                goto NEXT
+            } else {
+                push the current sequence reader S onto the STACK
+                create a new sequence reader for the sublist WORD and assign it to S
+                goto BEGIN
+            }
+        }
+DONE:   flush the output buffer to the tape unit
+        erase the STACK
+        the LPRINT return value is the LST it was given
+        return LST
+}
+```
 
 
 ### TESTS.(CAND,S)
