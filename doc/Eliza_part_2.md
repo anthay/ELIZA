@@ -118,17 +118,17 @@ When Eliza detects that the script is not well-formed it will display one of fou
 
 ```text
                    R* * * * * * * * * * SCRIPT ERROR EXIT           001980
-    NOMATCH(1)      PRINT COMMENT $PLEASE CONTINUE $                002200
+    NOMACH(1)       PRINT COMMENT $PLEASE CONTINUE $                002200
                     T'O START                                       002210
-    NOMATCH(2)      PRINT COMMENT $HMMM $                           002220
+    NOMACH(2)       PRINT COMMENT $HMMM $                           002220
                     T'O START                                       002230
-    NOMATCH(3)      PRINT COMMENT $GO ON , PLEASE $                 002240
+    NOMACH(3)       PRINT COMMENT $GO ON , PLEASE $                 002240
                     T'O START                                       002250
-    NOMATCH(4)      PRINT COMMENT $I SEE $                          002260
+    NOMACH(4)       PRINT COMMENT $I SEE $                          002260
                     T'O START                                       002270
 ```
 
-There are two places in the code where these `NOMATCH` labels are jumped to via `T'O NOMATCH(LIMIT)`. (`T'O` is an abreviation of `TRANSFER TO`.)
+There are two places in the code where these `NOMACH` labels are jumped to via `T'O NOMACH(LIMIT)`. (`T'O` is an abreviation of `TRANSFER TO`.)
 
 Under normal circumstances, if no keyword is found in the user's input and no memory is available, or it's not time for the recall of a memory, ELIZA selects one of the messages from the `NONE` list in the script. But there are circumstances where a keyword has been identified, but the patterns associated with that keyword do not match the user's input. This probably shouldn't happen if the script is correctly designed. If it does happen one of these hard-coded messages is displayed. Which one is displayed depends on the value of the variable `LIMIT` at the time of the error.
 
