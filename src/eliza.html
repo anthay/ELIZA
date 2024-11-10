@@ -789,12 +789,12 @@ class Tracer extends nullTracer {
     unknownKey(keyword, useNomatchMessage) {
         this.txt += TRACE_PREFIX + 'ill-formed script? "' + keyword + '" is not a keyword\n';
         if (useNomatchMessage)
-            this.txt += TRACE_PREFIX + 'response is the built-in NOMATCH[LIMIT] message\n';
+            this.txt += TRACE_PREFIX + 'response is the built-in NOMACH[LIMIT] message\n';
     }
     decompFailed(useNomatchMessage) {
         this.txt += TRACE_PREFIX + 'ill-formed script? No decomposition rule matched input\n';
         if (useNomatchMessage)
-            this.txt += TRACE_PREFIX + 'response is the built-in NOMATCH[LIMIT] message\n';
+            this.txt += TRACE_PREFIX + 'response is the built-in NOMACH[LIMIT] message\n';
     }
     newkeyFailed(responseSource) {
         this.txt += TRACE_PREFIX + 'keyword stack empty; response is a ' + responseSource + ' message\n';
