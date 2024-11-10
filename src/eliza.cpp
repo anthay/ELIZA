@@ -1494,10 +1494,34 @@ DEF_TEST_FUNC(match_test)
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 
+    /* There is an example in the SLIP manual:
+       "X:RULE.(L1, L2, L3)
+        This function combines the functions YMATCH and ASMBL as follows: the list L2
+        is operated upon according to the specifications of L1 and produces the resulting
+        list L3.
+        The list L1 consists of two segments separated by an equal sign. The first segment
+        specifies a rule for segmenting L2 and is composed according to the rules for the
+        first argument of YMATCH. The second segment specifies a rule for assembling these
+        segments into the list L3, and is composed according to the rules for the first
+        argument of ASMBL.
+        Example: RULE: (RUL, INPUT, OUTPUT). If INPUT is the sentence
+            (MARY HAD A LITTLE LAMB ITS PROBABILITY WAS ZERO)
+        and RUL is
+            (1 0 2 ITS 0 = DID 1 HAVE A 3)
+        then OUTPUT is constructed as follows:
+            (DID MARY HAVE A LITTLE LAMB)"
+        <https://www.google.co.uk/books/edition/University_of_Michigan_Executive_System/f7oSAQAAMAAJ>
+    */
     // A test pattern from the RULE function description in the SLIP manual
     words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "WAS", "ZERO" };
     pattern = { "1", "0", "2", "ITS", "0" };
     expected = { "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY WAS ZERO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    // My understanding of the SLIP code is that the "ITS" term matches the first ITS in the input, not the second:
+    words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "AND", "ITS", "LIKELYHOOD", "WERE", "ZERO" };
+    pattern = { "1", "0", "2", "ITS", "0" };
+    expected = { "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY AND ITS LIKELYHOOD WERE ZERO" };
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 
@@ -2894,12 +2918,12 @@ public:
     virtual void unknown_key(const std::string & keyword, bool use_nomatch_msg) {
         trace_ << trace_prefix << "ill-formed script: \"" << keyword << "\" is not a keyword\n";
         if (use_nomatch_msg)
-            trace_ << trace_prefix << "response is the built-in NOMATCH[LIMIT] message\n";
+            trace_ << trace_prefix << "response is the built-in NOMACH[LIMIT] message\n";
     }
     virtual void decomp_failed(bool use_nomatch_msg) {
         trace_ << trace_prefix << "ill-formed script? No decomposition rule matched input\n";
         if (use_nomatch_msg)
-            trace_ << trace_prefix << "response is the built-in NOMATCH[LIMIT] message\n";
+            trace_ << trace_prefix << "response is the built-in NOMACH[LIMIT] message\n";
     }
     virtual void newkey_failed(const std::string & response_source) {
         trace_ << trace_prefix << "keyword stack is empty; response is a " << response_source << " message\n";
@@ -3563,6 +3587,27 @@ public:
             msg += "' is not also a keyword in its own right; see Jan 1966 CACM page 41";
             throw std::runtime_error(msg);
         }
+#if 0
+        std::cout << "----------------\n";
+        const int dict_size = 7;
+        stringlist dict[1 << dict_size];
+        int count = 0;
+        for (const auto & tag : script_.rules) {
+            if (tag.first == elizalogic::special_rule_none)
+                continue;
+            //std::cout << tag.first << " '" << tag.first.substr(0, 6) << "' " << elizalogic::hash(elizalogic::last_chunk_as_bcd(tag.first.substr(0, 6)), dict_size) << "\n";
+            dict[elizalogic::hash(elizalogic::last_chunk_as_bcd(tag.first.substr(0, 6)), dict_size)].push_back(tag.first);
+            ++count;
+        }
+        std::cout << count << " total entries\n";
+        for (int i = 0; i < (1 << dict_size); ++i) {
+            std::cout << i << ":";
+            for (const auto k : dict[i]) {
+                std::cout << " " << k;
+            }
+            std::cout << "\n";
+        }
+#endif
     }
 
 private:
