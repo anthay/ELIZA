@@ -17,6 +17,10 @@ I added [serial I/O](https://github.com/anthay/ELIZA/blob/master/doc/serial_io.m
 I helped show that 1966 CACM ELIZA is [Turing complete](https://sites.google.com/view/elizagen-org/blog/eliza-is-turing-complete).
 There are several Turing machine ELIZA scripts [here](https://github.com/anthay/ELIZA/blob/master/scripts/scripts.md).
 
+There is a huge collection of ELIZA-related information at Jeff Shrager's [elizagen.org](https://elizagen.org).
+
+Along with Jeff and others I am contributing to a book about ELIZA. The website is [findingeliza.org](https://findingeliza.org).
+
 ---
 
 ### To build and run ELIZA
