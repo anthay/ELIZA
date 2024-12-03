@@ -3888,6 +3888,7 @@ void read(const char * & script_text, script & s)
 const char * const CACM_1966_01_DOCTOR_script =
     ";\n"
     "; Joseph Weizenbaum's DOCTOR script for ELIZA\n"
+    "; Copyright (c) 1966 Association for Computing Machinery, Inc."
     ";\n"
     "; This is a verbatim transcription of the script on page 44 of the\n"
     "; January 1966 edition of Communications of the ACM, with the following\n"
