@@ -240,47 +240,51 @@ DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR BOYFRIEND MADE YOU COME HE
 Having fed in the above prompts and received the expected responses, I thought I’d try to play the part of the “young lady” and continue this original 1966 conversation.
 
 ```text
-I know my boyfriend loves me and is just trying to help.
-WHY DO YOU SAY YOUR BOYFRIEND LOVES YOU AND IS JUST TRYING TO HELP
-I didn't really come here because my boyfriend is a bully.
+My boyfriend loves me, he's not a bully.
+WHY DO YOU SAY YOUR BOYFRIEND LOVES YOU
+He annoys me sometimes, but I know he cares about me.
+YOU SAY YOU KNOW HE CARES ABOUT YOU
+That's why he wanted me to come here, because he knows I'm unhappy.
+WHY DO YOU ASK
+I didn't.
+CAN YOU ELABORATE ON THAT
+He knows I'm not getting on with my family and thought it would help me if I talked to someone.
+DO YOU THINK ITS LIKELY THAT YOU TALKED TO SOMEONE
+That's why I'm talking to you.
+DOES THAT QUESTION INTEREST YOU
+What question?
+WHAT IS IT YOU REALLY WANT TO KNOW
+How to have a good relationship with my parents.
 DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU
-That's a funny question.
+A brighter future?
 I AM NOT SURE I UNDERSTAND YOU FULLY
-Let's start again. I'm depressed and I need your help.
-WHY DO YOU WANT MY HELP
-Because I can't seem to get out of my spiral of depression on my own.
-IS IT IMPORTANT TO YOU THAT YOUR SPIRAL OF DEPRESSION ON YOUR OWN
-You mean, is it important to me that I'm depressed? Of course it is.
-WE WERE DISCUSSING YOU - NOT ME
-I know we were.
-YOU SAY YOU KNOW WE WAS
-I don't think English is your first language.
-DON'T YOU REALLY THINK ENGLISH IS MY FIRST LANGUAGE
-I'm sorry, I didn't mean to be rude.
-IS IT BECAUSE YOU ARE SORRY THAT YOU CAME TO ME
-I already told you, I'm depressed and my boyfriend thought I should come see you.
-PERHAPS IN YOUR FANTASY WE ALREADY TOLD EACH OTHER
-Excuse me?
-PLEASE GO ON
-Look, aren't you going to ask me about my dreams or something?
-WHAT DOES THAT DREAM SUGGEST TO YOU
-You're not making sense.
-DO YOU SOMETIMES WISH YOU WERE NOT MAKING SENSE
-I can't say I ever have wished for that.
-HOW DO YOU KNOW YOU CAN'T SAY YOU EVER HAVE WISHED FOR THAT
-Because I have no memory of ever wishing to not make sense.
-IS THAT THE REAL REASON
-Dude, we're going in circles.
-LETS DISCUSS FURTHER WHY YOUR MOTHER
-Why my mother what?
+If I could get on better with my parents I'd be a lot happier.
+DO YOU WISH THAT YOU COULD GET ON BETTER WITH YOUR PARENTS I'D BE A LOT HAPPIER
+I do.
+DO YOU SAY YOU DO FOR SOME SPECIAL REASON
+Not really.
+DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR MOTHER
+I'll never be as good as my sister in my mom's eyes.
 TELL ME MORE ABOUT YOUR FAMILY
-Is there any point?
-WHAT DOES THAT SUGGEST TO YOU
-It suggests to me that you are a giant electronic brain.
-PERHAPS YOU WOULD LIKE TO BE A GIANT ELECTRONIC BRAIN
+My sister did better at school than me and she's always got on better with my parents.
+WHO ELSE IN YOUR FAMILY DID BETTER AT SCHOOL THAN YOU AND SHE'S ALWAYS GOT ON BETTER WITH YOUR PARENTS
+It's just me and my sister.
+YOUR SISTER
+That's right.
+BUT YOUR MOTHER TAKES CARE OF YOU
+She does, sure. She's not mean to me. It's just little things she does, probably without even knowing
+  she's doing them, that make me feel stupid and not as loved as my sister.
+WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR SISTER
+I don't think she likes me much either.
+DON'T YOU REALLY THINK SHE LIKES YOU MUCH EITHER
+She's older than me and I was always her silly little annoying sister.
+WERE YOU REALLY
+She thought so.
+BUT YOUR FATHER
+He dotes on her too.
+PLEASE GO ON
 ```
 
-Eliza always has the last word.
 
 See [1966_01_CACM_article_Eliza_script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/1966_01_CACM_article_Eliza_script.txt) for a transcription of the complete DOCTOR script from the 1966 CACM paper.
 
