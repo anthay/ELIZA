@@ -3920,20 +3920,20 @@ const char * const CACM_1966_01_DOCTOR_script =
     "\n"
     "(REMEMBER 5\n"
     "    ((0 YOU REMEMBER 0)\n"
-    "         (DO YOU OFTEN THINK OF 4)\n"
-    "         (DOES THINKING OF 4 BRING ANYTHING ELSE TO MIND)\n"
-    "         (WHAT ELSE DO YOU REMEMBER)\n"
-    "         (WHY DO YOU REMEMBER 4 JUST NOW)\n"
-    "         (WHAT IN THE PRESENT SITUATION REMINDS YOU OF 4)\n"
-    "         (WHAT IS THE CONNECTION BETWEEN ME AND 4))\n"
+    "        (DO YOU OFTEN THINK OF 4)\n"
+    "        (DOES THINKING OF 4 BRING ANYTHING ELSE TO MIND)\n"
+    "        (WHAT ELSE DO YOU REMEMBER)\n"
+    "        (WHY DO YOU REMEMBER 4 JUST NOW)\n"
+    "        (WHAT IN THE PRESENT SITUATION REMINDS YOU OF 4)\n"
+    "        (WHAT IS THE CONNECTION BETWEEN ME AND 4))\n"
     "    ((0 DO I REMEMBER 0)\n"
-    "         (DID YOU THINK I WOULD FORGET 5)\n"
-    "         (WHY DO YOU THINK I SHOULD RECALL 5 NOW)\n"
-    "         (WHAT ABOUT 5)\n"
-    "         (=WHAT)\n"
-    "         (YOU MENTIONED 5))\n"
+    "        (DID YOU THINK I WOULD FORGET 5)\n"
+    "        (WHY DO YOU THINK I SHOULD RECALL 5 NOW)\n"
+    "        (WHAT ABOUT 5)\n"
+    "        (=WHAT)\n"
+    "        (YOU MENTIONED 5))\n"
     "    ((0)\n"
-    "         (NEWKEY)))\n"
+    "        (NEWKEY)))\n"
     "\n"
     "(IF 3\n"
     "    ((0 IF 0)\n"
@@ -6578,7 +6578,7 @@ DEF_TEST_FUNC(test_11_june_1964_prof_student_convo)
 
 
 
-void sleep(long ms)
+void sleep_ms(long ms)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 };
@@ -6609,7 +6609,7 @@ void writeln(const std::string & s)
 
     for (const auto c : s) {
         std::cout << c << std::flush;
-        sleep(1000/cps);
+        sleep_ms(1000/cps);
     }
 
     std::cout << std::endl;
@@ -6930,7 +6930,7 @@ int main(int argc, const char * argv[])
                 // (Weizenbaum developed ELIZA on an IBM 7094 running CTSS.
                 // It's quite likely it took a second or two before responding
                 // to the user's statements.)
-                sleep(1500);
+                sleep_ms(1500);
             }
 
             if (traceauto)
