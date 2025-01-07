@@ -23,6 +23,8 @@ There is a huge collection of ELIZA-related information at Jeff Shrager's [eliza
 
 Along with Jeff and others I am contributing to a book about ELIZA. The website is [findingeliza.org](https://findingeliza.org).
 
+Thanks to [Rupert Lane](https://github.com/rupertl/eliza-ctss), you can now run the original MAD ELIZA code on your PC. (Jeff's [blog](https://sites.google.com/view/elizagen-org/blog/eliza-reanimated) about it.)
+
 ---
 
 ### To build and run ELIZA
