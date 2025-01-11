@@ -1,4 +1,4 @@
-### TPRINT.(LST)
+### CHANGE.(KEY,MYTRAN)
 
 Typing + to ELIZA takes it out of conversation mode and into command mode.
 ELIZA responds with PLEASE INSTRUCT ME and waits for the user to enter any
