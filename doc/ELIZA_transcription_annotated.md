@@ -1,3 +1,20 @@
+### TPRINT.(LST)
+
+Typing + to ELIZA takes it out of conversation mode and into command mode.
+ELIZA responds with PLEASE INSTRUCT ME and waits for the user to enter any
+of seven commands:
+ - ADD _\<keyword\>_ (_\<transformation rule\>_) adds the given transformation rule
+   to an existing keyword rule
+ - APPEND _\<keyword\>_ (_\<existing reassembly rule\>_) (_\<new reassembly rule\>_)
+   appends the new reassembly rule to the transformation rule with the
+   existing reassembly rule in the given keyword
+ - SUBST _\<keyword\>_ (_\<existing reassembly rule\>_) (_\<new reassembly rule\>_)
+   replaces the existing reassembly rule with the new one in the given
+   keyword
+ - TYPE _\<keyword\>_ displays the script rule for the given keyword
+ - DISPLA displays the rules for all keywords as well as the MEMORY rules
+ - RANK _\<keyword\>_ _\<n\>_ allows the user to set the precedence for a keyword
+ - START returns ELIZA to the conversation mode.
 
 
 ```code
@@ -450,6 +467,39 @@ START       TREAD.(MTLIST.(INPUT),0)                                            
             E'L                                                                 000580
             W'R TOP.(INPUT) .E. $*$, T'O NEWLST                                 000590
             S=SEQRDR.(INPUT)                                                    000600
+```
+
+The * command enables you to add a keyword rule to the script of a running ELIZA.
+Here is an ELIZA session where we add the keyword hi:
+
+```text
+r eliza
+W 1839.8
+EXECUTION.
+WHICH SCRIPT DO YOU WISH TO PLAY
+200
+HOW DO YOU DO . PLEASE TELL ME YOUR PROBLEM
+INPUT
+hi eliza
+
+I AM NOT SURE I UNDERSTAND YOU FULLY
+INPUT
+* hi
+((hi eliza) (how do you do))
+((hi 0) (hello from 2))
+
+INPUT
+hi eliza
+
+HOW DO YOU DO
+INPUT
+hi freddy
+
+HELLO FROM FREDDY
+INPUT
+```
+
+```code
 NOTYET      W'R S .L. 0                                                         000610
                 SEQLR.(S,F)                                                     000620
                 T'O NOTYET                                                      000630
