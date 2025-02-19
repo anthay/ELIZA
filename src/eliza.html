@@ -779,7 +779,8 @@ class Tracer extends nullTracer {
         this.txt += t;
     }
     usingMemory(s) {
-        this.txt += TRACE_PREFIX + 'LIMIT=4, so response is the oldest unused memory\n';
+        this.txt += TRACE_PREFIX + 'LIMIT=4, (\"a certain counting mechanism is in a particular state\"),\n'
+                  + TRACE_PREFIX + '  so the response is the oldest unused memory\n';
         this.scrip += s;
     }
     transform(t, s) {
