@@ -2156,6 +2156,73 @@ DEF_TEST_FUNC(hash_test)
     TEST_EQUAL(hash(0633144256060ull, 2), 0ull);
 
 
+    // Real-world test cases from Rupert Lane's CTSS/7094 emulator running the
+    // original SLIP hash function.
+    {
+        // These test values were obtained by running ELIZA in the emulator,
+        // selecting to play .TAPE. 100, typing + to enter the CHANGE mode,
+        // then typing DISPLA to dump the keywords and noting the bucket index.
+        struct test_candidate {
+            const char * word;
+            int expected_hash_value;
+        } tape_100[] = {
+            { "NOONE",       0 },
+            { "WIFE",        1 },
+            { "I",           2 },
+            { "CAN",         2 },
+            { "BECAUSE",     3 },
+            { "IF",          5 },
+            { "CHILDREN",    5 },
+            { "HOW",         6 },
+            { "YES",         6 },
+            { "ALWAYS",      7 },
+            { "MY",          8 },
+            { "YOU'RE",     11 },
+            { "ARE",        12 },
+            { "EVERYONE",   12 },
+            { "MAYBE",      13 },
+            { "YOU",        13 },
+            { "AM",         16 },
+            { "YOUR",       17 },
+            { "PERHAPS",    18 },
+            { "MYSELF",     19 },
+            { "BROTHER",    21 },
+            { "WHAT",       21 },
+            { "MOTHER",     22 },
+            { "SISTER",     22 },
+            { "NO",         24 },
+            { "I'M",        25 },
+            { "WHY",        27 },
+            { "NOBODY",     27 },
+            { "FATHER",     28 },
+            { "WHEN",       29 },
+            { "WAS",        29 },
+            { "ME",         29 },
+            { "YOURSELF",   30 },
+            { "WERE",       31 },
+            { "EVERYBODY",  31 }
+        };
+
+        // for each test case...
+        for (const auto [word, expected_hash_value] : tape_100) {
+            uint_least64_t bcd_encoded_word = 0;
+            const char * c = word;
+            // BCD encode the first six characters of the space-padded test word...
+            for (int i = 0; i < 6; ++i) {
+                bcd_encoded_word <<= 6;
+                if (*c) {
+                    assert(hollerith_defined(*c));
+                    bcd_encoded_word |= hollerith_encoding[static_cast<unsigned char>(*c++)];
+                }
+                else
+                    bcd_encoded_word |= hollerith_encoding[static_cast<unsigned char>(' ')];
+            }
+            // test we get the expected 5-bit hash value
+            TEST_EQUAL(hash(bcd_encoded_word, 5), expected_hash_value);
+        }
+    }
+
+
     // The rest are made up
 
     // HASH(0777777777777, 7)
@@ -2877,7 +2944,9 @@ public:
     virtual void create_memory(const std::string & s) { trace_ << s; }
     virtual void using_memory(const std::string & s)
     {
-        trace_ << trace_prefix << "LIMIT=4, so the response is the oldest unused memory\n";
+        trace_
+            << trace_prefix << "LIMIT=4 (\"a certain counting mechanism is in a particular state\"),\n"
+            << trace_prefix << "  so the response is the oldest unused memory\n";
         script_ << s;
     }
     virtual void subclause_complete(
