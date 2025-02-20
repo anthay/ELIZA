@@ -780,7 +780,7 @@ class Tracer extends nullTracer {
     }
     usingMemory(s) {
         this.txt += TRACE_PREFIX + 'LIMIT=4, (\"a certain counting mechanism is in a particular state\"),\n'
-                  + TRACE_PREFIX + '  so the response is the oldest unused memory\n';
+                  + TRACE_PREFIX + '  and there are unused memories, so the response is the oldest of these\n';
         this.scrip += s;
     }
     transform(t, s) {
@@ -2234,6 +2234,12 @@ function testHash() {
     console.assert(hash(BigInt("0o214366217062"), 15) === 0x70EE);
     console.assert(hash(BigInt("0o633144256060"), 15) === 0x252E);
     console.assert(hash(BigInt("0"),               7) === 0);
+
+    console.assert(hash(lastChunkAsBcd("PURPOSE"),         2) === 1);
+    console.assert(hash(lastChunkAsBcd("DEVONSHIRE"),      2) === 0);
+    console.assert(hash(lastChunkAsBcd("PREDICAMENT"),     2) === 3);
+    console.assert(hash(lastChunkAsBcd("EXECUTIONERS"),    2) === 3);
+    console.assert(hash(lastChunkAsBcd("GLOUCESTERSHIRE"), 2) === 2);
 }
 
 
