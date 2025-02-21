@@ -1114,6 +1114,11 @@ std::string eliza_uppercase(const std::string & utf8_string)
             result += '.';  //   => 'FULL STOP' (U+002E)
             break;
 
+        case 0x00A1:        // 'INVERTED EXCLAMATION MARK' (U+00A1)
+        case 0x00BF:        // 'INVERTED QUESTION MARK' (U+00BF)
+            result += ' ';  //   => 'SPACE' (U+0020)
+            break;
+
         default:
             result += utf32_to_utf8(uppercase_utf32(c32));
             break;
@@ -1132,7 +1137,7 @@ DEF_TEST_FUNC(eliza_uppercase_test)
     TEST_EQUAL(eliza_uppercase("à â ç é è ê ë î ï ô ù û ü ÿ æ œ"), "À Â Ç É È Ê Ë Î Ï Ô Ù Û Ü Ÿ Æ Œ");
     TEST_EQUAL(eliza_uppercase("Maroš Šefčovič"), "MAROŠ ŠEFČOVIČ");
     TEST_EQUAL(eliza_uppercase("Сайфи Кудаш Гилемдар Зигандарович"), "САЙФИ КУДАШ ГИЛЕМДАР ЗИГАНДАРОВИЧ");
-    TEST_EQUAL(eliza_uppercase("¡pónk!"), "¡PÓNK.");
+    TEST_EQUAL(eliza_uppercase("¡pónk!"), " PÓNK.");
 
     // 'LEFT SINGLE QUOTATION MARK' (U+2018
     TEST_EQUAL(eliza_uppercase("I‘m depressed"), "I'M DEPRESSED");
