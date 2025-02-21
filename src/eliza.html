@@ -134,6 +134,11 @@ function elizaUppercase(s) {
             result += '.';  //   => 'FULL STOP' (U+002E)
             break;
 
+        case 0x00A1:        // 'INVERTED EXCLAMATION MARK' (U+00A1)
+        case 0x00BF:        // 'INVERTED QUESTION MARK' (U+00BF)
+            result += ' ';  //   => 'SPACE' (U+0020)
+            break;
+
         default:
             result += String.fromCodePoint(c32).toUpperCase();
             break;
@@ -1954,6 +1959,10 @@ function testElizaUppercase() {
     console.assert(elizaUppercase("HELLO") === "HELLO");
     console.assert(elizaUppercase("Hello! How are you?") === "HELLO. HOW ARE YOU.");
     console.assert(elizaUppercase("Æmilia, æsop & Phœbë") === "ÆMILIA, ÆSOP & PHŒBË");
+    console.assert(elizaUppercase("à â ç é è ê ë î ï ô ù û ü ÿ æ œ") === "À Â Ç É È Ê Ë Î Ï Ô Ù Û Ü Ÿ Æ Œ");
+    console.assert(elizaUppercase("Maroš Šefčovič") === "MAROŠ ŠEFČOVIČ");
+    console.assert(elizaUppercase("Сайфи Кудаш Гилемдар Зигандарович") === "САЙФИ КУДАШ ГИЛЕМДАР ЗИГАНДАРОВИЧ");
+    console.assert(elizaUppercase("¡pónk!") === " PÓNK.");
 
     // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
     console.assert(elizaUppercase("I’m depressed") === "I'M DEPRESSED");
