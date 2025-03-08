@@ -24,6 +24,7 @@
 
 
 /*
+    1.00 Anthony Hay        2025-03-08  Filter more punctuation; more script warnings
     0.97 Anthony Hay        2024-06-25  Be more forgiving of non-Hollerith characters
     0.96 Anthony Hay        2024-06-23  Add script syntax to *savedoc output
     0.95 Anthony Hay        2024-01-14  Add *full; fix font colour bug
@@ -35,7 +36,7 @@
                                         Mark C. Marino & ChatGPT4 for help
                                         with the initial conversion from C++)
 */
-const VERSION = '0.97';
+const VERSION = '1.00';
 
 
 //////// //       //// ////////    ///    //        ///////   //////   ////  //////  
@@ -112,10 +113,13 @@ function elizaUppercase(s) {
     const utf32 = utf32ArrayFromString(s);
     for (let c32 of utf32) {
         switch (c32) {
-        case 0x2018:        // 'LEFT SINGLE QUOTATION MARK' (U+2018)
         case 0x2019:        // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
-        case 0x0022:        // 'QUOTATION MARK' (U+0022)
+            result += '\''; //   => 'APOSTROPHE' (U+0027)
+            break;          // [hoping I’m will become I'M, for example]
+
+        case 0x2018:        // 'LEFT SINGLE QUOTATION MARK' (U+2018)
         case 0x0060:        // 'GRAVE ACCENT' (U+0060) [backtick]
+        case 0x0022:        // 'QUOTATION MARK' (U+0022)
         case 0x00AB:        // 'LEFT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00AB)
         case 0x00BB:        // 'RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00BB)
         case 0x201A:        // 'SINGLE LOW-9 QUOTATION MARK' (U+201A)
@@ -126,7 +130,7 @@ function elizaUppercase(s) {
         case 0x201F:        // 'DOUBLE HIGH-REVERSED-9 QUOTATION MARK' (U+201F)
         case 0x2039:        // 'SINGLE LEFT-POINTING ANGLE QUOTATION MARK' (U+2039)
         case 0x203A:        // 'SINGLE RIGHT-POINTING ANGLE QUOTATION MARK' (U+203A)
-            result += '\''; //   => 'APOSTROPHE' (U+0027)
+            result += ' ';  //   => 'SPACE' (U+0020)
             break;
 
         case 0x0021:        // 'EXCLAMATION MARK' (U+0021)
@@ -137,6 +141,11 @@ function elizaUppercase(s) {
         case 0x00A1:        // 'INVERTED EXCLAMATION MARK' (U+00A1)
         case 0x00BF:        // 'INVERTED QUESTION MARK' (U+00BF)
             result += ' ';  //   => 'SPACE' (U+0020)
+            break;
+
+        case 0x003A:        // 'COLON' (U+003A)
+        case 0x003B:        // 'SEMICOLON' (U+003B)
+            result += ',';  //   => 'COMMA' (U+002C)
             break;
 
         default:
@@ -1637,6 +1646,7 @@ class ElizaScriptReader {
     constructor(scriptText) {
         this.tok = new Tokenizer(scriptText);
         this.script = new Script;
+        this.occurrencesOfReferences = [];
 
         this.script.helloMessage = this.rdlist();
         if (this.tok.peektok().symbol("START")) {
@@ -1655,6 +1665,14 @@ class ElizaScriptReader {
         }
         if (!this.script.rules.has(this.script.memoryRule.keyword)) {
             throw new Error(`Script error: MEMORY rule keyword '${this.script.memoryRule.keyword}' is not also a keyword in its own right; see Jan 1966 CACM page 41`);
+        }
+        for (const [lineNumber, referencedKeyword] of this.occurrencesOfReferences) {
+            if (!this.script.rules.has(referencedKeyword)) {
+                throw new Error(`Script error on line ${lineNumber}: '=${referencedKeyword}' referenced keyword does not exist`);
+            }
+            if (!this.script.rules.get(referencedKeyword).hasTransformation()) {
+                throw new Error(`Script error on line ${lineNumber}: '=${referencedKeyword}' referenced keyword has no associated transformation rules`);
+            }
         }
     }
 
@@ -1734,6 +1752,7 @@ class ElizaScriptReader {
                         throw new Error(this.errormsg("expected equivalence class name"));
                     }
                     className = t.value;
+                    this.occurrencesOfReferences.push([this.tok.line_number, t.value]);
 
                     if (!this.tok.nexttok().close()) {
                         throw new Error(this.errormsg("expected ')'"));
@@ -1781,7 +1800,13 @@ class ElizaScriptReader {
         }
 
         if (!this.tok.peektok().symbol("PRE")) {
-            return this.rdlist(false);
+            const reassembly = this.rdlist(false);
+            if (reassembly.length != 0 && reassembly[0] == "=") {
+                if (reassembly.length != 2)
+                    throw new Error(this.errormsg("expected reference keyword to follow '='"));
+                this.occurrencesOfReferences.push([this.tok.line_number, reassembly[1]]);
+            }
+            return reassembly;
         }
 
         // It's a PRE reassembly, e.g. (PRE (I ARE 3) (=YOU))
@@ -1792,7 +1817,8 @@ class ElizaScriptReader {
         if (reference.length !== 2 || reference[0] !== '=') {
             throw new Error(this.errormsg("expected '(=reference)' in PRE rule"));
         }
-        
+        this.occurrencesOfReferences.push([this.tok.line_number, reference[1]]);
+
         pre.push("(", ...reconstruct, ")");
         pre.push("(", ...reference, ")");
         pre.push(")");
@@ -2405,6 +2431,9 @@ function testScript() {
         (REASSEMBLE RULE C2)
         (REASSEMBLE RULE D2))
     (=REFERENCE))
+(REFERENCE
+    ((0)
+        (REFERENCE)))
 (NONE
     ((0)
         (ANY NUMBER OF, BUT AT LEAST ONE, CONTEXT-FREE MESSAGES)
@@ -2422,7 +2451,7 @@ function testScript() {
     if (status !== 'success') {
         return;
     }
-    console.assert(s.rules.size === 28);
+    console.assert(s.rules.size === 29);
     console.assert(scriptToString(s) === script_text);
 
     let tags = collectTags(s.rules);
