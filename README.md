@@ -4,6 +4,8 @@ I’ve made in C++ what I think is an accurate simulation of the original ELIZA.
 
 ![A simulated blurry CRT terminal screen showing ELIZA running and the start of the famous "men are all alike" conversation.](https://github.com/anthay/ELIZA/blob/master/doc/action-shot.jpg)
 
+ELIZA is a chatbot—the first chatbot—written between 1964-1966 by Joseph Weizenbaum, Professor of Electrical Engineering at MIT, and part-supported by the US Department of Defence Project MAC. It is configured via a "script," the most famous of which is called DOCTOR. The script contains simple pattern matching rules that ELIZA uses to reflect back parts of the text typed in by the user. Weizenbaum's purpose was not to advance our understanding of intelligence, but to create the illusion that ELIZA understood what had been said to it in order to demonstrate how easily people can be fooled.
+
 I made this before the ELIZA source code had been found, and wrote about it in [part 1](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_1.md).
 
 [Part 2](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_2.md) describes changes I made after the ELIZA source code was found.
