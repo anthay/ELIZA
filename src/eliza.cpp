@@ -1082,20 +1082,29 @@ uint32_t uppercase_utf32(uint32_t c32)
 // return given string uppercased and with certain punctuation filtered
 std::string eliza_uppercase(const std::string & utf8_string)
 {
-    /*  Make reasonable efforts to convert the user's text into BCD.
-        E.g. lowercase 'a' is interpreted as 'A'. Sometimes users
-        copy text from documents that contain fancy apostrophes and
-        other non-BCD characters. Reinterpret or remove these. */
+    /*  Make reasonable efforts to convert the user's text into
+        ELIZA-compatible characters. ELIZA was written expecting only
+        characters in the BCD character set, so these issues didn't
+        arise. This reinterpretation is a matter of taste.
+
+        People may type fancy quotation marks and apostrophes, or copy
+        and paste into ELIZA text from documents containing such characters.
+        Punctuation, apart from comma and full stop, may get attached to
+        words so that they are not recognised: e.g. COMPUTER" is not a
+        keyword. We'll remove or reinterpret such punctuation. */
 
     std::string result;
     std::u32string utf32(utf8_to_utf32(utf8_string));
     for (auto ch : utf32) {
         const uint32_t c32 = static_cast<uint32_t>(ch);
         switch (c32) {
-        case 0x2018:        // 'LEFT SINGLE QUOTATION MARK' (U+2018)
         case 0x2019:        // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
-        case 0x0022:        // 'QUOTATION MARK' (U+0022)
+            result += '\''; //   => 'APOSTROPHE' (U+0027)
+            break;          // [hoping I’m will become I'M, for example]
+
+        case 0x2018:        // 'LEFT SINGLE QUOTATION MARK' (U+2018)
         case 0x0060:        // 'GRAVE ACCENT' (U+0060) [backtick]
+        case 0x0022:        // 'QUOTATION MARK' (U+0022)
         case 0x00AB:        // 'LEFT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00AB)
         case 0x00BB:        // 'RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00BB)
         case 0x201A:        // 'SINGLE LOW-9 QUOTATION MARK' (U+201A)
@@ -1106,7 +1115,7 @@ std::string eliza_uppercase(const std::string & utf8_string)
         case 0x201F:        // 'DOUBLE HIGH-REVERSED-9 QUOTATION MARK' (U+201F)
         case 0x2039:        // 'SINGLE LEFT-POINTING ANGLE QUOTATION MARK' (U+2039)
         case 0x203A:        // 'SINGLE RIGHT-POINTING ANGLE QUOTATION MARK' (U+203A)
-            result += '\''; //   => 'APOSTROPHE' (U+0027)
+            result += ' ';  //   => 'SPACE' (U+0020)
             break;
 
         case 0x0021:        // 'EXCLAMATION MARK' (U+0021)
@@ -1117,6 +1126,11 @@ std::string eliza_uppercase(const std::string & utf8_string)
         case 0x00A1:        // 'INVERTED EXCLAMATION MARK' (U+00A1)
         case 0x00BF:        // 'INVERTED QUESTION MARK' (U+00BF)
             result += ' ';  //   => 'SPACE' (U+0020)
+            break;
+
+        case 0x003A:        // 'COLON' (U+003A)
+        case 0x003B:        // 'SEMICOLON' (U+003B)
+            result += ',';  //   => 'COMMA' (U+002C)
             break;
 
         default:
@@ -1139,29 +1153,30 @@ DEF_TEST_FUNC(eliza_uppercase_test)
     TEST_EQUAL(eliza_uppercase("Сайфи Кудаш Гилемдар Зигандарович"), "САЙФИ КУДАШ ГИЛЕМДАР ЗИГАНДАРОВИЧ");
     TEST_EQUAL(eliza_uppercase("¡pónk!"), " PÓNK.");
 
-    // 'LEFT SINGLE QUOTATION MARK' (U+2018
-    TEST_EQUAL(eliza_uppercase("I‘m depressed"), "I'M DEPRESSED");
     // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
-    TEST_EQUAL(eliza_uppercase("I’m depressed"), "I'M DEPRESSED");
+    TEST_EQUAL(eliza_uppercase("I’m depressed"), "I'M DEPRESSED");          // good
+    // 'LEFT SINGLE QUOTATION MARK' (U+2018
+    // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
+    TEST_EQUAL(eliza_uppercase("I'm ‘depressed’"), "I'M  DEPRESSED'");      // oh dear
     // 'QUOTATION MARK' (U+0022)
-    TEST_EQUAL(eliza_uppercase("I'm \"depressed\""), "I'M 'DEPRESSED'");
+    TEST_EQUAL(eliza_uppercase("I'm \"depressed\""), "I'M  DEPRESSED ");    // good
     // 'GRAVE ACCENT' (U+0060) [backtick]
-    TEST_EQUAL(eliza_uppercase("I'm `depressed`"), "I'M 'DEPRESSED'");
+    TEST_EQUAL(eliza_uppercase("I'm `depressed`"), "I'M  DEPRESSED ");      // good
     // 'LEFT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00AB)
     // 'RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK' (U+00BB)
-    TEST_EQUAL(eliza_uppercase("I'm «depressed»"), "I'M 'DEPRESSED'");
+    TEST_EQUAL(eliza_uppercase("I'm «depressed»"), "I'M  DEPRESSED ");      // good
     // 'SINGLE LOW-9 QUOTATION MARK' (U+201A)
     // 'SINGLE HIGH-REVERSED-9 QUOTATION MARK' (U+201B)
-    TEST_EQUAL(eliza_uppercase("I'm ‚depressed‛"), "I'M 'DEPRESSED'");
+    TEST_EQUAL(eliza_uppercase("I'm ‚depressed‛"), "I'M  DEPRESSED ");      // good
     // 'LEFT DOUBLE QUOTATION MARK' (U+201C)
     // 'RIGHT DOUBLE QUOTATION MARK' (U+201D)
-    TEST_EQUAL(eliza_uppercase("I'm “depressed”"), "I'M 'DEPRESSED'");
+    TEST_EQUAL(eliza_uppercase("I'm “depressed”"), "I'M  DEPRESSED ");      // good
     // 'DOUBLE LOW-9 QUOTATION MARK' (U+201E)
     // 'DOUBLE HIGH-REVERSED-9 QUOTATION MARK' (U+201F)
-    TEST_EQUAL(eliza_uppercase("I'm „depressed‟"), "I'M 'DEPRESSED'");
+    TEST_EQUAL(eliza_uppercase("I'm „depressed‟"), "I'M  DEPRESSED ");      // good
     // 'SINGLE LEFT-POINTING ANGLE QUOTATION MARK' (U+2039)
     // 'SINGLE RIGHT-POINTING ANGLE QUOTATION MARK' (U+203A)
-    TEST_EQUAL(eliza_uppercase("I'm ‹depressed›"), "I'M 'DEPRESSED'");
+    TEST_EQUAL(eliza_uppercase("I'm ‹depressed›"), "I'M  DEPRESSED ");      // good
 
     const std::string all_valid_bcd{
         "0123456789=\'+ABCDEFGHI.)-JKLMNOPQR$* /STUVWXYZ,("
@@ -1601,7 +1616,7 @@ bool xmatch(            // return true iff words matched pattern
         if (p_end == pat_array.size()) {
             // this is the last segment of the whole pattern: it must match
             // right up to the very last word
-            wildcard_len = word_array.size() - w_begin - fixed_len;
+            wildcard_len = static_cast<int>(word_array.size()) - w_begin - fixed_len;
             // if it doesn't match at the end, it doesn't match at all
             wildcard_end = wildcard_len;
         }
@@ -1610,7 +1625,7 @@ bool xmatch(            // return true iff words matched pattern
             // consume the smallest number of words possible
             wildcard_len = 0;
             // work forwards from the minimum wildcard length to the maximum possible
-            wildcard_end = word_array.size() - w_begin - fixed_len;
+            wildcard_end = static_cast<int>(word_array.size()) - w_begin - fixed_len;
         }
     }
 
@@ -3542,7 +3557,7 @@ public:
     void set_use_nomatch_msgs(bool f) { use_nomatch_msgs_ = f; }
 
     void set_on_newkey_fail_use_none(bool f) { on_newkey_fail_use_none_ = f; }
-    void set_use_limit(bool f) { limit_ = 2; }
+    //void set_use_limit(bool f) { limit_ = 2; }
 
     void set_delimeters(const stringlist & delims)
     {
@@ -4149,6 +4164,25 @@ public:
             msg += "' is not also a keyword in its own right; see Jan 1966 CACM page 41";
             throw std::runtime_error(msg);
         }
+        for (const auto [line_number, referenced_keyword] : occurrences_of_references_) {
+            const auto r = script_.rules.find(referenced_keyword);
+            if (r == std::end(script_.rules)) {
+                std::string msg("Script error on line ");
+                msg += std::to_string(line_number);
+                msg += ": '=";
+                msg += referenced_keyword;
+                msg += "' referenced keyword does not exist";
+                throw std::runtime_error(msg);
+            }
+            if (!r->second->has_transformation()) {
+                std::string msg("Script error on line ");
+                msg += std::to_string(line_number);
+                msg += ": '=";
+                msg += referenced_keyword;
+                msg += "' referenced keyword has no associated transformation rules";
+                throw std::runtime_error(msg);
+            }
+        }
 #if 0
         std::cout << "----------------\n";
         const int dict_size = 7;
@@ -4175,6 +4209,15 @@ public:
 private:
     tokenizer<T> tok_;
     script & script_;
+
+    struct ref {
+        size_t line_number;
+        std::string referenced_keyword;
+        ref(size_t line, const std::string & keyword)
+        : line_number(line), referenced_keyword(keyword)
+        {}
+    };
+    std::vector<ref> occurrences_of_references_;
 
 
     std::string errormsg(const std::string & msg)
@@ -4292,8 +4335,15 @@ private:
     {
         if (!tok_.nexttok().open())
             throw std::runtime_error(errormsg("expected '('"));
-        if (!tok_.peektok().symbol("PRE"))
-            return rdlist(false);
+        if (!tok_.peektok().symbol("PRE")) {
+            stringlist reassembly(rdlist(false));
+            if (!reassembly.empty() and reassembly[0] == "=") {
+                if (reassembly.size() != 2)
+                    throw std::runtime_error(errormsg("expected reference keyword to follow '='"));
+                occurrences_of_references_.emplace_back(ref(tok_.line(), reassembly[1]));
+            }
+            return reassembly;
+        }
 
         // It's a PRE reassembly, e.g. (PRE (I ARE 3) (=YOU))
         tok_.nexttok(); // skip "PRE"
@@ -4302,6 +4352,7 @@ private:
         stringlist reference = rdlist();
         if (reference.size() != 2 || reference[0] != "=")
             throw std::runtime_error(errormsg("expected '(=reference)' in PRE rule"));
+        occurrences_of_references_.emplace_back(ref(tok_.line(), reference[1]));
         pre.emplace_back("(");
         pre.insert(pre.end(), reconstruct.begin(), reconstruct.end());
         pre.emplace_back(")");
@@ -4367,6 +4418,7 @@ private:
                     if (!t.symbol())
                         throw std::runtime_error(errormsg("expected equivalence class name"));
                     class_name = t.value;
+                    occurrences_of_references_.emplace_back(ref(tok_.line(), t.value));
 
                     if (!tok_.nexttok().close())
                         throw std::runtime_error(errormsg("expected ')'"));
@@ -5157,6 +5209,10 @@ DEF_TEST_FUNC(script_test)
         "        (REASSEMBLE RULE D2))\n"
         "    (=REFERENCE))\n"
 
+        "(REFERENCE\n"
+        "    ((0)\n"
+        "        (REFERENCE)))\n"
+
         "(NONE\n"
         "    ((0)\n"
         "        (ANY NUMBER OF, BUT AT LEAST ONE, CONTEXT-FREE MESSAGES)\n"
@@ -5262,6 +5318,10 @@ DEF_TEST_FUNC(script_test)
         "        (REASSEMBLE RULE D2))\n"
         "    (=REFERENCE))\n"
 
+        "(REFERENCE\n"
+        "    ((0)\n"
+        "        (REFERENCE)))\n"
+
         "(NONE\n"
         "    ((0)\n"
         "        (ANY NUMBER OF, BUT AT LEAST ONE, CONTEXT-FREE MESSAGES)\n"
@@ -5278,7 +5338,7 @@ DEF_TEST_FUNC(script_test)
     elizascript::script s;
     elizascript::read(script_text, s);
 
-    TEST_EQUAL(s.rules.size(), (size_t)28);
+    TEST_EQUAL(s.rules.size(), (size_t)29);
     TEST_EQUAL(to_string(s), recreated_script_text);
     const elizalogic::tagmap tags(elizalogic::collect_tags(s.rules));
     TEST_EQUAL(tags.size(), (size_t)3);
@@ -5894,6 +5954,560 @@ DEF_TEST_FUNC(test_alternative_men_are_all_alike_convo)
     elizalogic::eliza eliza(s.rules, s.mem_rule);
     for (const auto & exchg : alt_men_are_all_alike_convo)
         TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
+}
+
+
+
+DEF_TEST_FUNC(test_every_DOCTOR_response)
+{
+    const exchange comprehensive_convo[] = {
+
+        // (SORRY
+        //     ((0)
+        //         (PLEASE DON'T APOLIGIZE)
+        //         (APOLOGIES ARE NOT NECESSARY)
+        //         (WHAT FEELINGS DO YOU HAVE WHEN YOU APOLOGIZE)
+        //         (I'VE TOLD YOU THAT APOLOGIES ARE NOT REQUIRED)))
+        { "Sorry, I'm a bit nervous.",
+          "PLEASE DON'T APOLIGIZE" },
+
+        // (DONT = DON'T)
+        // (CANT = CAN'T)
+        // (WONT = WON'T)
+
+        // (REMEMBER 5
+        //     ((0 YOU REMEMBER 0)
+        //          (DO YOU OFTEN THINK OF 4)
+        //          (DOES THINKING OF 4 BRING ANYTHING ELSE TO MIND)
+        //          (WHAT ELSE DO YOU REMEMBER)
+        //          (WHY DO YOU REMEMBER 4 JUST NOW)
+        //          (WHAT IN THE PRESENT SITUATION REMINDS YOU OF 4)
+        //          (WHAT IS THE CONNECTION BETWEEN ME AND 4))
+        //     ((0 DO I REMEMBER 0)
+        //          (DID YOU THINK I WOULD FORGET 5)
+        //          (WHY DO YOU THINK I SHOULD RECALL 5 NOW)
+        //          (WHAT ABOUT 5)
+        //          (=WHAT)
+        //          (YOU MENTIONED 5))
+        //     ((0)
+        //          (NEWKEY)))
+        { "I remember The house where I was born, The little window where the sun Came peeping in at morn.",
+          "DO YOU OFTEN THINK OF THE HOUSE WHERE YOU WAS BORN" },
+        { "Do you remember the Gulf of Mexico?",
+          "DID YOU THINK I WOULD FORGET THE GULF OF MEXICO" },
+
+        // (IF 3
+        //     ((0 IF 0)
+        //         (DO YOU THINK ITS LIKELY THAT 3)
+        //         (DO YOU WISH THAT 3)
+        //         (WHAT DO YOU THINK ABOUT 3)
+        //         (REALLY, 2 3)))
+        { "What if the moon is made of cheese?",
+          "DO YOU THINK ITS LIKELY THAT THE MOON IS MADE OF CHEESE" },
+
+        // (DREAMT 4
+        //     ((0 YOU DREAMT 0)
+        //         (REALLY, 4)
+        //         (HAVE YOU EVER FANTASIED 4 WHILE YOU WERE AWAKE)
+        //         (HAVE YOU DREAMT 4 BEFORE)
+        //         (=DREAM)
+        //         (NEWKEY)))
+        { "I dreamt that I dwelt in marble halls",
+          "REALLY, THAT YOU DWELT IN MARBLE HALLS" },
+
+        // (DREAMED = DREAMT 4
+        //     (=DREAMT))
+        { "I dreamed of you.",
+          "HAVE YOU EVER FANTASIED OF I WHILE YOU WERE AWAKE" },
+
+        // (DREAM 3
+        //     ((0)
+        //         (WHAT DOES THAT DREAM SUGGEST TO YOU)
+        //         (DO YOU DREAM OFTEN)
+        //         (WHAT PERSONS APPEAR IN YOUR DREAMS)
+        //         (DON'T YOU BELIEVE THAT DREAM HAS SOMETHING TO DO WITH YOUR PROBLEM)
+        //         (NEWKEY)))
+        { "in my dream i was pregnant, but I'm male.",
+          "WHAT DOES THAT DREAM SUGGEST TO YOU" },
+
+        // (DREAMS = DREAM 3
+        //     (=DREAM))
+        { "My dreams are weird.",
+          "DO YOU DREAM OFTEN" },
+
+        // (HOW
+        //     (=WHAT))
+        { "How do you do?",
+          "WHY DO YOU ASK" },
+
+        // (WHEN
+        //     (=WHAT))
+        { "When am I going to be a grown-up?",
+          "DOES THAT QUESTION INTEREST YOU" },
+
+        // (ALIKE 10
+        //     (=DIT))
+        { "he and I are so alike!",
+          "IN WHAT WAY" },
+
+        // (SAME 10
+        //     (=DIT))
+        { "things are not the same between us as they once were",
+          "WHAT RESEMBLANCE DO YOU SEE" },
+
+        // (CERTAINLY
+        //     (=YES))
+        { "Certainly not!",
+          "YOU SEEM QUITE POSITIVE" },
+
+        // (FEEL DLIST(/BELIEF))
+        // (THINK DLIST(/BELIEF))
+        // (BELIEVE DLIST(/BELIEF))
+        // (WISH DLIST(/BELIEF))
+
+        // (MEMORY MY
+        //     (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)
+        //     (0 YOUR 0 = EARLIER YOU SAID YOUR 3)
+        //     (0 YOUR 0 = BUT YOUR 3)
+        //     (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))
+
+        // (NONE
+        //     ((0)
+        //         (I AM NOT SURE I UNDERSTAND YOU FULLY)
+        //         (PLEASE GO ON)
+        //         (WHAT DOES THAT SUGGEST TO YOU)
+        //         (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))
+
+        // (PERHAPS
+        //     ((0)
+        //         (YOU DON'T SEEM QUITE CERTAIN)
+        //         (WHY THE UNCERTAIN TONE)
+        //         (CAN'T YOU BE MORE POSITIVE)
+        //         (YOU AREN'T SURE)
+        //         (DON'T YOU KNOW)))
+        { "Perhaps she'll die!",
+          "YOU DON'T SEEM QUITE CERTAIN" },
+
+        // (MAYBE
+        //     (=PERHAPS))
+        { "Maybe it's because I'm a Londoner",
+          "WHY THE UNCERTAIN TONE" },
+
+        // (NAME 15
+        //     ((0)
+        //         (I AM NOT INTERESTED IN NAMES)
+        //         (I'VE TOLD YOU BEFORE, I DON'T CARE ABOUT NAMES - PLEASE CONTINUE)))
+        { "A rose by any other name would smell as sweet",
+          "I AM NOT INTERESTED IN NAMES" },
+
+        // (DEUTSCH
+        //     (=XFREMD))
+        // (FRANCAIS
+        //     (=XFREMD))
+        // (ITALIANO
+        //     (=XFREMD))
+        // (ESPANOL
+        //     (=XFREMD))
+
+        // (XFREMD
+        //     ((0)
+        //         (I AM SORRY, I SPEAK ONLY ENGLISH)))
+        { "Parlez-vous Italiano mademoiselle?",
+          "I AM SORRY, I SPEAK ONLY ENGLISH" },
+
+        // (HELLO
+        //     ((0)
+        //         (HOW DO YOU DO.  PLEASE STATE YOUR PROBLEM)))
+        { "Hello there!",
+          "HOW DO YOU DO. PLEASE STATE YOUR PROBLEM" },
+
+        // (COMPUTER 50
+        //     ((0)
+        //         (DO COMPUTERS WORRY YOU)
+        //         (WHY DO YOU MENTION COMPUTERS)
+        //         (WHAT DO YOU THINK MACHINES HAVE TO DO WITH YOUR PROBLEM)
+        //         (DON'T YOU THINK COMPUTERS CAN HELP PEOPLE)
+        //         (WHAT ABOUT MACHINES WORRIES YOU)
+        //         (WHAT DO YOU THINK ABOUT MACHINES)))
+        { "what kind of computer flew to the moon",
+          "DO COMPUTERS WORRY YOU" },
+
+        // (MACHINE 50
+        //     (=COMPUTER))
+        { "You have the soul of a new machine.",
+          "WHY DO YOU MENTION COMPUTERS" },
+
+        // (MACHINES 50
+        //     (=COMPUTER))
+        { "Do you think we will find a cybernetic ecology where we are all watched over by machines of loving grace?",
+          "WHAT DO YOU THINK MACHINES HAVE TO DO WITH YOUR PROBLEM" },
+
+        // (COMPUTERS 50
+        //     (=COMPUTER))
+        { "Pablo Picasso said \"Computers are useless. They can only give you answers.\"",
+          "DON'T YOU THINK COMPUTERS CAN HELP PEOPLE" },
+
+        // (AM = ARE
+        //     ((0 ARE YOU 0)
+        //         (DO YOU BELIEVE YOU ARE 4)
+        //         (WOULD YOU WANT TO BE 4)
+        //         (YOU WISH I WOULD TELL YOU YOU ARE 4)
+        //         (WHAT WOULD IT MEAN IF YOU WERE 4)
+        //         (=WHAT))
+        //     ((0)
+        //         (WHY DO YOU SAY 'AM')
+        //         (I DON'T UNDERSTAND THAT)))
+        { "Am I a lost cause?",
+          "DO YOU BELIEVE YOU ARE A LOST CAUSE" },
+        { "Never am, no.",
+          "WHY DO YOU SAY 'AM'" },
+
+        // (ARE
+        //     ((0 ARE I 0)
+        //         (WHY ARE YOU INTERESTED IN WHETHER I AM 4 OR NOT)
+        //         (WOULD YOU PREFER IF I WEREN'T 4)
+        //         (PERHAPS I AM 4 IN YOUR FANTASIES)
+        //         (DO YOU SOMETIMES THINK I AM 4)
+        //         (=WHAT))
+        //     ((0 ARE 0)
+        //         (DID YOU THINK THEY MIGHT NOT BE 3)
+        //         (WOULD YOU LIKE IT IF THEY WERE NOT 3)
+        //         (WHAT IF THEY WERE NOT 3)
+        //         (POSSIBLY THEY ARE 3)))
+        { "Are you mad?",
+          "WHY ARE YOU INTERESTED IN WHETHER I AM MAD OR NOT" },
+        { "Humans eh? Are we nuts?",
+          "DID YOU THINK THEY MIGHT NOT BE WE NUTS" },
+
+        // (YOUR = MY
+        //     ((0 MY 0)
+        //         (WHY ARE YOU CONCERNED OVER MY 3)
+        //         (WHAT ABOUT YOUR OWN 3)
+        //         (ARE YOU WORRIED ABOUT SOMEONE ELSES 3)
+        //         (REALLY, MY 3)))
+        { "Your words are starting to annoy me.",
+          "WHY ARE YOU CONCERNED OVER MY WORDS ARE STARTING TO ANNOY YOU" },
+
+        // (WAS 2
+        //     ((0 WAS YOU 0)
+        //         (WHAT IF YOU WERE 4)
+        //         (DO YOU THINK YOU WERE 4)
+        //         (WERE YOU 4)
+        //         (WHAT WOULD IT MEAN IF YOU WERE 4)
+        //         (WHAT DOES ' 4 ' SUGGEST TO YOU)
+        //         (=WHAT))
+        //     ((0 YOU WAS 0)
+        //         (WERE YOU REALLY)
+        //         (WHY DO YOU TELL ME YOU WERE 4 NOW)
+        //         (PERHAPS I ALREADY KNEW YOU WERE 4))
+        //     ((0 WAS I 0)
+        //         (WOULD YOU LIKE TO BELIEVE I WAS 4)
+        //         (WHAT SUGGESTS THAT I WAS 4)
+        //         (WHAT DO YOU THINK)
+        //         (PERHAPS I WAS 4)
+        //         (WHAT IF I HAD BEEN 4))
+        //     ((0)
+        //         (NEWKEY)))
+        { "Was I wrong to speak my mind?",
+          "WHAT IF YOU WERE WRONG TO SPEAK YOUR MIND" },
+        { "I was telling you about my crazy idea",
+          "WERE YOU REALLY" },
+        { "That was you trying to make me feel better?",
+          "WOULD YOU LIKE TO BELIEVE I WAS TRYING TO MAKE YOU FEEL BETTER" },
+        { "That was the problem we had to solve when we found out.",
+          "WHAT IS IT YOU REALLY WANT TO KNOW" },
+
+        // (WERE = WAS
+        //     (=WAS))
+        { "Were you going to tell me how to feel better about myself?",
+          "WHAT SUGGESTS THAT I WAS GOING TO TELL YOU HOW TO FEEL BETTER ABOUT YOURSELF" },
+
+        // (ME = YOU)
+
+        // (YOU'RE = I'M
+        //     ((0 I'M 0)
+        //         (PRE (I ARE 3) (=YOU))))
+        { "You're mad at me",
+          "WHAT MAKES YOU THINK I AM MAD AT YOU" },
+
+        // (I'M = YOU'RE
+        //     ((0 YOU'RE 0)
+        //         (PRE (YOU ARE 3) (=I))))
+        { "I'm a good girl, I am.",
+          "IS IT BECAUSE YOU ARE A GOOD GIRL THAT YOU CAME TO ME" },
+
+        // (MYSELF = YOURSELF)
+        // (YOURSELF = MYSELF)
+
+        // (MOTHER DLIST(/NOUN FAMILY))
+        // (MOM = MOTHER DLIST(/ FAMILY))
+        // (DAD = FATHER DLIST(/ FAMILY))
+        // (FATHER DLIST(/NOUN FAMILY))
+        // (SISTER DLIST(/FAMILY))
+        // (BROTHER DLIST(/FAMILY))
+        // (WIFE DLIST(/FAMILY))
+        // (CHILDREN DLIST(/FAMILY))
+
+        // (I = YOU
+        //     ((0 YOU (* WANT NEED) 0)
+        //         (WHAT WOULD IT MEAN TO YOU IF YOU GOT 4)
+        //         (WHY DO YOU WANT 4)
+        //         (SUPPOSE YOU GOT 4 SOON)
+        //         (WHAT IF YOU NEVER GOT 4)
+        //         (WHAT WOULD GETTING 4 MEAN TO YOU)
+        //         (WHAT DOES WANTING 4 HAVE TO DO WITH THIS DISCUSSION))
+        //     ((0 YOU ARE 0 (*SAD UNHAPPY DEPRESSED SICK ) 0)
+        //         (I AM SORRY TO HEAR YOU ARE 5)
+        //         (DO YOU THINK COMING HERE WILL HELP YOU NOT TO BE 5)
+        //         (I'M SURE ITS NOT PLEASANT TO BE 5)
+        //         (CAN YOU EXPLAIN WHAT MADE YOU 5))
+        //     ((0 YOU ARE 0 (*HAPPY ELATED GLAD BETTER) 0)
+        //         (HOW HAVE I HELPED YOU TO BE 5)
+        //         (HAS YOUR TREATMENT MADE YOU 5)
+        //         (WHAT MAKES YOU 5 JUST NOW)
+        //         (CAN YOU EXPLAIN WHY YOU ARE SUDDENLY 5))
+        //     ((0 YOU WAS 0)
+        //         (=WAS))
+        //     ((0 YOU (/BELIEF) YOU 0)
+        //         (DO YOU REALLY THINK SO)
+        //         (BUT YOU ARE NOT SURE YOU 5)
+        //         (DO YOU REALLY DOUBT YOU 5))
+        //     ((0 YOU 0 (/BELIEF) 0 I 0)
+        //         (=YOU))
+        //     ((0 YOU ARE 0)
+        //         (IS IT BECAUSE YOU ARE 4 THAT YOU CAME TO ME)
+        //         (HOW LONG HAVE YOU BEEN 4)
+        //         (DO YOU BELIEVE IT NORMAL TO BE 4)
+        //         (DO YOU ENJOY BEING 4))
+        //     ((0 YOU (* CAN'T CANNOT) 0)
+        //         (HOW DO YOU KNOW YOU CAN'T 4)
+        //         (HAVE YOU TRIED)
+        //         (PERHAPS YOU COULD 4 NOW)
+        //         (DO YOU REALLY WANT TO BE ABLE TO 4))
+        //     ((0 YOU DON'T 0)
+        //         (DON'T YOU REALLY 4)
+        //         (WHY DON'T YOU 4)
+        //         (DO YOU WISH TO BE ABLE TO 4)
+        //         (DOES THAT TROUBLE YOU))
+        //     ((0 YOU FEEL 0)
+        //         (TELL ME MORE ABOUT SUCH FEELINGS)
+        //         (DO YOU OFTEN FEEL 4)
+        //         (DO YOU ENJOY FEELING 4)
+        //         (OF WHAT DOES FEELING 4 REMIND YOU))
+        //     ((0 YOU 0 I 0)
+        //         (PERHAPS IN YOUR FANTASY WE 3 EACH OTHER)
+        //         (DO YOU WISH TO 3 ME)
+        //         (YOU SEEM TO NEED TO 3 ME)
+        //         (DO YOU 3 ANYONE ELSE))
+        //     ((0)
+        //         (YOU SAY 1)
+        //         (CAN YOU ELABORATE ON THAT)
+        //         (DO YOU SAY 1 FOR SOME SPECIAL REASON)
+        //         (THAT'S QUITE INTERESTING)))
+        { "I need to understand why I'm unhappy",
+          "WHAT WOULD IT MEAN TO YOU IF YOU GOT TO UNDERSTAND WHY YOU'RE UNHAPPY" },
+        { "I know I am sick in the head",
+          "I AM SORRY TO HEAR YOU ARE SICK" },
+        { "I am not a happy bunny",
+          "HOW HAVE I HELPED YOU TO BE HAPPY" },
+        { "I were flummoxed",
+          "WHY DO YOU TELL ME YOU WERE FLUMMOXED NOW" },
+        { "I think I should go.",
+          "DO YOU REALLY THINK SO" },
+        { "I feel you understand me.",
+          "WHY DO YOU THINK I UNDERSTAND YOU" },
+        { "I am so lonely now.",
+          "HOW LONG HAVE YOU BEEN SO LONELY NOW" },
+        { "I cannot believe he really loves me.",
+          "HOW DO YOU KNOW YOU CAN'T BELIEVE HE REALLY LOVES YOU" },
+        { "I don't get out much now I'm old.",
+          "DON'T YOU REALLY GET OUT MUCH NOW YOU'RE OLD" },
+        { "I feel lost",
+          "TELL ME MORE ABOUT SUCH FEELINGS" },
+        { "I hate you",
+          "PERHAPS IN YOUR FANTASY WE HATE EACH OTHER" },
+        { "I can talk the hind leg off a donkey.",
+          "YOU SAY YOU CAN TALK THE HIND LEG OFF A DONKEY" },
+
+        // (YOU = I
+        //     ((0 I REMIND YOU OF 0)
+        //         (=DIT))
+        //     ((0 I ARE 0)
+        //         (WHAT MAKES YOU THINK I AM 4)
+        //         (DOES IT PLEASE YOU TO BELIEVE I AM 4)
+        //         (DO YOU SOMETIMES WISH YOU WERE 4)
+        //         (PERHAPS YOU WOULD LIKE TO BE 4))
+        //     ((0 I 0 YOU)
+        //         (WHY DO YOU THINK I 3 YOU)
+        //         (YOU LIKE TO THINK I 3 YOU - DON'T YOU)
+        //         (WHAT MAKES YOU THINK I 3 YOU)
+        //         (REALLY, I 3 YOU)
+        //         (DO YOU WISH TO BELIEVE I 3 YOU)
+        //         (SUPPOSE I DID 3 YOU - WHAT WOULD THAT MEAN)
+        //         (DOES SOMEONE ELSE BELIEVE I 3 YOU))
+        //     ((0 I 0)
+        //         (WE WERE DISCUSSING YOU - NOT ME)
+        //         (OH, I 3)
+        //         (YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU)
+        //         (WHAT ARE YOUR FEELINGS NOW)))
+        { "You remind me of the old days.",
+          "WHAT DOES THAT SIMILARITY SUGGEST TO YOU" },
+        { "You are wrong about that!",
+          "DOES IT PLEASE YOU TO BELIEVE I AM WRONG ABOUT THAT" },
+        { "Clearly you hate me.",
+          "YOU LIKE TO THINK I HATE YOU - DON'T YOU" },
+        { "You failed to grasp the nettle.",
+          "WE WERE DISCUSSING YOU - NOT ME" },
+
+        // (YES
+        //     ((0)
+        //         (YOU SEEM QUITE POSITIVE)
+        //         (YOU ARE SURE)
+        //         (I SEE)
+        //         (I UNDERSTAND)))
+        { "Yes, I think so.",
+          "YOU ARE SURE" },
+
+        // (NO
+        //     ((0)
+        //         (ARE YOU SAYING 'NO' JUST TO BE NEGATIVE)
+        //         (YOU ARE BEING A BIT NEGATIVE)
+        //         (WHY NOT)
+        //         (WHY 'NO')))
+        { "No, I don't want to go out with you.",
+          "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+
+        // (MY = YOUR 2
+        //     ((0 YOUR 0 (/FAMILY) 0)
+        //         (TELL ME MORE ABOUT YOUR FAMILY)
+        //         (WHO ELSE IN YOUR FAMILY 5)
+        //         (YOUR 4)
+        //         (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))
+        //     ((0 YOUR 0)
+        //         (YOUR 3)
+        //         (WHY DO YOU SAY YOUR 3)
+        //         (DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU)
+        //         (IS IT IMPORTANT TO YOU THAT 2 3)))
+        { "My brother ate my hamster.",
+          "TELL ME MORE ABOUT YOUR FAMILY" },
+        { "Oh my head hurts!",
+          "YOUR HEAD HURTS" },
+
+        // (CAN
+        //     ((0 CAN I 0)
+        //         (YOU BELIEVE I CAN 4 DON'T YOU)
+        //         (=WHAT)
+        //         (YOU WANT ME TO BE ABLE TO 4)
+        //         (PERHAPS YOU WOULD LIKE TO BE ABLE TO 4 YOURSELF))
+        //     ((0 CAN YOU 0)
+        //         (WHETHER OR NOT YOU CAN 4 DEPENDS ON YOU MORE THAN ON ME)
+        //         (DO YOU WANT TO BE ABLE TO 4)
+        //         (PERHAPS YOU DON'T WANT TO 4)
+        //         (=WHAT)))
+        { "Can you believe it!",
+          "YOU BELIEVE I CAN BELIEVE IT DON'T YOU" },
+        { "Can I have a glass of water?",
+          "WHETHER OR NOT YOU CAN HAVE A GLASS OF WATER DEPENDS ON YOU MORE THAN ON ME" },
+
+        // (WHAT
+        //     ((0)
+        //         (WHY DO YOU ASK)
+        //         (DOES THAT QUESTION INTEREST YOU)
+        //         (WHAT IS IT YOU REALLY WANT TO KNOW)
+        //         (ARE SUCH QUESTIONS MUCH ON YOUR MIND)
+        //         (WHAT ANSWER WOULD PLEASE YOU MOST)
+        //         (WHAT DO YOU THINK)
+        //         (WHAT COMES TO YOUR MIND WHEN YOU ASK THAT)
+        //         (HAVE YOU ASKED SUCH QUESTIONS BEFORE)
+        //         (HAVE YOU ASKED ANYONE ELSE)))
+        { "What an idiot.",
+          "ARE SUCH QUESTIONS MUCH ON YOUR MIND" },
+
+        // (BECAUSE
+        //     ((0)
+        //         (IS THAT THE REAL REASON)
+        //         (DON'T ANY OTHER REASONS COME TO MIND)
+        //         (DOES THAT REASON SEEM TO EXPLAIN ANYTHING ELSE)
+        //         (WHAT OTHER REASONS MIGHT THERE BE)))
+        { "Because then she would know I loved her.",
+          "IS THAT THE REAL REASON" },
+
+        // (WHY
+        //     ((0 WHY DON'T I 0)
+        //         (DO YOU BELIEVE I DON'T 5)
+        //         (PERHAPS I WILL 5 IN GOOD TIME)
+        //         (SHOULD YOU 5 YOURSELF)
+        //         (YOU WANT ME TO 5)
+        //         (=WHAT))
+        //     ((0 WHY CAN'T YOU 0)
+        //         (DO YOU THINK YOU SHOULD BE ABLE TO 5)
+        //         (DO YOU WANT TO BE ABLE TO 5)
+        //         (DO YOU BELIEVE THIS WILL HELP YOU TO 5)
+        //         (HAVE YOU ANY IDEA WHY YOU CAN'T 5)
+        //         (=WHAT))
+        //     (=WHAT))
+        { "Why don't you just switch off your television set and go and do something less boring instead?",
+          "DO YOU BELIEVE I DON'T JUST SWITCH OFF MY TELEVISION SET AND GO AND DO SOMETHING LESS BORING INSTEAD" },
+        { "why cant i eat cookies in bed",
+          "DO YOU THINK YOU SHOULD BE ABLE TO EAT COOKIES IN BED" },
+        { "why can't people get along?",
+          "WHAT ANSWER WOULD PLEASE YOU MOST" },
+
+        // (EVERYONE 2
+        //     ((0 (* EVERYONE EVERYBODY NOBODY NOONE) 0)
+        //         (REALLY, 2)
+        //         (SURELY NOT 2)
+        //         (CAN YOU THINK OF ANYONE IN PARTICULAR)
+        //         (WHO, FOR EXAMPLE)
+        //         (YOU ARE THINKING OF A VERY SPECIAL PERSON)
+        //         (WHO, MAY I ASK)
+        //         (SOMEONE SPECIAL PERHAPS)
+        //         (YOU HAVE A PARTICULAR PERSON IN MIND, DON'T YOU)
+        //         (WHO DO YOU THINK YOU'RE TALKING ABOUT)))
+        { "Everyone can get lost!",
+          "REALLY, EVERYONE" },
+
+        // (EVERYBODY 2
+        //     (= EVERYONE))
+        { "Everybody hates me.",
+          "SURELY NOT EVERYBODY" },
+
+        // (NOBODY 2
+        //     (= EVERYONE))
+        { "Nobody loves me.",
+          "CAN YOU THINK OF ANYONE IN PARTICULAR" },
+
+        // (NOONE 2
+        //     (= EVERYONE))
+        { "Noone cares",
+          "WHO, FOR EXAMPLE" },
+
+        // (ALWAYS 1
+        //     ((0)
+        //         (CAN YOU THINK OF A SPECIFIC EXAMPLE)
+        //         (WHEN)
+        //         (WHAT INCIDENT ARE YOU THINKING OF)
+        //         (REALLY, ALWAYS)))
+        { "The postman always rings twice.",
+          "CAN YOU THINK OF A SPECIFIC EXAMPLE" },
+
+        // (LIKE 10
+        //     ((0 (*AM IS ARE WAS) 0 LIKE 0)
+        //         (=DIT))
+        //     ((0)
+        //         (NEWKEY)))
+        { "She was not like the others.",
+          "WHAT OTHER CONNECTIONS DO YOU SEE" },
+        { "I dig you man!",
+          "DO YOU WISH TO DIG ME" }
+    };
+
+
+    elizascript::script s;
+    elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
+    elizalogic::eliza eliza(s.rules, s.mem_rule);
+    for (const auto & [prompt, response] : comprehensive_convo)
+        TEST_EQUAL(eliza.response(prompt), response);
 }
 
 
@@ -7216,6 +7830,9 @@ bool parse_cmdline(
     std::string & port_name,
     std::string & script_filename)
 {
+#ifndef SUPPORT_SERIAL_IO
+    (void)port_name; // avoid "unreferenced formal parameter" warning
+#endif
     showscript = nobanner = help = port = false;
     quick = true;
     script_filename.clear();
@@ -7312,13 +7929,12 @@ int main(int argc, const char * argv[])
                 << "      ELIZA -- A Computer Program for the Study of Natural\n"
                 << "         Language Communication Between Man and Machine\n"
                 << "DOCTOR script (c) 1966 Association for Computing Machinery, Inc.\n"
-                << "  ELIZA implementation (v0.97) by Anthony Hay, 2022  (CC0 1.0)\n"
+                << " ELIZA implementation (v1.00) by Anthony Hay, 2020-25  (CC0 1.0)\n"
                 << "-----------------------------------------------------------------\n"
-                << "Use command line '" << argv[0] << " " << as_option("help") << "' for usage information.\n";
+                << "Use command line option '" << as_option("help") << "' for usage information.\n";
         }
 
         RUN_TESTS(); // run all the tests defined with DEF_TEST_FUNC
-
 
         elizascript::script eliza_script;
         if (script_filename.empty()) {
@@ -7381,6 +7997,7 @@ int main(int argc, const char * argv[])
                 std::getline(std::cin, s);
         };
 #else
+        (void)port_name; // avoid "unreferenced formal parameter" warning
         auto print = [&](const std::string & s) {
             if (quick)
                 std::cout << s << std::endl;
