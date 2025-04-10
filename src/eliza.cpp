@@ -5429,6 +5429,14 @@ DEF_TEST_FUNC(script_test)
     TEST_EQUAL(status, "Script error on line 7: reassembly index '6' out of range [1..5]");
     status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = A)(0 = B)(0 = C)(0 = D))\n(KEY((0 KEY 0)(PRE(4)(=KEY))))\n(K4=KEY)");
     TEST_EQUAL(status, "Script error on line 5: reassembly index '4' out of range [1..3]");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = A)(0 = B)(0 = C)(0 = D))\n(KEY((0)(=K)))\n(K4=KEY)");
+    TEST_EQUAL(status, "Script error on line 5: '=K' referenced keyword does not exist");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = A)(0 = B)(0 = C)(0 = D))\n(KEY((0)(=K4)))\n(K4=KEY)");
+    TEST_EQUAL(status, "Script error on line 5: '=K4' referenced keyword has no associated transformation rules");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = A)(0 = B)(0 = C)(0 = D))\n(KEY((0)(=K4)))\n(K4=KEY((0)(HELLO)))");
+    TEST_EQUAL(status, "success");
+    status = read_script("()\n(NONE\n((0)()))\r\n(MEMORY KEY(0 = A)(0 = B)(0 = C)(0 = D))\n(KEY((0)(=K4))\n(=K))\n(K4=KEY((0)(HELLO)))");
+    TEST_EQUAL(status, "Script error on line 6: '=K' referenced keyword does not exist");
 }
 
 
