@@ -5,7 +5,7 @@ UPDATE: Since writing this the source code for ELIZA has been found. I've writte
 I’ve made in C++ what I think is an accurate simulation of the original ELIZA. It is a console application that takes as input the original format script file, which looks like a series of S-expressions, and then waits for the user to type a line of text before responding with a line of text of its own.
 
 I believe it to be an accurate simulation of the original because I followed closely the description Weizenbaum gives in an article on page 36 of the January
-1966 edition of Communications of the ACM titled *ELIZA - A Computer Program For the Study of Natural Language Communication Between Man And Machine*. When given the same prompts, this simulation reproduces exactly the conversation shown in the 1966 CACM article. The C++ source is [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) and a transcription of the original 1966 script file is [here](https://github.com/anthay/ELIZA/blob/master/src/ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt).
+1966 edition of Communications of the ACM titled *ELIZA - A Computer Program For the Study of Natural Language Communication Between Man And Machine*. When given the same prompts, this simulation reproduces exactly the conversation shown in the 1966 CACM article. The C++ source is [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) and a transcription of the original 1966 script file is [here](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt).
 
 That’s it. Read on for fluf.
 
