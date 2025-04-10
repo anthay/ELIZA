@@ -4,17 +4,17 @@
 
 I am aware of just three scripts from the 1960s that are compatible with 1966 CACM ELIZA. These are...
 
-- [1966_01_CACM_article_Eliza_script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/1966_01_CACM_article_Eliza_script.txt) is
+- [ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt) is
 a verbatim transcription (with added whitespace) of the script published as an appendix to Joseph Weizenbaum's ELIZA paper published
 in the January 1966 Communications of the Association of Computing Machinery (CACM). This script is built-in to both
 [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) and [eliza.html](https://github.com/anthay/ELIZA/blob/master/src/eliza.html).
 It has 66 keywords.
 
-- [script-02-000311051-1965-03-06-TAPE-100.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-100.txt) is
+- [ELIZA-script-02-000311051-1965-03-06-TAPE-100.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-02-000311051-1965-03-06-TAPE-100.txt) is
 a verbatim transcription (with added whitespace) of the script following the ELIZA source code in a computer listing from Joseph Weizenbaum's MIT
 archive ([02-000311051.pdf](https://hdl.handle.net/1721.3/201699)). It has 35 keywords.
 
-- [script-02-000311051-1965-03-06-TAPE-102.txt](https://github.com/anthay/ELIZA/blob/master/scripts/script-02-000311051-1965-03-06-TAPE-102.txt) is 
+- [ELIZA-script-02-000311051-1965-03-06-TAPE-102.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-02-000311051-1965-03-06-TAPE-102.txt) is 
 a verbatim transcription (with added whitespace) of the script preceeding the ELIZA source code in that listing. It won't run as-is because the
 line (DON'T YOU KNOW) is out-of-place. If you remove this line, or move it into the PERHAPS rule where it was probably meant to be, the script is valid.
 It has 33 keywords and is, perhaps unsurprisingly, very similar to the script-02-000311051-1965-03-06-TAPE-100.txt mentioned above.
@@ -24,7 +24,7 @@ I hope that some day more scripts and conversations may be found in the archives
 
 ## Contemporaneous scripts incompatible with 1966 CACM ELIZA
 
-[YAPYAP-script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script.txt) is
+[ELIZA-script-YAPYAP-original.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-YAPYAP-original.txt) is
 a verbatim transcription (with added whitespace) of a script used in a 1965 pilot study by Quarton,
 McGuire and Lorch titled
 
@@ -36,7 +36,7 @@ MAN-MACHINE NATURAL LANGUAGE EXCHANGES BASED ON SELECTED FEATURES OF
 ```
 
 This script will not work with the 1966 CACM ELIZA.
-(But [YAPYAP-script-for-1966-CACM-ELIZA.txt](https://github.com/anthay/ELIZA/blob/master/scripts/YAPYAP-script-for-1966-CACM-ELIZA.txt), which has had
+(But [ELIZA-script-YAPYAP-modified-for-1966-CACM-ELIZA.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-YAPYAP-modified-for-1966-CACM-ELIZA.txt), which has had
 the non-1966 CACM ELIZA parts in YAPYAP removed, will.)
 
 
