@@ -61,6 +61,8 @@ a script that implements Turing's Example I in his On Computable Numbers (Procee
 a script that implements Turing's Example II in his On Computable Numbers (Proceedings of the London Mathematical Society, Nov. 12, 1936, page 234):
 "II. As a slightly more difficult example we can construct a machine to compute the sequence 001011011101111011111... ."
 
+In the 1966 CACM paper Weizenbaum says "ELIZA scripts exist (at this writing) in Welsh and Gernman as well as in English." So far only English scripts have been found in Weizenbaum's archives. This is a modern translation of the DOCTOR script into French: [ELIZA-script-DOCTOR-French-Jeu-de-Paume.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-DOCTOR-French-Jeu-de-Paume.txt)
+
 
 #### To run 1966 CACM-compatible scripts on ELIZA
 
