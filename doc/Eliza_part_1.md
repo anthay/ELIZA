@@ -5,7 +5,7 @@ UPDATE: Since writing this the source code for ELIZA has been found. I've writte
 I’ve made in C++ what I think is an accurate simulation of the original ELIZA. It is a console application that takes as input the original format script file, which looks like a series of S-expressions, and then waits for the user to type a line of text before responding with a line of text of its own.
 
 I believe it to be an accurate simulation of the original because I followed closely the description Weizenbaum gives in an article on page 36 of the January
-1966 edition of Communications of the ACM titled *ELIZA - A Computer Program For the Study of Natural Language Communication Between Man And Machine*. When given the same prompts, this simulation reproduces exactly the conversation shown in the 1966 CACM article. The C++ source is [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) and a transcription of the original 1966 script file is [here](https://github.com/anthay/ELIZA/blob/master/src/1966_01_CACM_article_Eliza_script.txt).
+1966 edition of Communications of the ACM titled *ELIZA - A Computer Program For the Study of Natural Language Communication Between Man And Machine*. When given the same prompts, this simulation reproduces exactly the conversation shown in the 1966 CACM article. The C++ source is [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) and a transcription of the original 1966 script file is [here](https://github.com/anthay/ELIZA/blob/master/src/ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt).
 
 That’s it. Read on for fluf.
 
@@ -173,7 +173,7 @@ Example build under Windows 10 with MS Visual Studio 2019 Community command line
 C:\Program Files (x86)\Microsoft Visual Studio\2019\Community>cd C:\Eliza
 
 C:\Eliza>dir /b
-1966_01_CACM_article_Eliza_script.txt
+ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt
 eliza.cpp
 
 C:\Eliza>cl /EHsc /W4 eliza.cpp
@@ -191,7 +191,7 @@ C:\Eliza>eliza
 Usage: eliza <scriptfile>
   where <scriptfile> is in original 1966 ELIZA script format
 
-C:\Eliza>eliza 1966_01_CACM_article_Eliza_script.txt
+C:\Eliza>eliza ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt
 HOW DO YOU DO. PLEASE TELL ME YOUR PROBLEM
 
 Men are all alike.
@@ -286,7 +286,7 @@ PLEASE GO ON
 ```
 
 
-See [1966_01_CACM_article_Eliza_script.txt](https://github.com/anthay/ELIZA/blob/master/scripts/1966_01_CACM_article_Eliza_script.txt) for a transcription of the complete DOCTOR script from the 1966 CACM paper.
+See [ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt) for a transcription of the complete DOCTOR script from the 1966 CACM paper.
 
 Anthony Hay, February 2021.
 
