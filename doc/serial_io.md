@@ -1,6 +1,6 @@
 # ELIZA on a Teletype Model 33 ASR
 
-I got ELIZA to work on an ASR 33 teletype. I wrote about it [here](https://sites.google.com/view/elizaarchaeology/blog/talking-to-eliza-on-an-asr-33-teletype).
+I got ELIZA to work on an ASR 33 teletype. I wrote about it [here](https://sites.google.com/view/elizaarchaeology/blog/2-talking-to-eliza-on-an-asr-33-teletype).
 
 
 ### POSIX (e.g. macOS)
