@@ -200,7 +200,7 @@ IN WHAT WAY
 ^C
 C:\Eliza>
 ```
-
+UPDATE: Since writing the above I have built ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt into the code. If no script filename is given on the command line the program uses this built-in script.
 
 As I mentioned before, my ELIZA simulation reproduces the exact conversation shown in both the 1966 CACM article, and reproduced ten years later in Computer Power and Human Reason. To remind you, this is that conversation. ELIZA output in all caps.
 
