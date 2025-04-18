@@ -20,6 +20,7 @@ Weizenbaum developed SLIP, so he may have written `HASH`. However, another folde
 
 At the time of writing, the archive has not been made public. If and when it is, it is likely to be available through [elizagen.org](https://sites.google.com/view/elizagen-org/original-eliza).
 
+UPDATE: Joseph Weizenbaum's personal archives may be viewed here: [https://dome.mit.edu/handle/1721.3/201698](https://dome.mit.edu/handle/1721.3/201698).
 
 
 ### Transcription
