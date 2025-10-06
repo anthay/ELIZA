@@ -31,6 +31,10 @@
     Note: In the code below there are occasional references to
     Joseph Weizenbaum's 1966 CACM article. A reference like
     [page X (Y)] refers to paragraph Y on page X of that publication.
+    There are also references to the original MAD-SLIP ELIZA code running
+    on a CTSS/7094 emulator available in Rupert Lane's repository
+    https://github.com/rupertl/eliza-ctss.
+
 */
 
 
@@ -2016,10 +2020,142 @@ DEF_TEST_FUNC(match_test)
     expected = { "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY WAS ZERO" };
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
-    // My understanding of the SLIP code is that the "ITS" term matches the first ITS in the input, not the second:
+    // My understanding of the SLIP code is that the "ITS" term matches the
+    // first ITS in the input, not the second, and I have confirmed this is
+    // the case with the original ELIZA code on the 7094 emulator.
     words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "AND", "ITS", "LIKELYHOOD", "WERE", "ZERO" };
     pattern = { "1", "0", "2", "ITS", "0" };
     expected = { "MARY", "HAD A", "LITTLE LAMB", "ITS", "PROBABILITY AND ITS LIKELYHOOD WERE ZERO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    // The original ELIZA YMATCH has some issues: the following
+    // test gives this incorrect output on the emulator:
+    //   "MARIA HAD A LITTLE LAMB ITS PROBABILITY AND ITS LIKELYHOOD WERE", "ZERO", "000000", "", "", ""
+    words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "AND", "ITS", "LIKELYHOOD", "WERE", "ZERO" };
+    pattern = { "0", "1", "0", "1", "0", "1" };
+    expected = { "", "MARY", "", "HAD", "A LITTLE LAMB ITS PROBABILITY AND ITS LIKELYHOOD WERE", "ZERO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    // ...and fails to match the following at all:
+    words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "AND", "ITS", "LIKELYHOOD", "WERE", "ZERO" };
+    pattern = { "0", "1", "0", "ITS", "0", "1" };
+    expected = { "", "MARY", "HAD A LITTLE LAMB", "ITS", "PROBABILITY AND ITS LIKELYHOOD WERE", "ZERO" };
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    // Some more hit-and-miss results from the original ELIZA YMATCH:
+    words = { "RED" };
+    pattern = { "0", "0" };
+    expected = { "", "RED" };                                                   // original gives "RED", "001001"
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "RED", "RED" };
+    pattern = { "0", "0" };
+    expected = { "", "RED RED" };                                               // original gives "RED RED", "" followed by a PROTECTION MODE VIOLATION AT 34624. crash
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "RED", "RED", "RED" };
+    pattern = { "0", "0" };
+    expected = { "", "RED RED RED" };                                           // original gives "RED RED RED", "000000"
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "GREEN" };
+    pattern = { "GREEN", "0", "0" };
+    expected = { "GREEN", "", "" };                                             // original gives "GREEN", "", ""
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "GREEN", "GREEN" };
+    pattern = { "GREEN", "0", "0" };
+    expected = { "GREEN", "", "GREEN" };                                        // original gives "GREEN", "GREEN", ""
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "GREEN", "GREEN", "GREEN" };
+    pattern = { "GREEN", "0", "0" };
+    expected = { "GREEN", "", "GREEN GREEN" };                                  // original gives "GREEN", "GREEN GREEN", ""
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "PINK" };
+    pattern = { "0", "PINK", "0" };
+    expected = { "", "PINK", "" };                                              // original gives "", "PINK", ""
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "PINK", "PINK" };
+    pattern = { "0", "PINK", "0" };
+    expected = { "", "PINK", "PINK" };                                          // original gives "", "PINK", "PINK"
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "PINK", "PINK", "PINK" };
+    pattern = { "0", "PINK", "0" };
+    expected = { "", "PINK", "PINK PINK" };                                     // original gives "", "PINK", "PINK PINK"
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "BLUE" };
+    pattern = { "0", "0", "BLUE" };
+    expected = { "", "", "BLUE" };                                              // original gives no match
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "BLUE", "BLUE" };
+    pattern = { "0", "0", "BLUE" };
+    expected = { "", "BLUE", "BLUE" };                                          // original gives no match
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "BLUE", "BLUE", "BLUE" };
+    pattern = { "0", "0", "BLUE" };
+    expected = { "", "BLUE BLUE", "BLUE" };                                     // original gives no match
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "YELLOW" };
+    pattern = { "YELLOW", "0", "0", "YELLOW" };
+    expected = { };                                                             // original gives no match
+    TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
+    words = { "YELLOW", "YELLOW" };
+    pattern = { "YELLOW", "0", "0", "YELLOW" };
+    expected = { "YELLOW", "", "", "YELLOW" };                                  // original gives no match followed by PROTECTION MODE VIOLATION AT 34625. crash
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "YELLOW", "YELLOW", "YELLOW" };
+    pattern = { "YELLOW", "0", "0", "YELLOW" };
+    expected = { "YELLOW", "", "YELLOW", "YELLOW" };                            // original gives no match
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "YELLOW", "YELLOW", "YELLOW", "YELLOW" };
+    pattern = { "YELLOW", "0", "0", "YELLOW" };
+    expected = { "YELLOW", "", "YELLOW YELLOW", "YELLOW" };                     // original gives no match
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "ORANGE" };
+    pattern = { "ORANGE", "0", "ORANGE", "0", "ORANGE" };
+    expected = { };                                                             // original gives no match
+    TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
+    words = { "ORANGE", "ORANGE" };
+    pattern = { "ORANGE", "0", "ORANGE", "0", "ORANGE" };
+    expected = { };                                                             // original gives no match
+    TEST_EQUAL(match({}, pattern, words, matching_components), false);
+    TEST_EQUAL(matching_components, expected);
+    words = { "ORANGE", "ORANGE", "ORANGE" };
+    pattern = { "ORANGE", "0", "ORANGE", "0", "ORANGE" };
+    expected = { "ORANGE", "", "ORANGE", "", "ORANGE" };                        // original gives  "ORANGE", "", "ORANGE", "", "ORANGE"
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "ORANGE", "ORANGE", "ORANGE", "ORANGE" };
+    pattern = { "ORANGE", "0", "ORANGE", "0", "ORANGE" };
+    expected = { "ORANGE", "", "ORANGE", "ORANGE", "ORANGE" };                  // original gives  "ORANGE", "", "ORANGE", "", "ORANGE"
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "ORANGE", "ORANGE", "ORANGE", "ORANGE", "ORANGE" };
+    pattern = { "ORANGE", "0", "ORANGE", "0", "ORANGE" };
+    expected = { "ORANGE", "", "ORANGE", "ORANGE ORANGE", "ORANGE" };           // original gives  "ORANGE", "", "ORANGE", "", "ORANGE"
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "ORANGE", "ORANGE", "ORANGE", "ORANGE", "ORANGE", "ORANGE" };
+    pattern = { "ORANGE", "0", "ORANGE", "0", "ORANGE" };
+    expected = { "ORANGE", "", "ORANGE", "ORANGE ORANGE ORANGE", "ORANGE" };    // original gives  "ORANGE", "", "ORANGE", "", "ORANGE"
+    TEST_EQUAL(match({}, pattern, words, matching_components), true);
+    TEST_EQUAL(matching_components, expected);
+    words = { "ORANGE", "THE", "RAIN", "ORANGE", "IN", "SPAIN", "ORANGE" };
+    pattern = { "ORANGE", "0", "ORANGE", "0", "ORANGE" };
+    expected = { "ORANGE", "THE RAIN", "ORANGE", "IN SPAIN", "ORANGE" };        // original gives  "ORANGE", "THE RAIN", "ORANGE", "IN SPAIN", "ORANGE"
     TEST_EQUAL(match({}, pattern, words, matching_components), true);
     TEST_EQUAL(matching_components, expected);
 
