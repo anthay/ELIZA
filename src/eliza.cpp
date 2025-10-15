@@ -2030,7 +2030,7 @@ DEF_TEST_FUNC(match_test)
     TEST_EQUAL(matching_components, expected);
     // The original ELIZA YMATCH has some issues: the following
     // test gives this incorrect output on the emulator:
-    //   "MARIA HAD A LITTLE LAMB ITS PROBABILITY AND ITS LIKELYHOOD WERE", "ZERO", "000000", "", "", ""
+    //   "MARY HAD A LITTLE LAMB ITS PROBABILITY AND ITS LIKELYHOOD WERE", "ZERO", "000000", "", "", ""
     words = { "MARY", "HAD", "A", "LITTLE", "LAMB", "ITS", "PROBABILITY", "AND", "ITS", "LIKELYHOOD", "WERE", "ZERO" };
     pattern = { "0", "1", "0", "1", "0", "1" };
     expected = { "", "MARY", "", "HAD", "A LITTLE LAMB ITS PROBABILITY AND ITS LIKELYHOOD WERE", "ZERO" };
