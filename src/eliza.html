@@ -145,6 +145,8 @@ function elizaUppercase(s) {
 
         case 0x003A:        // 'COLON' (U+003A)
         case 0x003B:        // 'SEMICOLON' (U+003B)
+        case 0x2013:        // 'EN DASH' (U+2013)
+        case 0x2014:        // 'EM DASH' (U+2014)
             result += ',';  //   => 'COMMA' (U+002C)
             break;
 
@@ -1989,6 +1991,7 @@ function testElizaUppercase() {
     console.assert(elizaUppercase("Maroš Šefčovič") === "MAROŠ ŠEFČOVIČ");
     console.assert(elizaUppercase("Сайфи Кудаш Гилемдар Зигандарович") === "САЙФИ КУДАШ ГИЛЕМДАР ЗИГАНДАРОВИЧ");
     console.assert(elizaUppercase("¡pónk!") === " PÓNK.");
+    console.assert(elizaUppercase("I'm not entirely certain—maybe the nervousness was there before–") === "I'M NOT ENTIRELY CERTAIN,MAYBE THE NERVOUSNESS WAS THERE BEFORE,");
 
     // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
     console.assert(elizaUppercase("I’m depressed") === "I'M DEPRESSED");
