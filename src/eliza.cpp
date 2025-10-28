@@ -1095,7 +1095,19 @@ std::string eliza_uppercase(const std::string & utf8_string)
         and paste into ELIZA text from documents containing such characters.
         Punctuation, apart from comma and full stop, may get attached to
         words so that they are not recognised: e.g. COMPUTER" is not a
-        keyword. We'll remove or reinterpret such punctuation. */
+        keyword. We'll remove or reinterpret such punctuation.
+
+        E.g. from https://www.wired.com/story/ai-mother-eliza-claude-therapy/
+        dated 27 October 2025, where CLAUDE SONNET 4 is talking to an
+        implementation of ELIZA/DOCTOR and says
+            "I'm not entirely certain---maybe the nervousness was there before,
+             but I only became aware of it when I sat down in this chair."
+        Perhaps an '---' (EM DASH) is best interpreted as a comma, otherwise
+        someone pasting that sentence into ELIZA/DOCTOR will get the response
+            "IS IT BECAUSE YOU ARE NOT ENTIRELY CERTAIN---MAYBE THE NERVOUSNESS
+             WAS THERE BEFORE THAT YOU CAME TO ME"
+        instead of
+            "IS IT BECAUSE YOU ARE NOT ENTIRELY CERTAIN THAT YOU CAME TO ME". */
 
     std::string result;
     std::u32string utf32(utf8_to_utf32(utf8_string));
@@ -1134,6 +1146,8 @@ std::string eliza_uppercase(const std::string & utf8_string)
 
         case 0x003A:        // 'COLON' (U+003A)
         case 0x003B:        // 'SEMICOLON' (U+003B)
+        case 0x2013:        // 'EN DASH' (U+2013)
+        case 0x2014:        // 'EM DASH' (U+2014)
             result += ',';  //   => 'COMMA' (U+002C)
             break;
 
@@ -1214,6 +1228,18 @@ DEF_TEST_FUNC(eliza_uppercase_test)
         "\xF4\x8F\xBF\xBD"  // Unicode Character '<Plane 16 Private Use, Last>' (U+10FFFD)
         "\xEA\x9E\xB7"      // 'LATIN SMALL LETTER OMEGA' (U+A7B7) [i.e. not uppercased]
         "OMEGA");
+
+    TEST_EQUAL(eliza_uppercase(
+        "\xE2\x80\x93"      // 'EN DASH' (U+2013)
+        "I'm not entirely certain"
+        "\xE2\x80\x94"      // 'EM DASH' (U+2014)
+        "maybe the nervousness was there before"
+        ),
+        ","                 // 'COMMA' (U+002C)
+        "I'M NOT ENTIRELY CERTAIN"
+        ","                 // 'COMMA' (U+002C)
+        "MAYBE THE NERVOUSNESS WAS THERE BEFORE"
+        );
 
 }
 
@@ -4198,7 +4224,7 @@ private:
             return t;
         }
 
-        // anything else is a symbol
+        // everything else is a symbol
         token t(token::typ::symbol);
         t.value.push_back(ch);
         while (peekch(ch) && !non_symbol(ch) && ch != '=') {
