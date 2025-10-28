@@ -7,7 +7,7 @@ I’ve made in C++ what I think is an accurate simulation of the original ELIZA.
 I believe it to be an accurate simulation of the original because I followed closely the description Weizenbaum gives in an article on page 36 of the January
 1966 edition of Communications of the ACM titled *ELIZA - A Computer Program For the Study of Natural Language Communication Between Man And Machine*. When given the same prompts, this simulation reproduces exactly the conversation shown in the 1966 CACM article. The C++ source is [eliza.cpp](https://github.com/anthay/ELIZA/blob/master/src/eliza.cpp) and a transcription of the original 1966 script file is [here](https://github.com/anthay/ELIZA/blob/master/scripts/ELIZA-script-DOCTOR-original-1966-CACM-appendix.txt).
 
-That’s it. Read on for fluf.
+That’s it. The rest of this page is human slop and is best skipped over.
 
 ---
 
@@ -21,11 +21,9 @@ I recently found my copy of Mr. Weizenbaum’s book and reread it. He seemed to 
 
 >How may the compulsive programmer be distinguished from a merely dedicated, hard-working professional programmer? First, by the fact that the ordinary professional programmer addresses himself to the problem to be solved, whereas the compulsive programmer sees the problem mainly as an opportunity to interact with the computer. The ordinary computer programmer will usually discuss both his substantive and his technical programming problem with others. He will generally do lengthy preparatory work, such as writing and flow diagramming, before beginning work with the computer itself. His sessions with the computer may be comparatively short. He may even let others do the actual console work. He develops his program slowly and systematically. When something doesn’t work, he may spend considerable time away from the computer, framing careful hypotheses to account for the malfunction and designing crucial experiments to test them. Again, he may leave the actual running of the computer to others. He is able, while waiting for results from the computer, to attend to other aspects of his work, such as documenting what he has already done. When he has finally composed the program he set out to produce, he is able to complete a sensible description of it and to turn his attention to other things. The professional regards programming as a means toward an end, not as an end in itself. His satisfaction comes from having solved a substantive problem, not from having bent a computer to his will. [Computer Power and Human Reason, page 116]
 
-The book contains many pages in this vein.
+I think people are different and have different ways of working. I don't believe there is only One True Way to create things that have value. Does it matter *how* we accomplish things? Isn’t *what* we accomplish more important? If I do good work sitting at the computer, and you do good work sitting away from the computer, does it really matter? Or perhaps sometimes I do good work sitting at the computer, and sometimes I do good work while walking in the woods. Who cares?
 
-Does it matter *how* we accomplish things? Isn’t *what* we accomplish more important? (I’m not suggesting ends can always justify means.) If I do good work sitting at the computer, and you do good work sitting away from the computer, does it really matter? Or perhaps sometimes I do good work sitting at the computer, and sometimes I do good work while walking in the woods. Who cares?
-
-On reflection, I’ve never solved a substantive problem in my life. I do get enjoyment out of bending a computer to my will - otherwise known as programming. It isn’t an academic exercise for me; I like making a machine do something useful or interesting. If there were no computers to execute my algorithms, I wouldn’t write them. I wonder if Weizenbaum would consider whatever problem ELIZA solves to be substantive.
+On reflection, I’ve never solved a substantive problem in my life. I do get enjoyment out of bending a computer to my will - otherwise known as programming. It isn’t an academic exercise for me; I like making a machine do something useful or interesting. I wonder if Weizenbaum would consider whatever problem ELIZA solves to be substantive?
 
 People play and express themselves in many different mediums. Paint, clay, words, sound, theatre... I don’t see the harm in code being another medium in which one might immerse oneself.
 
