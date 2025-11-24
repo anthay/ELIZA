@@ -12,6 +12,7 @@
     MIT License.
     
     Anthony Hay, 2021, Devon, UK
+    https://github.com/anthay/ELIZA
 
 
     Update: In April 2021 Jeff Shrager obtained a listing of ELIZA from
@@ -33,7 +34,10 @@
     [page X (Y)] refers to paragraph Y on page X of that publication.
     There are also references to the original MAD-SLIP ELIZA code running
     on a CTSS/7094 emulator available in Rupert Lane's repository
-    https://github.com/rupertl/eliza-ctss.
+    https://github.com/rupertl/eliza-ctss. (Note that this version
+    of the original MAD-SLIP code, which is on a printout dated
+    "030665" (presumably 6 March 1965), is missing features described
+    in the 1966 CACM paper, such as the keyword stack.)
 
 */
 
@@ -58,6 +62,7 @@
 #include <thread>
 #include <array>
 #include <cstdint>
+#include <locale>
 
 
 
@@ -100,17 +105,16 @@ std::vector<void (*)()> test_routines; // list of all test routines
 // write a message to std::cout if !(value == expected_value)
 template<typename A, typename B>
 void test_equal(const A & value, const B & expected_value,
-    const char * filename, const size_t line_num, const char * function_name)
+    const char * filename, const size_t line_num, const char * /*function_name*/)
 {
     ++test_count;
     if (!(value == expected_value)) {
         ++fault_count;
-        // e.g. love.cpp(2021) : in proposal() expected 'Yes!', but got 'Hahaha'
+        // e.g. eliza.cpp(2025) : test failed '1 == 2'
         std::cout
             << filename << '(' << line_num
-            << ") : in " << function_name
-            << "() expected '" << expected_value
-            << "', but got '" << value
+            << ") : test failed '" << value
+            << " == " << expected_value
             << "'\n";
     }
 }
@@ -312,12 +316,13 @@ const std::array<unsigned char, 256> hollerith_encoding{ []{
 bool hollerith_defined(char c)
 {
     static_assert(std::numeric_limits<unsigned char>::min() == 0);
-    static_assert(std::numeric_limits<unsigned char>::max() == 255);
-
-    return hollerith_encoding[static_cast<unsigned char>(c)] != hollerith_undefined;
+    static_assert(std::numeric_limits<unsigned char>::max() == std::size(hollerith_encoding) - 1);
+    const unsigned char uc{ static_cast<unsigned char>(c) };
+    return hollerith_encoding[uc] != hollerith_undefined;
 }
 
 
+// return the given UTF-8 encoded string as a UTF-32 encoded string
 std::u32string utf8_to_utf32(const std::string & utf8_string)
 {
     std::u32string s;
@@ -373,6 +378,7 @@ std::u32string utf8_to_utf32(const std::string & utf8_string)
 }
 
 
+// return the given UTF-32 code point as a UTF-8 encoded string
 std::string utf32_to_utf8(uint32_t c32)
 {
     std::string result;
@@ -400,686 +406,266 @@ std::string utf32_to_utf8(uint32_t c32)
 }
 
 
+// Return the UTF-32 code point that represents the uppercase equivalent of
+// the given UTF-32 code point. If there is no uppercase equivalent, the given
+// code point is returned unchanged.
+// Works only for characters, upper and lower, that are represented by a
+// single code point.
 uint32_t uppercase_utf32(uint32_t c32)
 {
-    // Table from https://www.ibm.com/docs/vi/i/7.5?topic=tables-unicode-lowercase-uppercase-conversion-mapping-table
-    // Accessed 20 February 2025.
-    static const std::vector<uint16_t> lower_upper{
-        0x0061, 0x0041, // LATIN SMALL LETTER A                                                     LATIN CAPITAL LETTER A
-        0x0062, 0x0042, // LATIN SMALL LETTER B                                                     LATIN CAPITAL LETTER B
-        0x0063, 0x0043, // LATIN SMALL LETTER C                                                     LATIN CAPITAL LETTER C
-        0x0064, 0x0044, // LATIN SMALL LETTER D                                                     LATIN CAPITAL LETTER D
-        0x0065, 0x0045, // LATIN SMALL LETTER E                                                     LATIN CAPITAL LETTER E
-        0x0066, 0x0046, // LATIN SMALL LETTER F                                                     LATIN CAPITAL LETTER F
-        0x0067, 0x0047, // LATIN SMALL LETTER G                                                     LATIN CAPITAL LETTER G
-        0x0068, 0x0048, // LATIN SMALL LETTER H                                                     LATIN CAPITAL LETTER H
-        0x0069, 0x0049, // LATIN SMALL LETTER I                                                     LATIN CAPITAL LETTER I
-        0x006A, 0x004A, // LATIN SMALL LETTER J                                                     LATIN CAPITAL LETTER J
-        0x006B, 0x004B, // LATIN SMALL LETTER K                                                     LATIN CAPITAL LETTER K
-        0x006C, 0x004C, // LATIN SMALL LETTER L                                                     LATIN CAPITAL LETTER L
-        0x006D, 0x004D, // LATIN SMALL LETTER M                                                     LATIN CAPITAL LETTER M
-        0x006E, 0x004E, // LATIN SMALL LETTER N                                                     LATIN CAPITAL LETTER N
-        0x006F, 0x004F, // LATIN SMALL LETTER O                                                     LATIN CAPITAL LETTER O
-        0x0070, 0x0050, // LATIN SMALL LETTER P                                                     LATIN CAPITAL LETTER P
-        0x0071, 0x0051, // LATIN SMALL LETTER Q                                                     LATIN CAPITAL LETTER Q
-        0x0072, 0x0052, // LATIN SMALL LETTER R                                                     LATIN CAPITAL LETTER R
-        0x0073, 0x0053, // LATIN SMALL LETTER S                                                     LATIN CAPITAL LETTER S
-        0x0074, 0x0054, // LATIN SMALL LETTER T                                                     LATIN CAPITAL LETTER T
-        0x0075, 0x0055, // LATIN SMALL LETTER U                                                     LATIN CAPITAL LETTER U
-        0x0076, 0x0056, // LATIN SMALL LETTER V                                                     LATIN CAPITAL LETTER V
-        0x0077, 0x0057, // LATIN SMALL LETTER W                                                     LATIN CAPITAL LETTER W
-        0x0078, 0x0058, // LATIN SMALL LETTER X                                                     LATIN CAPITAL LETTER X
-        0x0079, 0x0059, // LATIN SMALL LETTER Y                                                     LATIN CAPITAL LETTER Y
-        0x007A, 0x005A, // LATIN SMALL LETTER Z                                                     LATIN CAPITAL LETTER Z
-        0x00E0, 0x00C0, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER A GRAVE
-        0x00E1, 0x00C1, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER A ACUTE
-        0x00E2, 0x00C2, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER A CIRCUMFLEX
-        0x00E3, 0x00C3, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER A TILDE
-        0x00E4, 0x00C4, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER A DIAERESIS
-        0x00E5, 0x00C5, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER A RING
-        0x00E6, 0x00C6, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER A E
-        0x00E7, 0x00C7, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER C CEDILLA
-        0x00E8, 0x00C8, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER E GRAVE
-        0x00E9, 0x00C9, // LATIN SMALL LETTER A GRAVE                                               LATIN CAPITAL LETTER E ACUTE
-        0x00EA, 0x00CA, // LATIN SMALL LETTER E CIRCUMFLEX                                          LATIN CAPITAL LETTER E CIRCUMFLEX
-        0x00EB, 0x00CB, // LATIN SMALL LETTER E DIAERESIS                                           LATIN CAPITAL LETTER E DIAERESIS
-        0x00EC, 0x00CC, // LATIN SMALL LETTER I GRAVE                                               LATIN CAPITAL LETTER I GRAVE
-        0x00ED, 0x00CD, // LATIN SMALL LETTER I ACUTE                                               LATIN CAPITAL LETTER I ACUTE
-        0x00EE, 0x00CE, // LATIN SMALL LETTER I CIRCUMFLEX                                          LATIN CAPITAL LETTER I CIRCUMFLEX
-        0x00EF, 0x00CF, // LATIN SMALL LETTER I DIAERESIS                                           LATIN CAPITAL LETTER I DIAERESIS
-        0x00F0, 0x00D0, // LATIN SMALL LETTER ETH                                                   LATIN CAPITAL LETTER ETH
-        0x00F1, 0x00D1, // LATIN SMALL LETTER N TILDE                                               LATIN CAPITAL LETTER N TILDE
-        0x00F2, 0x00D2, // LATIN SMALL LETTER O GRAVE                                               LATIN CAPITAL LETTER O GRAVE
-        0x00F3, 0x00D3, // LATIN SMALL LETTER O ACUTE                                               LATIN CAPITAL LETTER O ACUTE
-        0x00F4, 0x00D4, // LATIN SMALL LETTER O CIRCUMFLEX                                          LATIN CAPITAL LETTER O CIRCUMFLEX
-        0x00F5, 0x00D5, // LATIN SMALL LETTER O TILDE                                               LATIN CAPITAL LETTER O TILDE
-        0x00F6, 0x00D6, // LATIN SMALL LETTER O DIAERESIS                                           LATIN CAPITAL LETTER O DIAERESIS
-        0x00F8, 0x00D8, // LATIN SMALL LETTER O SLASH                                               LATIN CAPITAL LETTER O SLASH
-        0x00F9, 0x00D9, // LATIN SMALL LETTER U GRAVE                                               LATIN CAPITAL LETTER U GRAVE
-        0x00FA, 0x00DA, // LATIN SMALL LETTER U ACUTE                                               LATIN CAPITAL LETTER U ACUTE
-        0x00FB, 0x00DB, // LATIN SMALL LETTER U CIRCUMFLEX                                          LATIN CAPITAL LETTER U CIRCUMFLEX
-        0x00FC, 0x00DC, // LATIN SMALL LETTER U DIAERESIS                                           LATIN CAPITAL LETTER U DIAERESIS
-        0x00FD, 0x00DD, // LATIN SMALL LETTER Y ACUTE                                               LATIN CAPITAL LETTER Y ACUTE
-        0x00FE, 0x00DE, // LATIN SMALL LETTER THORN                                                 LATIN CAPITAL LETTER THORN
-        0x00FF, 0x0178, // LATIN SMALL LETTER Y DIAERESIS                                           LATIN CAPITAL LETTER Y WITH DIAERESIS
-        0x0101, 0x0100, // LATIN SMALL LETTER A WITH MACRON                                         LATIN CAPITAL LETTER A WITH MACRON
-        0x0103, 0x0102, // LATIN SMALL LETTER A WITH BREVE                                          LATIN CAPITAL LETTER A WITH BREVE
-        0x0105, 0x0104, // LATIN SMALL LETTER A WITH OGONEK                                         LATIN CAPITAL LETTER A WITH OGONEK
-        0x0107, 0x0106, // LATIN SMALL LETTER C WITH ACUTE                                          LATIN CAPITAL LETTER C WITH ACUTE
-        0x0109, 0x0108, // LATIN SMALL LETTER C WITH CIRCUMFLEX                                     LATIN CAPITAL LETTER C WITH CIRCUMFLEX
-        0x010B, 0x010A, // LATIN SMALL LETTER C WITH DOT ABOVE                                      LATIN CAPITAL LETTER C WITH DOT ABOVE
-        0x010D, 0x010C, // LATIN SMALL LETTER C WITH CARON                                          LATIN CAPITAL LETTER C WITH CARON
-        0x010F, 0x010E, // LATIN SMALL LETTER D WITH CARON                                          LATIN CAPITAL LETTER D WITH CARON
-        0x0111, 0x0110, // LATIN SMALL LETTER D WITH STROKE                                         LATIN CAPITAL LETTER D WITH STROKE
-        0x0113, 0x0112, // LATIN SMALL LETTER E WITH MACRON                                         LATIN CAPITAL LETTER E WITH MACRON
-        0x0115, 0x0114, // LATIN SMALL LETTER E WITH BREVE                                          LATIN CAPITAL LETTER E WITH BREVE
-        0x0117, 0x0116, // LATIN SMALL LETTER E WITH DOT ABOVE                                      LATIN CAPITAL LETTER E WITH DOT ABOVE
-        0x0119, 0x0118, // LATIN SMALL LETTER E WITH OGONEK                                         LATIN CAPITAL LETTER E WITH OGONEK
-        0x011B, 0x011A, // LATIN SMALL LETTER E WITH CARON                                          LATIN CAPITAL LETTER E WITH CARON
-        0x011D, 0x011C, // LATIN SMALL LETTER G WITH CIRCUMFLEX                                     LATIN CAPITAL LETTER G WITH CIRCUMFLEX
-        0x011F, 0x011E, // LATIN SMALL LETTER G WITH BREVE                                          LATIN CAPITAL LETTER G WITH BREVE
-        0x0121, 0x0120, // LATIN SMALL LETTER G WITH DOT ABOVE                                      LATIN CAPITAL LETTER G WITH DOT ABOVE
-        0x0123, 0x0122, // LATIN SMALL LETTER G WITH CEDILLA                                        LATIN CAPITAL LETTER G WITH CEDILLA
-        0x0125, 0x0124, // LATIN SMALL LETTER H WITH CIRCUMFLEX                                     LATIN CAPITAL LETTER H WITH CIRCUMFLEX
-        0x0127, 0x0126, // LATIN SMALL LETTER H WITH STROKE                                         LATIN CAPITAL LETTER H WITH STROKE
-        0x0129, 0x0128, // LATIN SMALL LETTER I WITH TILDE                                          LATIN CAPITAL LETTER I WITH TILDE
-        0x012B, 0x012A, // LATIN SMALL LETTER I WITH MACRON                                         LATIN CAPITAL LETTER I WITH MACRON
-        0x012D, 0x012C, // LATIN SMALL LETTER I WITH BREVE                                          LATIN CAPITAL LETTER I WITH BREVE
-        0x012F, 0x012E, // LATIN SMALL LETTER I WITH OGONEK                                         LATIN CAPITAL LETTER I WITH OGONEK
-        0x0131, 0x0049, // LATIN SMALL LETTER DOTLESS I                                             LATIN CAPITAL LETTER I
-        0x0133, 0x0132, // LATIN SMALL LIGATURE IJ                                                  LATIN CAPITAL LIGATURE IJ
-        0x0135, 0x0134, // LATIN SMALL LETTER J WITH CIRCUMFLEX                                     LATIN CAPITAL LETTER J WITH CIRCUMFLEX
-        0x0137, 0x0136, // LATIN SMALL LETTER K WITH CEDILLA                                        LATIN CAPITAL LETTER K WITH CEDILLA
-        0x013A, 0x0139, // LATIN SMALL LETTER L WITH ACUTE                                          LATIN CAPITAL LETTER L WITH ACUTE
-        0x013C, 0x013B, // LATIN SMALL LETTER L WITH CEDILLA                                        LATIN CAPITAL LETTER L WITH CEDILLA
-        0x013E, 0x013D, // LATIN SMALL LETTER L WITH CARON                                          LATIN CAPITAL LETTER L WITH CARON
-        0x0140, 0x013F, // LATIN SMALL LETTER L WITH MIDDLE DOT                                     LATIN CAPITAL LETTER L WITH MIDDLE DOT
-        0x0142, 0x0141, // LATIN SMALL LETTER L WITH STROKE                                         LATIN CAPITAL LETTER L WITH STROKE
-        0x0144, 0x0143, // LATIN SMALL LETTER N WITH ACUTE                                          LATIN CAPITAL LETTER N WITH ACUTE
-        0x0146, 0x0145, // LATIN SMALL LETTER N WITH CEDILLA                                        LATIN CAPITAL LETTER N WITH CEDILLA
-        0x0148, 0x0147, // LATIN SMALL LETTER N WITH CARON                                          LATIN CAPITAL LETTER N WITH CARON
-        0x014B, 0x014A, // LATIN SMALL LETTER ENG (SAMI)                                            LATIN CAPITAL LETTER ENG (SAMI)
-        0x014D, 0x014C, // LATIN SMALL LETTER O WITH MACRON                                         LATIN CAPITAL LETTER O WITH MACRON
-        0x014F, 0x014E, // LATIN SMALL LETTER O WITH BREVE                                          LATIN CAPITAL LETTER O WITH BREVE
-        0x0151, 0x0150, // LATIN SMALL LETTER O WITH DOUBLE ACUTE                                   LATIN CAPITAL LETTER O WITH DOUBLE ACUTE
-        0x0153, 0x0152, // LATIN SMALL LIGATURE OE                                                  LATIN CAPITAL LIGATURE OE
-        0x0155, 0x0154, // LATIN SMALL LETTER R WITH ACUTE                                          LATIN CAPITAL LETTER R WITH ACUTE
-        0x0157, 0x0156, // LATIN SMALL LETTER R WITH CEDILLA                                        LATIN CAPITAL LETTER R WITH CEDILLA
-        0x0159, 0x0158, // LATIN SMALL LETTER R WITH CARON                                          LATIN CAPITAL LETTER R WITH CARON
-        0x015B, 0x015A, // LATIN SMALL LETTER S WITH ACUTE                                          LATIN CAPITAL LETTER S WITH ACUTE
-        0x015D, 0x015C, // LATIN SMALL LETTER S WITH CIRCUMFLEX                                     LATIN CAPITAL LETTER S WITH CIRCUMFLEX
-        0x015F, 0x015E, // LATIN SMALL LETTER S WITH CEDILLA                                        LATIN CAPITAL LETTER S WITH CEDILLA
-        0x0161, 0x0160, // LATIN SMALL LETTER S WITH CARON                                          LATIN CAPITAL LETTER S WITH CARON
-        0x0163, 0x0162, // LATIN SMALL LETTER T WITH CEDILLA                                        LATIN CAPITAL LETTER T WITH CEDILLA
-        0x0165, 0x0164, // LATIN SMALL LETTER T WITH CARON                                          LATIN CAPITAL LETTER T WITH CARON
-        0x0167, 0x0166, // LATIN SMALL LETTER T WITH STROKE                                         LATIN CAPITAL LETTER T WITH STROKE
-        0x0169, 0x0168, // LATIN SMALL LETTER U WITH TILDE                                          LATIN CAPITAL LETTER U WITH TILDE
-        0x016B, 0x016A, // LATIN SMALL LETTER U WITH MACRON                                         LATIN CAPITAL LETTER U WITH MACRON
-        0x016D, 0x016C, // LATIN SMALL LETTER U WITH BREVE                                          LATIN CAPITAL LETTER U WITH BREVE
-        0x016F, 0x016E, // LATIN SMALL LETTER U WITH RING ABOVE                                     LATIN CAPITAL LETTER U WITH RING ABOVE
-        0x0171, 0x0170, // LATIN SMALL LETTER U WITH DOUBLE ACUTE                                   LATIN CAPITAL LETTER U WITH DOUBLE ACUTE
-        0x0173, 0x0172, // LATIN SMALL LETTER U WITH OGONEK                                         LATIN CAPITAL LETTER U WITH OGONEK
-        0x0175, 0x0174, // LATIN SMALL LETTER W WITH CIRCUMFLEX                                     LATIN CAPITAL LETTER W WITH CIRCUMFLEX
-        0x0177, 0x0176, // LATIN SMALL LETTER Y WITH CIRCUMFLEX                                     LATIN CAPITAL LETTER Y WITH CIRCUMFLEX
-        0x017A, 0x0179, // LATIN SMALL LETTER Z WITH ACUTE                                          LATIN CAPITAL LETTER Z WITH ACUTE
-        0x017C, 0x017B, // LATIN SMALL LETTER Z WITH DOT ABOVE                                      LATIN CAPITAL LETTER Z WITH DOT ABOVE
-        0x017E, 0x017D, // LATIN SMALL LETTER Z WITH CARON                                          LATIN CAPITAL LETTER Z WITH CARON
-        0x0183, 0x0182, // LATIN SMALL LETTER B WITH TOPBAR                                         LATIN CAPITAL LETTER B WITH TOPBAR
-        0x0185, 0x0184, // LATIN SMALL LETTER TONE SIX                                              LATIN CAPITAL LETTER TONE SIX
-        0x0188, 0x0187, // LATIN SMALL LETTER C WITH HOOK                                           LATIN CAPITAL LETTER C WITH HOOK
-        0x018C, 0x018B, // LATIN SMALL LETTER D WITH TOPBAR                                         LATIN CAPITAL LETTER D WITH TOPBAR
-        0x0192, 0x0191, // LATIN SMALL LETTER F WITH HOOK                                           LATIN CAPITAL LETTER F WITH HOOK
-        0x0199, 0x0198, // LATIN SMALL LETTER K WITH HOOK                                           LATIN CAPITAL LETTER K WITH HOOK
-        0x01A1, 0x01A0, // LATIN SMALL LETTER O WITH HORN                                           LATIN CAPITAL LETTER O WITH HORN
-        0x01A3, 0x01A2, // LATIN SMALL LETTER OI                                                    LATIN CAPITAL LETTER OI
-        0x01A5, 0x01A4, // LATIN SMALL LETTER P WITH HOOK                                           LATIN CAPITAL LETTER P WITH HOOK
-        0x01A8, 0x01A7, // LATIN SMALL LETTER TONE TWO                                              LATIN CAPITAL LETTER TONE TWO
-        0x01AD, 0x01AC, // LATIN SMALL LETTER T WITH HOOK                                           LATIN CAPITAL LETTER T WITH HOOK
-        0x01B0, 0x01AF, // LATIN SMALL LETTER U WITH HORN                                           LATIN CAPITAL LETTER U WITH HORN
-        0x01B4, 0x01B3, // LATIN SMALL LETTER Y WITH HOOK                                           LATIN CAPITAL LETTER Y WITH HOOK
-        0x01B6, 0x01B5, // LATIN SMALL LETTER Z WITH STROKE                                         LATIN CAPITAL LETTER Z WITH STROKE
-        0x01B9, 0x01B8, // LATIN SMALL LETTER EZH REVERSED                                          LATIN CAPITAL LETTER EZH REVERSED
-        0x01BD, 0x01BC, // LATIN SMALL LETTER TONE FIVE                                             LATIN CAPITAL LETTER TONE FIVE
-        0x01C6, 0x01C4, // LATIN SMALL LETTER DZ WITH CARON                                         LATIN CAPITAL LETTER DZ WITH CARON
-        0x01C9, 0x01C7, // LATIN SMALL LETTER LJ                                                    LATIN CAPITAL LETTER LJ
-        0x01CC, 0x01CA, // LATIN SMALL LETTER NJ                                                    LATIN CAPITAL LETTER NJ
-        0x01CE, 0x01CD, // LATIN SMALL LETTER A WITH CARON                                          LATIN CAPITAL LETTER A WITH CARON
-        0x01D0, 0x01CF, // LATIN SMALL LETTER I WITH CARON                                          LATIN CAPITAL LETTER I WITH CARON
-        0x01D2, 0x01D1, // LATIN SMALL LETTER O WITH CARON                                          LATIN CAPITAL LETTER O WITH CARON
-        0x01D4, 0x01D3, // LATIN SMALL LETTER U WITH CARON                                          LATIN CAPITAL LETTER U WITH CARON
-        0x01D6, 0x01D5, // LATIN SMALL LETTER U WITH DIAERESIS AND MACRON                           LATIN CAPITAL LETTER U WITH DIAERESIS AND MACRON
-        0x01D8, 0x01D7, // LATIN SMALL LETTER U WITH DIAERESIS AND ACUTE                            LATIN CAPITAL LETTER U WITH DIAERESIS AND ACUTE
-        0x01DA, 0x01D9, // LATIN SMALL LETTER U WITH DIAERESIS AND CARON                            LATIN CAPITAL LETTER U WITH DIAERESIS AND CARON
-        0x01DC, 0x01DB, // LATIN SMALL LETTER U WITH DIAERESIS AND GRAVE                            LATIN CAPITAL LETTER U WITH DIAERESIS AND GRAVE
-        0x01DF, 0x01DE, // LATIN SMALL LETTER A WITH DIAERESIS AND MACRON                           LATIN CAPITAL LETTER A WITH DIAERESIS AND MACRON
-        0x01E1, 0x01E0, // LATIN SMALL LETTER A WITH DOT ABOVE AND MACRON                           LATIN CAPITAL LETTER A WITH DOT ABOVE AND MACRON
-        0x01E3, 0x01E2, // LATIN SMALL LIGATURE AE WITH MACRON                                      LATIN CAPITAL LIGATURE AE MTH MACRON
-        0x01E5, 0x01E4, // LATIN SMALL LETTER G WITH STROKE                                         LATIN CAPITAL LETTER G WITH STROKE
-        0x01E7, 0x01E6, // LATIN SMALL LETTER G WITH CARON                                          LATIN CAPITAL LETTER G WITH CARON
-        0x01E9, 0x01E8, // LATIN SMALL LETTER K WITH CARON                                          LATIN CAPITAL LETTER K WITH CARON
-        0x01EB, 0x01EA, // LATIN SMALL LETTER O WITH OGONEK                                         LATIN CAPITAL LETTER O WITH OGONEK
-        0x01ED, 0x01EC, // LATIN SMALL LETTER O WITH OGONEK AND MACRON                              LATIN CAPITAL LETTER O WITH OGONEK AND MACRON
-        0x01EF, 0x01EE, // LATIN SMALL LETTER EZH WITH CARON                                        LATIN CAPITAL LETTER EZH WITH CARON
-        0x01F3, 0x01F1, // LATIN SMALL LETTER DZ                                                    LATIN CAPITAL LETTER DZ
-        0x01F5, 0x01F4, // LATIN SMALL LETTER G WITH ACUTE                                          LATIN CAPITAL LETTER G WITH ACUTE
-        0x01FB, 0x01FA, // LATIN SMALL LETTER A WITH RING ABOVE AND ACUTE                           LATIN CAPITAL LETTER A WITH RING ABOVE AND ACUTE
-        0x01FD, 0x01FC, // LATIN SMALL LIGATURE AE WITH ACUTE                                       LATIN CAPITAL LIGATURE AE WITH ACUTE
-        0x01FF, 0x01FE, // LATIN SMALL LETTER O WITH STROKE AND ACUTE                               LATIN CAPITAL LETTER O WITH STROKE AND ACUTE
-        0x0201, 0x0200, // LATIN SMALL LETTER A WITH DOUBLE GRAVE                                   LATIN CAPITAL LETTER A WITH DOUBLE GRAVE
-        0x0203, 0x0202, // LATIN SMALL LETTER A WITH INVERTED BREVE                                 LATIN CAPITAL LETTER A WITH INVERTED BREVE
-        0x0205, 0x0204, // LATIN SMALL LETTER E WITH DOUBLE GRAVE                                   LATIN CAPITAL LETTER E WITH DOUBLE GRAVE
-        0x0207, 0x0206, // LATIN SMALL LETTER E WITH INVERTED BREVE                                 LATIN CAPITAL LETTER E WITH INVERTED BREVE
-        0x0209, 0x0208, // LATIN SMALL LETTER I WITH DOUBLE GRAVE                                   LATIN CAPITAL LETTER I WITH DOUBLE GRAVE
-        0x020B, 0x020A, // LATIN SMALL LETTER I WITH INVERTED BREVE                                 LATIN CAPITAL LETTER I WITH INVERTED BREVE
-        0x020D, 0x020C, // LATIN SMALL LETTER O WITH DOUBLE GRAVE                                   LATIN CAPITAL LETTER O WITH DOUBLE GRAVE
-        0x020F, 0x020E, // LATIN SMALL LETTER O WITH INVERTED BREVE                                 LATIN CAPITAL LETTER O WITH INVERTED BREVE
-        0x0211, 0x0210, // LATIN SMALL LETTER R WITH DOUBLE GRAVE                                   LATIN CAPITAL LETTER R WITH DOUBLE GRAVE
-        0x0213, 0x0212, // LATIN SMALL LETTER R WITH INVERTED BREVE                                 LATIN CAPITAL LETTER R WITH INVERTED BREVE
-        0x0215, 0x0214, // LATIN SMALL LETTER U WITH DOUBLE GRAVE                                   LATIN CAPITAL LETTER U WITH DOUBLE GRAVE
-        0x0217, 0x0216, // LATIN SMALL LETTER U WITH INVERTED BREVE                                 LATIN CAPITAL LETTER U WITH INVERTED BREVE
-        0x0253, 0x0181, // LATIN SMALL LETTER B WITH HOOK                                           LATIN CAPITAL LETTER B WITH HOOK
-        0x0254, 0x0186, // LATIN SMALL LETTER OPEN O                                                LATIN CAPITAL LETTER OPEN O
-        0x0257, 0x018A, // LATIN SMALL LETTER D WITH HOOK                                           LATIN CAPITAL LETTER D WITH HOOK
-        0x0258, 0x018E, // LATIN SMALL LETTER REVERSED E                                            LATIN CAPITAL LETTER REVERSED E
-        0x0259, 0x018F, // LATIN SMALL LETTER SCHWA                                                 LATIN CAPITAL LETTER SCHWA
-        0x025B, 0x0190, // LATIN SMALL LETTER OPEN E                                                LATIN CAPITAL LETTER OPEN E
-        0x0260, 0x0193, // LATIN SMALL LETTER G WITH HOOK                                           LATIN CAPITAL LETTER G WITH HOOK
-        0x0263, 0x0194, // LATIN SMALL LETTER GAMMA                                                 LATIN CAPITAL LETTER GAMMA
-        0x0268, 0x0197, // LATIN SMALL LETTER I WITH STROKE                                         LATIN CAPITAL LETTER I WITH STROKE
-        0x0269, 0x0196, // LATIN SMALL LETTER IOTA                                                  LATIN CAPITAL LETTER IOTA
-        0x026F, 0x019C, // LATIN SMALL LETTER TURNED M                                              LATIN CAPITAL LETTER TURNED M
-        0x0272, 0x019D, // LATIN SMALL LETTER N WITH LEFT HOOK                                      LATIN CAPITAL LETTER N WITH LEFT HOOK
-        0x0275, 0x019F, // LATIN SMALL LETTER BARRED O                                              LATIN CAPITAL LETTER O WITH MIDDLE TILDE
-        0x0283, 0x01A9, // LATIN SMALL LETTER ESH                                                   LATIN CAPITAL LETTER ESH
-        0x0288, 0x01AE, // LATIN SMALL LETTER T WITH RETROFLEX HOOK                                 LATIN CAPITAL LETTER T WITH RETROFLEX HOOK
-        0x028A, 0x01B1, // LATIN SMALL LETTER UPSILON                                               LATIN CAPITAL LETTER UPSILON
-        0x028B, 0x01B2, // LATIN SMALL LETTER V WITH HOOK                                           LATIN CAPITAL LETTER V WITH HOOK
-        0x0292, 0x01B7, // LATIN SMALL LETTER EZH                                                   LATIN CAPITAL LETTER EZH
-        0x03AC, 0x0386, // GREEK SMALL LETTER ALPHA WITH TONOS                                      GREEK CAPITAL LETTER ALPHA WITH TONOS
-        0x03AD, 0x0388, // GREEK SMALL LETTER EPSILON WITH TONOS                                    GREEK CAPITAL LETTER EPSILON WITH TONOS
-        0x03AE, 0x0389, // GREEK SMALL LETTER ETA WITH TONOS                                        GREEK CAPITAL LETTER ETA WITH TONOS
-        0x03AF, 0x038A, // GREEK SMALL LETTER IOTA WITH TONOS                                       GREEK CAPITAL LETTER IOTA WITH TONOS
-        0x03B1, 0x0391, // GREEK SMALL LETTER ALPHA                                                 GREEK CAPITAL LETTER ALPHA
-        0x03B2, 0x0392, // GREEK SMALL LETTER BETA                                                  GREEK CAPITAL LETTER BETA
-        0x03B3, 0x0393, // GREEK SMALL LETTER GAMMA                                                 GREEK CAPITAL LETTER GAMMA
-        0x03B4, 0x0394, // GREEK SMALL LETTER DELTA                                                 GREEK CAPITAL LETTER DELTA
-        0x03B5, 0x0395, // GREEK SMALL LETTER EPSILON                                               GREEK CAPITAL LETTER EPSILON
-        0x03B6, 0x0396, // GREEK SMALL LETTER ZETA                                                  GREEK CAPITAL LETTER ZETA
-        0x03B7, 0x0397, // GREEK SMALL LETTER ETA                                                   GREEK CAPITAL LETTER ETA
-        0x03B8, 0x0398, // GREEK SMALL LETTER THETA                                                 GREEK CAPITAL LETTER THETA
-        0x03B9, 0x0399, // GREEK SMALL LETTER IOTA                                                  GREEK CAPITAL LETTER IOTA
-        0x03BA, 0x039A, // GREEK SMALL LETTER KAPPA                                                 GREEK CAPITAL LETTER KAPPA
-        0x03BB, 0x039B, // GREEK SMALL LETTER LAMDA                                                 GREEK CAPITAL LETTER LAMDA
-        0x03BC, 0x039C, // GREEK SMALL LETTER MU                                                    GREEK CAPITAL LETTER MU
-        0x03BD, 0x039D, // GREEK SMALL LETTER NU                                                    GREEK CAPITAL LETTER NU
-        0x03BE, 0x039E, // GREEK SMALL LETTER XI                                                    GREEK CAPITAL LETTER XI
-        0x03BF, 0x039F, // GREEK SMALL LETTER OMICRON                                               GREEK CAPITAL LETTER OMICRON
-        0x03C0, 0x03A0, // GREEK SMALL LETTER PI                                                    GREEK CAPITAL LETTER PI
-        0x03C1, 0x03A1, // GREEK SMALL LETTER RHO                                                   GREEK CAPITAL LETTER RHO
-        0x03C3, 0x03A3, // GREEK SMALL LETTER SIGMA                                                 GREEK CAPITAL LETTER SIGMA
-        0x03C4, 0x03A4, // GREEK SMALL LETTER TAU                                                   GREEK CAPITAL LETTER TAU
-        0x03C5, 0x03A5, // GREEK SMALL LETTER UPSILON                                               GREEK CAPITAL LETTER UPSILON
-        0x03C6, 0x03A6, // GREEK SMALL LETTER PHI                                                   GREEK CAPITAL LETTER PHI
-        0x03C7, 0x03A7, // GREEK SMALL LETTER CHI                                                   GREEK CAPITAL LETTER CHI
-        0x03C8, 0x03A8, // GREEK SMALL LETTER PSI                                                   GREEK CAPITAL LETTER PSI
-        0x03C9, 0x03A9, // GREEK SMALL LETTER OMEGA                                                 GREEK CAPITAL LETTER OMEGA
-        0x03CA, 0x03AA, // GREEK SMALL LETTER IOTA WITH DIALYTIKA                                   GREEK CAPITAL LETTER IOTA WITH DIALYTIKA
-        0x03CB, 0x03AB, // GREEK SMALL LETTER UPSILON WITH DIALYTIKA                                GREEK CAPITAL LETTER UPSILON WITH DIALYTIKA
-        0x03CC, 0x038C, // GREEK SMALL LETTER OMICRON WITH TONOS                                    GREEK CAPITAL LETTER OMICRON WITH TONOS
-        0x03CD, 0x038E, // GREEK SMALL LETTER UPSILON WITH TONOS                                    GREEK CAPITAL LETTER UPSILON WITH TONOS
-        0x03CE, 0x038F, // GREEK SMALL LETTER OMEGA WITH TONOS                                      GREEK CAPITAL LETTER OMEGA WITH TONOS
-        0x03E3, 0x03E2, // COPTIC SMALL LETTER SHEI                                                 COPTIC CAPITAL LETTER SHEI
-        0x03E5, 0x03E4, // COPTIC SMALL LETTER FEI                                                  COPTIC CAPITAL LETTER FEI
-        0x03E7, 0x03E6, // COPTIC SMALL LETTER KHEI                                                 COPTIC CAPITAL LETTER KHEI
-        0x03E9, 0x03E8, // COPTIC SMALL LETTER HORI                                                 COPTIC CAPITAL LETTER HORI
-        0x03EB, 0x03EA, // COPTIC SMALL LETTER GANGIA                                               COPTIC CAPITAL LETTER GANGIA
-        0x03ED, 0x03EC, // COPTIC SMALL LETTER SHIMA                                                COPTIC CAPITAL LETTER SHIMA
-        0x03EF, 0x03EE, // COPTIC SMALL LETTER DEI                                                  COPTIC CAPITAL LETTER DEI
-        0x0430, 0x0410, // CYRILLIC SMALL LETTER A                                                  CYRILLIC CAPITAL LETTER A
-        0x0431, 0x0411, // CYRILLIC SMALL LETTER BE                                                 CYRILLIC CAPITAL LETTER BE
-        0x0432, 0x0412, // CYRILLIC SMALL LETTER VE                                                 CYRILLIC CAPITAL LETTER VE
-        0x0433, 0x0413, // CYRILLIC SMALL LETTER GHE                                                CYRILLIC CAPITAL LETTER GHE
-        0x0434, 0x0414, // CYRILLIC SMALL LETTER DE                                                 CYRILLIC CAPITAL LETTER DE
-        0x0435, 0x0415, // CYRILLIC SMALL LETTER IE                                                 CYRILLIC CAPITAL LETTER IE
-        0x0436, 0x0416, // CYRILLIC SMALL LETTER ZHE                                                CYRILLIC CAPITAL LETTER ZHE
-        0x0437, 0x0417, // CYRILLIC SMALL LETTER ZE                                                 CYRILLIC CAPITAL LETTER ZE
-        0x0438, 0x0418, // CYRILLIC SMALL LETTER I                                                  CYRILLIC CAPITAL LETTER I
-        0x0439, 0x0419, // CYRILLIC SMALL LETTER SHORT I                                            CYRILLIC CAPITAL LETTER SHORT I
-        0x043A, 0x041A, // CYRILLIC SMALL LETTER KA                                                 CYRILLIC CAPITAL LETTER KA
-        0x043B, 0x041B, // CYRILLIC SMALL LETTER EL                                                 CYRILLIC CAPITAL LETTER EL
-        0x043C, 0x041C, // CYRILLIC SMALL LETTER EM                                                 CYRILLIC CAPITAL LETTER EM
-        0x043D, 0x041D, // CYRILLIC SMALL LETTER EN                                                 CYRILLIC CAPITAL LETTER EN
-        0x043E, 0x041E, // CYRILLIC SMALL LETTER O                                                  CYRILLIC CAPITAL LETTER O
-        0x043F, 0x041F, // CYRILLIC SMALL LETTER PE                                                 CYRILLIC CAPITAL LETTER PE
-        0x0440, 0x0420, // CYRILLIC SMALL LETTER ER                                                 CYRILLIC CAPITAL LETTER ER
-        0x0441, 0x0421, // CYRILLIC SMALL LETTER ES                                                 CYRILLIC CAPITAL LETTER ES
-        0x0442, 0x0422, // CYRILLIC SMALL LETTER TE                                                 CYRILLIC CAPITAL LETTER TE
-        0x0443, 0x0423, // CYRILLIC SMALL LETTER U                                                  CYRILLIC CAPITAL LETTER U
-        0x0444, 0x0424, // CYRILLIC SMALL LETTER EF                                                 CYRILLIC CAPITAL LETTER EF
-        0x0445, 0x0425, // CYRILLIC SMALL LETTER HA                                                 CYRILLIC CAPITAL LETTER HA
-        0x0446, 0x0426, // CYRILLIC SMALL LETTER TSE                                                CYRILLIC CAPITAL LETTER TSE
-        0x0447, 0x0427, // CYRILLIC SMALL LETTER CHE                                                CYRILLIC CAPITAL LETTER CHE
-        0x0448, 0x0428, // CYRILLIC SMALL LETTER SHA                                                CYRILLIC CAPITAL LETTER SHA
-        0x0449, 0x0429, // CYRILLIC SMALL LETTER SHCHA                                              CYRILLIC CAPITAL LETTER SHCHA
-        0x044A, 0x042A, // CYRILLIC SMALL LETTER HARD SIGN                                          CYRILLIC CAPITAL LETTER HARD SIGN
-        0x044B, 0x042B, // CYRILLIC SMALL LETTER YERU                                               CYRILLIC CAPITAL LETTER YERU
-        0x044C, 0x042C, // CYRILLIC SMALL LETTER SOFT SIGN                                          CYRILLIC CAPITAL LETTER SOFT SIGN
-        0x044D, 0x042D, // CYRILLIC SMALL LETTER E                                                  CYRILLIC CAPITAL LETTER E
-        0x044E, 0x042E, // CYRILLIC SMALL LETTER YU                                                 CYRILLIC CAPITAL LETTER YU
-        0x044F, 0x042F, // CYRILLIC SMALL LETTER YA                                                 CYRILLIC CAPITAL LETTER YA
-        0x0451, 0x0401, // CYRILLIC SMALL LETTER IO                                                 CYRILLIC CAPITAL LETTER IO
-        0x0452, 0x0402, // CYRILLIC SMALL LETTER DJE (SERBOCROATIAN)                                CYRILLIC CAPITAL LETTER DJE (SERBOCROATIAN)
-        0x0453, 0x0403, // CYRILLIC SMALL LETTER GJE                                                CYRILLIC CAPITAL LETTER GJE
-        0x0454, 0x0404, // CYRILLIC SMALL LETTER UKRAINIAN IE                                       CYRILLIC CAPITAL LETTER UKRAINIAN IE
-        0x0455, 0x0405, // CYRILLIC SMALL LETTER DZE                                                CYRILLIC CAPITAL LETTER DZE
-        0x0456, 0x0406, // CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I                           CYRILLIC CAPITAL LETTER BYELORUSSIAN_UKRAINIAN I
-        0x0457, 0x0407, // CYRILLIC SMALL LETTER YI (UKRAINIAN)                                     CYRILLIC CAPITAL LETTER YI (UKRAINIAN)
-        0x0458, 0x0408, // CYRILLIC SMALL LETTER JE                                                 CYRILLIC CAPITAL LETTER JE
-        0x0459, 0x0409, // CYRILLIC SMALL LETTER LJE                                                CYRILLIC CAPITAL LETTER LJE
-        0x045A, 0x040A, // CYRILLIC SMALL LETTER NJE                                                CYRILLIC CAPITAL LETTER NJE
-        0x045B, 0x040B, // CYRILLIC SMALL LETTER TSHE (SERBOCROATIAN)                               CYRILLIC CAPITAL LETTER TSHE (SERBOCROATIAN)
-        0x045C, 0x040C, // CYRILLIC SMALL LETTER KJE                                                CYRILLIC CAPITAL LETTER KJE
-        0x045E, 0x040E, // CYRILLIC SMALL LETTER SHORT U (BYELORUSSIAN)                             CYRILLIC CAPITAL LETTER SHORT U (BYELORUSSIAN)
-        0x045F, 0x040F, // CYRILLIC SMALL LETTER DZHE                                               CYRILLIC CAPITAL LETTER DZHE
-        0x0461, 0x0460, // CYRILLIC SMALL LETTER OMEGA                                              CYRILLIC CAPITAL LETTER OMEGA
-        0x0463, 0x0462, // CYRILLIC SMALL LETTER YAT                                                CYRILLIC CAPITAL LETTER YAT
-        0x0465, 0x0464, // CYRILLIC SMALL LETTER IOTIFIED E                                         CYRILLIC CAPITAL LETTER IOTIFIED E
-        0x0467, 0x0466, // CYRILLIC SMALL LETTER LITTLE YUS                                         CYRILLIC CAPITAL LETTER LITTLE YUS
-        0x0469, 0x0468, // CYRILLIC SMALL LETTER IOTIFIED LITTLE YUS                                CYRILLIC CAPITAL LETTER IOTIFIED LITTLE YUS
-        0x046B, 0x046A, // CYRILLIC SMALL LETTER BIG YUS                                            CYRILLIC CAPITAL LETTER BIG YUS
-        0x046D, 0x046C, // CYRILLIC SMALL LETTER IOTIFIED BIG YUS                                   CYRILLIC CAPITAL LETTER IOTIFIED BIG YUS
-        0x046F, 0x046E, // CYRILLIC SMALL LETTER KSI                                                CYRILLIC CAPITAL LETTER KSI
-        0x0471, 0x0470, // CYRILLIC SMALL LETTER PSI                                                CYRILLIC CAPITAL LETTER PSI
-        0x0473, 0x0472, // CYRILLIC SMALL LETTER FITA                                               CYRILLIC CAPITAL LETTER FITA
-        0x0475, 0x0474, // CYRILLIC SMALL LETTER IZHITSA                                            CYRILLIC CAPITAL LETTER IZHITSA
-        0x0477, 0x0476, // CYRILLIC SMALL LETTER IZHITSA WITH DOUBLE GRAVE ACCENT                   CYRILLIC CAPITAL LETTER IZHITSA WITH DOUBLE GRAVE ACCENT
-        0x0479, 0x0478, // CYRILLIC SMALL LETTER UK                                                 CYRILLIC CAPITAL LETTER UK
-        0x047B, 0x047A, // CYRILLIC SMALL LETTER ROUND OMEGA                                        CYRILLIC CAPITAL LETTER ROUND OMEGA
-        0x047D, 0x047C, // CYRILLIC SMALL LETTER OMEGA WITH TITLO                                   CYRILLIC CAPITAL LETTER OMEGA WITH TITLO
-        0x047F, 0x047E, // CYRILLIC SMALL LETTER OT                                                 CYRILLIC CAPITAL LETTER OT
-        0x0481, 0x0480, // CYRILLIC SMALL LETTER KOPPA                                              CYRILLIC CAPITAL LETTER KOPPA
-        0x0491, 0x0490, // CYRILLIC SMALL LETTER GHE WITH UPTURN                                    CYRILLIC CAPITAL LETTER GHE WITH UPTURN
-        0x0493, 0x0492, // CYRILLIC SMALL LETTER GHE WITH STROKE                                    CYRILLIC CAPITAL LETTER GHE WITH STROKE
-        0x0495, 0x0494, // CYRILLIC SMALL LETTER GHE WITH MIDDLE HOOK                               CYRILLIC CAPITAL LETTER GHE WITH MIDDLE HOOK
-        0x0497, 0x0496, // CYRILLIC SMALL LETTER ZHE WITH DESCENDER                                 CYRILLIC CAPITAL LETTER ZHE WITH DESCENDER
-        0x0499, 0x0498, // CYRILLIC SMALL LETTER ZE WITH DESCENDER                                  CYRILLIC CAPITAL LETTER ZE WITH DESCENDER
-        0x049B, 0x049A, // CYRILLIC SMALL LETTER KA WITH DESCENDER                                  CYRILLIC CAPITAL LETTER KA WITH DESCENDER
-        0x049D, 0x049C, // CYRILLIC SMALL LETTER KA WITH VERTICAL STROKE                            CYRILLIC CAPITAL LETTER KA WITH VERTICAL STROKE
-        0x049F, 0x049E, // CYRILLIC SMALL LETTER KA WITH STROKE                                     CYRILLIC CAPITAL LETTER KA WITH STROKE
-        0x04A1, 0x04A0, // CYRILLIC SMALL LETTER EASHKIR KA                                         CYRILLIC CAPITAL LETTER BASHKIR KA
-        0x04A3, 0x04A2, // CYRILLIC SMALL LETTER EN WITH DESCENOER                                  CYRILLIC CAPITAL LETTER EN WITH DESCENDER
-        0x04A5, 0x04A4, // CYRILLIC SMALL LIGATURE EN GHE                                           CYRILLIC CAPITAL LIGATURE EN GHF
-        0x04A7, 0x04A6, // CYRILLIC SMALL LETTER PE WITH MIDDLE HOOK (ABKHASIAN)                    CYRILLIC CAPITAL LETTER PE WITH MIDDLE HOOK (ABKHASIAN)
-        0x04A9, 0x04A8, // CYRILLIC SMALL LETTER ABKHASIAN HA                                       CYRILLIC CAPITAL LETTER ABKHASIAN HA
-        0x04AB, 0x04AA, // CYRILLIC SMALL LETTER ES WITH DESCENDER                                  CYRILLIC CAPITAL LETTER ES WITH DESCENDER
-        0x04AD, 0x04AC, // CYRILLIC SMALL LETTER TE WITH DESCENDER                                  CYRILLIC CAPITAL LETTER TE WITH DESCENDER
-        0x04AF, 0x04AE, // CYRILLIC SMALL LETTER STRAIGHT U                                         CYRILLIC CAPITAL LETTER STRAIGHT U
-        0x04B1, 0x04B0, // CYRILLIC SMALL LETTER STRAIGHT U WITH STROKE                             CYRILLIC CAPITAL LETTER STRAIGHT U WITH STROKE
-        0x04B3, 0x04B2, // CYRILLIC SMALL LETTER HA WITH DESCENDER                                  CYRILLIC CAPITAL LETTER HA WITH DESCENDER
-        0x04B5, 0x04B4, // CYRILLIC SMALL LIGATURE TE TSE (ABKHASIAN)                               CYRILLIC CAPITAL LIGATURE TE TSE (ABKHASIAN)
-        0x04B7, 0x04B6, // CYRILLIC SMALL LETTER CHE WITH DESCENDER                                 CYRILLIC CAPITAL LETTER CHE WITH DESCENDER
-        0x04B9, 0x04B8, // CYRILLIC SMALL LETTER CHE WITH VERTICAL STROKE                           CYRILLIC CAPITAL LETTER CHE WITH VERTICAL STROKE
-        0x04BB, 0x04BA, // CYRILLIC SMALL LETTER SHHA                                               CYRILLIC CAPITAL LETTER SHHA
-        0x04BD, 0x04BC, // CYRILLIC SMALL LETTER ABKHASIAN CHE                                      CYRILLIC CAPITAL LETTER ABKHASIAN CHE
-        0x04BF, 0x04BE, // CYRILLIC SMALL LETTER ABKHASIAN CHE WITH DESCENDER                       CYRILLIC CAPITAL LETTER ABKHASIAN CHE WITH DESCENDER
-        0x04C2, 0x04C1, // CYRILLIC SMALL LETTER ZHE WITH BREVE                                     CYRILLIC CAPITAL LETTER ZHE WITH BREVE
-        0x04C4, 0x04C3, // CYRILLIC SMALL LETTER KA WITH HOOK                                       CYRILLIC CAPITAL LETTER KA WITH HOOK
-        0x04C8, 0x04C7, // CYRILLIC SMALL LETTER EN WITH HOOK                                       CYRILLIC CAPITAL LETTER EN WITH HOOK
-        0x04CC, 0x04CB, // CYRILLIC SMALL LETTER KHAKASSIAN CHE                                     CYRILLIC CAPITAL LETTER KHAKASSIAN CHE
-        0x04D1, 0x04D0, // CYRILLIC SMALL LETTER A WITH BREVE                                       CYRILLIC CAPITAL LETTER A WITH BREVE
-        0x04D3, 0x04D2, // CYRILLIC SMALL LETTER A WITH DIAERESIS                                   CYRILLIC CAPITAL LETTER A WITH DIAERESIS
-        0x04D5, 0x04D4, // CYRILLIC SMALL LIGATURE A IE                                             CYRILLIC CAPITAL LIGATURE A IE
-        0x04D7, 0x04D6, // CYRILLIC SMALL LETTER IE WITH BREVE                                      CYRILLIC CAPITAL LETTER IE WITH BREVE
-        0x04D9, 0x04D8, // CYRILLIC SMALL LETTER SCHWA                                              CYRILLIC CAPITAL LETTER SCHWA
-        0x04DB, 0x04DA, // CYRILLIC SMALL LETTER SCHWA WITH DIAERESIS                               CYRILLIC CAPITAL LETTER SCHWA WITH DIAERESIS
-        0x04DD, 0x04DC, // CYRILLIC SMALL LETTER ZHE WITH DIAERESIS                                 CYRILLIC CAPITAL LETTER ZHE WITH DIAERESIS
-        0x04DF, 0x04DE, // CYRILLIC SMALL LETTER ZE WITH DIAERESIS                                  CYRILLIC CAPITAL LETTER ZE WITH DIAERESIS
-        0x04E1, 0x04E0, // CYRILLIC SMALL LETTER ABKHASIAN DZE                                      CYRILLIC CAPITAL LETTER ABKHASIAN DZE
-        0x04E3, 0x04E2, // CYRILLIC SMALL LETTER I WITH MACRON                                      CYRILLIC CAPITAL LETTER I WITH MACRON
-        0x04E5, 0x04E4, // CYRILLIC SMALL LETTER I WITH DIAERESIS                                   CYRILLIC CAPITAL LETTER I WITH DIAERESIS
-        0x04E7, 0x04E6, // CYRILLIC SMALL LETTER O WITH DIAERESIS                                   CYRILLIC CAPITAL LETTER O WITH DIAERESIS
-        0x04E9, 0x04E8, // CYRILLIC SMALL LETTER BARRED O                                           CYRILLIC CAPITAL LETTER BARRED O
-        0x04EB, 0x04EA, // CYRILLIC SMALL LETTER BARRED O WITH DIAERESIS                            CYRILLIC CAPITAL LETTER BARRED O WITH DIAERESIS
-        0x04EF, 0x04EE, // CYRILLIC SMALL LETTER U WITH MACRON                                      CYRILLIC CAPITAL LETTER U WITH MACRON
-        0x04F1, 0x04F0, // CYRILLIC SMALL LETTER U WITH DIAERESIS                                   CYRILLIC CAPITAL LETTER U WITH DIAERESIS
-        0x04F3, 0x04F2, // CYRILLIC SMALL LETTER U WITH DOUBLE ACUTE                                CYRILLIC CAPITAL LETTER U WITH DOUBLE ACUTE
-        0x04F5, 0x04F4, // CYRILLIC SMALL LETTER CHE AITH DIAERESIS                                 CYRILLIC CAPITAL LETTER CHE WITH DIAERESIS
-        0x04F9, 0x04F8, // CYRILLIC SMALL LETTER YERU WITH DIAERESIS                                CYRILLIC CAPITAL LETTER YERU WITH DIAERESIS
-        0x0561, 0x0531, // ARMENIAN SMALL LETTER AYB                                                ARMENIAN CAPITAL LETTER AYB
-        0x0562, 0x0532, // ARMENIAN SMALL LETTER BEN                                                ARMENIAN CAPITAL LETTER BEN
-        0x0563, 0x0533, // ARMENIAN SMALL LETTER GIM                                                ARMENIAN CAPITAL LETTER GIM
-        0x0564, 0x0534, // ARMENIAN SMALL LETTER DA                                                 ARMENIAN CAPITAL LETTER DA
-        0x0565, 0x0535, // ARMENIAN SMALL LETTER ECH                                                ARMENIAN CAPITAL LETTER ECH
-        0x0566, 0x0536, // ARMENIAN SMALL LETTER ZA                                                 ARMENIAN CAPITAL LETTER ZA
-        0x0567, 0x0537, // ARMENIAN SMALL LETTER EH                                                 ARMENIAN CAPITAL LETTER EH
-        0x0568, 0x0538, // ARMENIAN SMALL LETTER ET                                                 ARMENIAN CAPITAL LETTER ET
-        0x0569, 0x0539, // ARMENIAN SMALL LETTER TO                                                 ARMENIAN CAPITAL LETTER TO
-        0x056A, 0x053A, // ARMENIAN SMALL LETTER ZHE                                                ARMENIAN CAPITAL LETTER ZHE
-        0x056B, 0x053B, // ARMENIAN SMALL LETTER INI                                                ARMENIAN CAPITAL LETTER INI
-        0x056C, 0x053C, // ARMENIAN SMALL LETTER LIWN                                               ARMENIAN CAPITAL LETTER LIWN
-        0x056D, 0x053D, // ARMENIAN SMALL LETTER XEH                                                ARMENIAN CAPITAL LETTER XEH
-        0x056E, 0x053E, // ARMENIAN SMALL LETTER CA                                                 ARMENIAN CAPITAL LETTER CA
-        0x056F, 0x053F, // ARMENIAN SMALL LETTER KEN                                                ARMENIAN CAPITAL LETTER KEN
-        0x0570, 0x0540, // ARMENIAN SMALL LETTER HO                                                 ARMENIAN CAPITAL LETTER HO
-        0x0571, 0x0541, // ARMENIAN SMALL LETTER JA                                                 ARMENIAN CAPITAL LETTER JA
-        0x0572, 0x0542, // ARMENIAN SMALL LETTER GHAD                                               ARMENIAN CAPITAL LETTER GHAD
-        0x0573, 0x0543, // ARMENIAN SMALL LETTER CHEH                                               ARMENIAN CAPITAL LETTER CHEH
-        0x0574, 0x0544, // ARMENIAN SMALL LETTER MEN                                                ARMENIAN CAPITAL LETTER MEN
-        0x0575, 0x0545, // ARMENIAN SMALL LETTER YI                                                 ARMENIAN CAPITAL LETTER YI
-        0x0576, 0x0546, // ARMENIAN SMALL LETTER NOW                                                ARMENIAN CAPITAL LETTER NOW
-        0x0577, 0x0547, // ARMENIAN SMALL LETTER SNA                                                ARMENIAN CAPITAL LETTER SHA
-        0x0578, 0x0548, // ARMENIAN SMALL LETTER VO                                                 ARMENIAN CAPITAL LETTER VO
-        0x0579, 0x0549, // ARMENIAN SMALL LETTER CHA                                                ARMENIAN CAPITAL LETTER CHA
-        0x057A, 0x054A, // ARMENIAN SMALL LETTER PEH                                                ARMENIAN CAPITAL LETTER PEH
-        0x057B, 0x054B, // ARMENIAN SMALL LETTER JHEH                                               ARMENIAN CAPITAL LETTER JHEH
-        0x057C, 0x054C, // ARMENIAN SMALL LETTER RA                                                 ARMENIAN CAPITAL LETTER RA
-        0x057D, 0x054D, // ARMENIAN SMALL LETTER SEH                                                ARMENIAN CAPITAL LETTER SEH
-        0x057E, 0x054E, // ARMENIAN SMALL LETTER VEW                                                ARMENIAN CAPITAL LETTER VEW
-        0x057F, 0x054F, // ARMENIAN SMALL LETTER TIWN                                               ARMENIAN CAPITAL LETTER TIWN
-        0x0580, 0x0550, // ARMENIAN SMALL LETTER REH                                                ARMENIAN CAPITAL LETTER REH
-        0x0581, 0x0551, // ARMENIAN SMALL LETTER CO                                                 ARMENIAN CAPITAL LETTER CO
-        0x0582, 0x0552, // ARMENIAN SMALL LETTER YIWN                                               ARMENIAN CAPITAL LETTER YIWN
-        0x0583, 0x0553, // ARMENIAN SMALL LETTER PIWP                                               ARMENIAN CAPITAL LETTER PIWR
-        0x0584, 0x0554, // ARMENIAN SMALL LETTER KEH                                                ARMENIAN CAPITAL LETTER KEH
-        0x0585, 0x0555, // ARMENIAN SMALL LETTER OH                                                 ARMENIAN CAPITAL LETTER OH
-        0x0586, 0x0556, // ARMENIAN SMALL LETTER FEH                                                ARMENIAN CAPITAL LETTER FEH
-        0x10D0, 0x10A0, // GEORGIAN LETTER AN                                                       GEORGIAN CAPITAL LETTER AN (KHUTSURI)
-        0x10D1, 0x10A1, // GEORGIAN LETTER BAN                                                      GEORGIAN CAPITAL LETTER BAN (KHUTSURI)
-        0x10D2, 0x10A2, // GEORGIAN LETTER GAN                                                      GEORGIAN CAPITAL LETTER GAN (KHUTSURI)
-        0x10D3, 0x10A3, // GEORGIAN LETTER DON                                                      GEORGIAN CAPITAL LETTER DON (KHUTSURI)
-        0x10D4, 0x10A4, // GEORGIAN LETTER EN                                                       GEORGIAN CAPITAL LETTER EN (KHUTSURI)
-        0x10D5, 0x10A5, // GEORGIAN LETTER VIN                                                      GEORGIAN CAPITAL LETTER VIN (KHUTSURI)
-        0x10D6, 0x10A6, // GEORGIAN LETTER ZEN                                                      GEORGIAN CAPITAL LETTER ZEN (KHUTSURI)
-        0x10D7, 0x10A7, // GEORGIAN LETTER TAN                                                      GEORGIAN CAPITAL LETTER TAN (KHUTSURI)
-        0x10D8, 0x10A8, // GEORGIAN LETTER IN                                                       GEORGIAN CAPITAL LETTER IN (KHUTSURI)
-        0x10D9, 0x10A9, // GEORGIAN LETTER KAN                                                      GEORGIAN CAPITAL LETTER KAN (KHUTSURI)
-        0x10DA, 0x10AA, // GEORGIAN LETTER LAS                                                      GEORGIAN CAPITAL LETTER LAS (KHUTSURI)
-        0x10DB, 0x10AB, // GEORGIAN LETTER MAN                                                      GEORGIAN CAPITAL LETTER MAN (KHUTSURI)
-        0x10DC, 0x10AC, // GEORGIAN LETTER NAR                                                      GEORGIAN CAPITAL LETTER NAR (KHUTSURI)
-        0x10DD, 0x10AD, // GEORGIAN LETTER ON                                                       GEORGIAN CAPITAL LETTER ON (KHUTSURI)
-        0x10DE, 0x10AE, // GEORGIAN LETTER PAR                                                      GEORGIAN CAPITAL LETTER PAR (KHUTSURI)
-        0x10DF, 0x10AF, // GEORGIAN LETTER ZHAR                                                     GEORGIAN CAPITAL LETTER ZHAR (KHUTSURI)
-        0x10E0, 0x10B0, // GEORGIAN LETTER RAE                                                      GEORGIAN CAPITAL LETTER RAE (KHUTSURI)
-        0x10E1, 0x10B1, // GEORGIAN LETTER SAN                                                      GEORGIAN CAPITAL LETTER SAN (KHUTSURI)
-        0x10E2, 0x10B2, // GEORGIAN LETTER TAR                                                      GEORGIAN CAPITAL LETTER TAR (KHUTSURI)
-        0x10E3, 0x10B3, // GEORGIAN LETTER UN                                                       GEORGIAN CAPITAL LETTER UN (KHUTSURI)
-        0x10E4, 0x10B4, // GEORGIAN LETTER PHAR                                                     GEORGIAN CAPITAL LETTER PHAR (KHUTSURI)
-        0x10E5, 0x10B5, // GEORGIAN LETTER KHAR                                                     GEORGIAN CAPITAL LETTER KHAR (KHUTSURI)
-        0x10E6, 0x10B6, // GEORGIAN LETTER GHAN                                                     GEORGIAN CAPITAL LETTER GHAN (KHUTSURI)
-        0x10E7, 0x10B7, // GEORGIAN LETTER QAR                                                      GEORGIAN CAPITAL LETTER QAR (KHUTSURI)
-        0x10E8, 0x10B8, // GEORGIAN LETTER SHIN                                                     GEORGIAN CAPITAL LETTER SHIN (KHUTSURI)
-        0x10E9, 0x10B9, // GEORGIAN LETTER CHIN                                                     GEORGIAN CAPITAL LETTER CHIN (KHUTSURI)
-        0x10EA, 0x10BA, // GEORGIAN LETTER CAN                                                      GEORGIAN CAPITAL LETTER CAN (KHUTSURI)
-        0x10EB, 0x10BB, // GEORGIAN LETTER JIL                                                      GEORGIAN CAPITAL LETTER JIL (KHUTSURI)
-        0x10EC, 0x10BC, // GEORGIAN LETTER CIL                                                      GEORGIAN CAPITAL LETTER CIL (KHUTSURI)
-        0x10ED, 0x10BD, // GEORGIAN LETTER CHAR                                                     GEORGIAN CAPITAL LETTER CHAR (KHUTSURI)
-        0x10EE, 0x10BE, // GEORGIAN LETTER XAN                                                      GEORGIAN CAPITAL LETTER XAN (KHUTSURI)
-        0x10EF, 0x10BF, // GEORGIAN LETTER JHAN                                                     GEORGIAN CAPITAL LETTER JHAN (KHUTSURI)
-        0x10F0, 0x10C0, // GEORGIAN LETTER HAE                                                      GEORGIAN CAPITAL LETTER HAE (KHUTSURI)
-        0x10F1, 0x10C1, // GEORGIAN LETTER HE                                                       GEORGIAN CAPITAL LETTER HE (KHUTSURI)
-        0x10F2, 0x10C2, // GEORGIAN LETTER HIE                                                      GEORGIAN CAPITAL LETTER HIE (KHUTSURI)
-        0x10F3, 0x10C3, // GEORGIAN LETTER WE                                                       GEORGIAN CAPITAL LETTER WE (KHUTSURI)
-        0x10F4, 0x10C4, // GEORGIAN LETTER HAR                                                      GEORGIAN CAPITAL LETTER HAR (KHUTSURI)
-        0x10F5, 0x10C5, // GEORGIAN LETTER HOE                                                      GEORGIAN CAPITAL LETTER HOE (KHUTSURI)
-        0x1E01, 0x1E00, // LATIN SMALL LETTER A WITH RING BELOW                                     LATIN CAPITAL LETTER A WITH RING BELOW
-        0x1E03, 0x1E02, // LATIN SMALL LETTER B WITH DOT ABOVE                                      LATIN CAPITAL LETTER B WITH DOT ABOVE
-        0x1E05, 0x1E04, // LATIN SMALL LETTER B WITH DOT BELOW                                      LATIN CAPITAL LETTER B WITH DOT BELOW
-        0x1E07, 0x1E06, // LATIN SMALL LETTER B WITH LINE BELOW                                     LATIN CAPITAL LETTER B WITH LINE BELOW
-        0x1E09, 0x1E08, // LATIN SMALL LETTER C WITH CEDILLA AND ACUTE                              LATIN CAPITAL LETTER C WITH CEDILLA AND ACUTE
-        0x1E0B, 0x1E0A, // LATIN SMALL LETTER D WITH DOT ABOVE                                      LATIN CAPITAL LETTER D WITH DOT ABOVE
-        0x1E0D, 0x1E0C, // LATIN SMALL LETTER D WITH DOT BELOW                                      LATIN CAPITAL LETTER D WITH DOT BELOW
-        0x1E0F, 0x1E0E, // LATIN SMALL LETTER D WITH LINE BELOW                                     LATIN CAPITAL LETTER D WITH LINE BELOW
-        0x1E11, 0x1E10, // LATIN SMALL LETTER D WITH CEDILLA                                        LATIN CAPITAL LETTER D WITH CEDILLA
-        0x1E13, 0x1E12, // LATIN SMALL LETTER D WITH CIRCUMFLEX BELOW                               LATIN CAPITAL LETTER D WITH CIRCUMFLEX BELOW
-        0x1E15, 0x1E14, // LATIN SMALL LETTER E WITH MACRON AND GRAVE                               LATIN CAPITAL LETTER E WITH MACRON AND GRAVE
-        0x1E17, 0x1E16, // LATIN SMALL LETTER E WITH MACRON AND ACUTE                               LATIN CAPITAL LETTER E WITH MACRON AND ACUTE
-        0x1E19, 0x1E18, // LATIN SMALL LETTER E WITH CIRCUMFLEX BELOW                               LATIN CAPITAL LETTER E WITH CIRCUMFLEX BELOW
-        0x1E1B, 0x1E1A, // LATIN SMALL LETTER E WITH TILDE BELOW                                    LATIN CAPITAL LETTER E WITH TILDE BELOW
-        0x1E1D, 0x1E1C, // LATIN SMALL LETTER E WITH CEDILLA AND BREVE                              LATIN CAPITAL LETTER E WITH CEDILLA AND BREVE
-        0x1E1F, 0x1E1E, // LATIN SMALL LETTER F WITH DOT ABOVE                                      LATIN CAPITAL LETTER F WITH DOT ABOVE
-        0x1E21, 0x1E20, // LATIN SMALL LETTER G WITH MACRON                                         LATIN CAPITAL LETTER G WITH MACRON
-        0x1E23, 0x1E22, // LATIN SMALL LETTER H WITH DOT ABOVE                                      LATIN CAPITAL LETTER H WITH DOT ABOVE
-        0x1E25, 0x1E24, // LATIN SMALL LETTER H WITH DOT BELOW                                      LATIN CAPITAL LETTER H WITH DOT BELOW
-        0x1E27, 0x1E26, // LATIN SMALL LETTER H WITH DIAERESIS                                      LATIN CAPITAL LETTER H WITH DIAERESIS
-        0x1E29, 0x1E28, // LATIN SMALL LETTER H WITH CEDILLA                                        LATIN CAPITAL LETTER H WITH CEDILLA
-        0x1E2B, 0x1E2A, // LATIN SMALL LETTER H WITH BREVE BELOW                                    LATIN CAPITAL LETTER H WITH BREVE BELOW
-        0x1E2D, 0x1E2C, // LATIN SMALL LETTER I WITH TILDE BELOW                                    LATIN CAPITAL LETTER I WITH TILDE BELOW
-        0x1E2F, 0x1E2E, // LATIN SMALL LETTER I WITH DIAERESIS AND ACUTE                            LATIN CAPITAL LETTER I WITH DIAERESIS AND ACUTE
-        0x1E31, 0x1E30, // LATIN SMALL LETTER K WITH ACUTE                                          LATIN CAPITAL LETTER K WITH ACUTE
-        0x1E33, 0x1E32, // LATIN SMALL LETTER K WITH DOT BELOW                                      LATIN CAPITAL LETTER K WITH DOT BELOW
-        0x1E35, 0x1E34, // LATIN SMALL LETTER K WITH LINE BELOW                                     LATIN CAPITAL LETTER K WITH LINE BELOW
-        0x1E37, 0x1E36, // LATIN SMALL LETTER L WITH DOT BELOW                                      LATIN CAPITAL LETTER L WITH DOT BELOW
-        0x1E39, 0x1E38, // LATIN SMALL LETTER L WITH DOT BELOW AND MACRON                           LATIN CAPITAL LETTER L WITH DOT BELOW AND MACRON
-        0x1E3B, 0x1E3A, // LATIN SMALL LETTER L WITH LINE BELOW                                     LATIN CAPITAL LETTER L WITH LINE BELOW
-        0x1E3D, 0x1E3C, // LATIN SMALL LETTER L WITH CIRCUMFLEX BELOW                               LATIN CAPITAL LETTER L WITH CIRCUMFLEX BELOW
-        0x1E3F, 0x1E3E, // LATIN SMALL LETTER M WITH ACUTE                                          LATIN CAPITAL LETTER M WITH ACUTE
-        0x1E41, 0x1E40, // LATIN SMALL LETTER M WITH DOT ABOVE                                      LATIN CAPITAL LETTER M WITH DOT ABOVE
-        0x1E43, 0x1E42, // LATIN SMALL LETTER M WITH DOT BELOW                                      LATIN CAPITAL LETTER M WITH DOT BELOW
-        0x1E45, 0x1E44, // LATIN SMALL LETTER N WITH DOT ABOVE                                      LATIN CAPITAL LETTER N WITH DOT ABOVE
-        0x1E47, 0x1E46, // LATIN SMALL LETTER N WITH DOT BELOW                                      LATIN CAPITAL LETTER N WITH DOT BELOW
-        0x1E49, 0x1E48, // LATIN SMALL LETTER N WITH LINE BELOW                                     LATIN CAPITAL LETTER N WITH LINE BELOW
-        0x1E4B, 0x1E4A, // LATIN SMALL LETTER N WITH CIRCUMFLEX BELOW                               LATIN CAPITAL LETTER N WITH CIRCUMFLEX BELOW
-        0x1E4D, 0x1E4C, // LATIN SMALL LETTER O WITH TILDE AND ACUTE                                LATIN CAPITAL LETTER O WITH TILDE AND ACUTE
-        0x1E4F, 0x1E4E, // LATIN SMALL LETTER O WITH TlLDE AND DIAERESIS                            LATIN CAPITAL LETTER O WITH TILDE AND DIAERESIS
-        0x1E51, 0x1E50, // LATIN SMALL LETTER O WITH MACRON AND GRAVE                               LATIN CAPITAL LETTER O WITH MACRON AND GRAVE
-        0x1E53, 0x1E52, // LATIN SMALL LETTER O WITH MACRON AND ACUTE                               LATIN CAPITAL LETTER O WITH MACRON AND ACUTE
-        0x1E55, 0x1E54, // LATIN SMALL LETTER P WITH ACUTE                                          LATIN CAPITAL LETTER P WITH ACUTE
-        0x1E57, 0x1E56, // LATIN SMALL LETTER P WITH DOT ABOVE                                      LATIN CAPITAL LETTER P WITH DOT ABOVE
-        0x1E59, 0x1E58, // LATIN SMALL LETTER R WITH DOT ABOVE                                      LATIN CAPITAL LETTER R WITH DOT ABOVE
-        0x1E5B, 0x1E5A, // LATIN SMALL LETTER R WITH DOT BELOW                                      LATIN CAPITAL LETTER R WITH DOT BELOW
-        0x1E5D, 0x1E5C, // LATIN SMALL LETTER R WITH DOT BELOW AND MACRON                           LATIN CAPITAL LETTER R WITH DOT BELOW AND MACRON
-        0x1E5F, 0x1E5E, // LATIN SMALL LETTER R WITH LINE BELOW                                     LATIN CAPITAL LETTER R WITH LINE BELOW
-        0x1E61, 0x1E60, // LATIN SMALL LETTER S WITH DOT ABOVE                                      LATIN CAPITAL LETTER S WITH DOT ABOVE
-        0x1E63, 0x1E62, // LATIN SMALL LETTER S WITH DOT BELOW                                      LATIN CAPITAL LETTER S WITH DOT BELOW
-        0x1E65, 0x1E64, // LATIN SMALL LETTER S WITH ACUTE AND DOT ABOVE                            LATIN CAPITAL LETTER S WITH ACUTE AND DOT ABOVE
-        0x1E67, 0x1E66, // LATIN SMALL LETTER S WITH CARON AND DOT ABOVE                            LATIN CAPITAL LETTER S WITH CARON AND DOT ABOVE
-        0x1E69, 0x1E68, // LATIN SMALL LETTER S WITH DOT BELOW AND DOT ABOVE                        LATIN CAPITAL LETTER S WITH DOT BELOW AND DOT ABOVE
-        0x1E6B, 0x1E6A, // LATIN SMALL LETTER T WITH DOT ABOVE                                      LATIN CAPITAL LETTER T WITH DOT ABOVE
-        0x1E6D, 0x1E6C, // LATIN SMALL LETTER T WITH DOT BELOW                                      LATIN CAPITAL LETTER T WITH DOT BELOW
-        0x1E6F, 0x1E6E, // LATIN SMALL LETTER T WITH LINE BELOW                                     LATIN CAPITAL LETTER T WITH LINE BELOW
-        0x1E71, 0x1E70, // LATIN SMALL LETTER T WITH CIRCUMFLEX BELOW                               LATIN CAPITAL LETTER T WITH CIRCUMFLEX BELOW
-        0x1E73, 0x1E72, // LATIN SMALL LETTER U WITH DIAERESIS BELOW                                LATIN CAPITAL LETTER U WITH DIAERESIS BELOW
-        0x1E75, 0x1E74, // LATIN SMALL LETTER U WITH TILDE BELOW                                    LATIN CAPITAL LETTER U WITH TILDE BELOW
-        0x1E77, 0x1E76, // LATIN SMALL LETTER U WITH CIRCUMFLEX BELOW                               LATIN CAPITAL LETTER U WITH CIRCUMFLEX BELOW
-        0x1E79, 0x1E78, // LATIN SMALL LETTER U WITH TILDE AND ACUTE                                LATIN CAPITAL LETTER U WITH TILDE AND ACUTE
-        0x1E7B, 0x1E7A, // LATIN SMALL LETTER U WITH MACRON AND DIAERESIS                           LATIN CAPITAL LETTER U WITH MACRON AND DIAERESIS
-        0x1E7D, 0x1E7C, // LATIN SMALL LETTER V WITH TILDE                                          LATIN CAPITAL LETTER V WITH TILDE
-        0x1E7F, 0x1E7E, // LATIN SMALL LETTER V WITH DOT BELOW                                      LATIN CAPITAL LETTER V WITH DOT BELOW
-        0x1E81, 0x1E80, // LATIN SMALL LETTER W WITH GRAVE                                          LATIN CAPITAL LETTER W WITH GRAVE
-        0x1E83, 0x1E82, // LATIN SMALL LETTER W WITH ACUTE                                          LATIN CAPITAL LETTER W WITH ACUTE
-        0x1E85, 0x1E84, // LATIN SMALL LETTER W WITH DIAERESIS                                      LATIN CAPITAL LETTER W WITH DIAERESIS
-        0x1E87, 0x1E86, // LATIN SMALL LETTER W WITH DOT ABOVE                                      LATIN CAPITAL LETTER W WITH DOT ABOVE
-        0x1E89, 0x1E88, // LATIN SMALL LETTER W WITH DOT BELOW                                      LATIN CAPITAL LETTER W WITH DOT BELOW
-        0x1E8B, 0x1E8A, // LATIN SMALL LETTER X WITH DOT ABOVE                                      LATIN CAPITAL LETTER X WITH DOT ABOVE
-        0x1E8D, 0x1E8C, // LATIN SMALL LETTER X WITH DIAERESIS                                      LATIN CAPITAL LETTER X5 WITH DIAERESIS
-        0x1E8F, 0x1E8E, // LATIN SMALL LETTER Y WITH DOT ABOVE                                      LATIN CAPITAL LETTER Y WITH DOT ABOVE
-        0x1E91, 0x1E90, // LATIN SMALL LETTER Z WITH CIRCUMFLEX                                     LATIN CAPITAL LETTER Z WITH CIRCUMFLEX
-        0x1E93, 0x1E92, // LATIN SMALL LETTER Z WITH DOT BELOW                                      LATIN CAPITAL LETTER Z WITH DOT BELOW
-        0x1E95, 0x1E94, // LATIN SMALL LETTER Z WITH LINE BELOW                                     LATIN CAPITAL LETTER Z WITH LINE BELOW
-        0x1EA1, 0x1EA0, // LATIN SMALL LETTER A WITH DOT BELOW                                      LATIN CAPITAL LETTER A WITH DOT BELOW
-        0x1EA3, 0x1EA2, // LATIN SMALL LETTER A WITH HOOK ABOVE                                     LATIN CAPITAL LETTER A WITH HOOK ABOVE
-        0x1EA5, 0x1EA4, // LATIN SMALL LETTER A WITH CIRCUMFLEX AND ACUTE                           LATIN CAPITAL LETTER A WITH CIRCUMFLEX AND ACUTE
-        0x1EA7, 0x1EA6, // LATIN SMALL LETTER A WITH CIRCUMFLEX AND GRAVE                           LATIN CAPITAL LETTER A WITH CIRCUMFLEX AND GRAVE
-        0x1EA9, 0x1EA8, // LATIN SMALL LETTER A WITH CIRCUMFLEX AND HOOK ABOVE                      LATIN CAPITAL LETTER A WITH CIRCUMFLEX AND HOOK ABOVE
-        0x1EAB, 0x1EAA, // LATIN SMALL LETTER A WITH CIRCUMFLEX AND TILDE                           LATIN CAPITAL LETTER A WITH CIRCUMFLEX AND TILDE
-        0x1EAD, 0x1EAC, // LATIN SMALL LETTER A WITH CIRCUMFLEX AND DOT BELOW                       LATIN CAPITAL LETTER A WITH CIRCUMFLEX AND DOT BELOW
-        0x1EAF, 0x1EAE, // LATIN SMALL LETTER A WITH BREVE AND ACUTE                                LATIN CAPITAL LETTER A WITH BREVE AND ACUTE
-        0x1EB1, 0x1EB0, // LATIN SMALL LETTER A WITH BREVE AND GRAVE                                LATIN CAPITAL LETTER A WITH BREVE AND GRAVE
-        0x1EB3, 0x1EB2, // LATIN SMALL LETTER A WITH BREVE AND HOOK ABOVE                           LATIN CAPITAL LETTER A WITH BREVE AND HOOK ABOVE
-        0x1EB5, 0x1EB4, // LATIN SMALL LETTER A WITH BREVE AND TILDE                                LATIN CAPITAL LETTER A WITH BREVE AND TILDE
-        0x1EB7, 0x1EB6, // LATIN SMALL LETTER A WITH BREVE AND DOT BELOW                            LATIN CAPITAL LETTER A WITH BREVE AND DOT BELOW
-        0x1EB9, 0x1EB8, // LATIN SMALL LETTER E WITH DOT BELOW                                      LATIN CAPITAL LETTER E WITH DOT BELOW
-        0x1EBB, 0x1EBA, // LATIN SMALL LETTER E WITH HOOK ABOVE                                     LATIN CAPITAL LETTER E WITH HOOK ABOVE
-        0x1EBD, 0x1EBC, // LATIN SMALL LETTER E WITH TILDE                                          LATIN CAPITAL LETTER E WITH TILDE
-        0x1EBF, 0x1EBE, // LATIN SMALL LETTER E WITH CIRCUMFLEX AND ACUTE                           LATIN CAPITAL LETTER E WITH CIRCUMFLEX AND ACUTE
-        0x1EC1, 0x1EC0, // LATIN SMALL LETTER E WITH CIRCUMFLEX AND GRAVE                           LATIN CAPITAL LETTER E WITH CIRCUMFLEX AND GRAVE
-        0x1EC3, 0x1EC2, // LATIN SMALL LETTER E WITH CIRCUMFLEX AND HOOK ABOVE                      LATIN CAPITAL LETTER E WITH CIRCUMFLEX AND HOOK ABOVE
-        0x1EC5, 0x1EC4, // LATIN SMALL LETTER E WITH CIRCUMFLEX AND TILDE                           LATIN CAPITAL LETTER E WITH CIRCUMFLEX AND TILDE
-        0x1EC7, 0x1EC6, // LATIN SMALL LETTER E WITH CIRCUMFLEX AND DOT BELOW                       LATIN CAPITAL LETTER E WITH CIRCUMFLEX AND DOT BELOW
-        0x1EC9, 0x1EC8, // LATIN SMALL LETTER I WITH HOOK ABOVE                                     LATIN CAPITAL LETTER I WITH HOOK ABOVE
-        0x1ECB, 0x1ECA, // LATIN SMALL LETTER I WITH DOT BELOW                                      LATIN CAPITAL LETTER I WITH DOT BELOW
-        0x1ECD, 0x1ECC, // LATIN SMALL LETTER O WITH DOT BELOW                                      LATIN CAPITAL LETTER O WITH DOT BELOW
-        0x1ECF, 0x1ECE, // LATIN SMALL LETTER O WITH HOOK ABOVE                                     LATIN CAPITAL LETTER O WITH HOOK ABOVE
-        0x1ED1, 0x1ED0, // LATIN SMALL LETTER O WITH CIRCUMFLEX AND ACUTE                           LATIN CAPITAL LETTER O WITH CIRCUMFLEX AND ACUTE
-        0x1ED3, 0x1ED2, // LATIN SMALL LETTER O WITH CIRCUMFLEX AND GRAVE                           LATIN CAPITAL LETTER O WITH CIRCUMFLEX AND GRAVE
-        0x1ED5, 0x1ED4, // LATIN SMALL LETTER O WITH CIRCUMFLEX AND HOOK ABOVE                      LATIN CAPITAL LETTER O WITH CIRCUMFLEX AND HOOK ABOVE
-        0x1ED7, 0x1ED6, // LATIN SMALL LETTER O WITH CIRCUMFLEX AND TILDE                           LATIN CAPITAL LETTER O WITH CIRCUMFLEX AND TILDE
-        0x1ED9, 0x1ED8, // LATIN SMALL LETTER O WITH CIRCUMFLEX AND DOT BELOW                       LATIN CAPITAL LETTER O WITH CIRCUMFLEX AND DOT BELOW
-        0x1EDB, 0x1EDA, // LATIN SMALL LETTER O WITH HORN AND ACUTE                                 LATIN CAPITAL LETTER O WITH HORN AND ACUTE
-        0x1EDD, 0x1EDC, // LATIN SMALL LETTER O WITH HORN AND GRAVE                                 LATIN CAPITAL LETTER O WITH HORN AND GRAVE
-        0x1EDF, 0x1EDE, // LATIN SMALL LETTER O WITH HORN AND HOOK ABOVE                            LATIN CAPITAL LETTER O WITH HORN AND HOOK ABOVE
-        0x1EE1, 0x1EE0, // LATIN SMALL LETTER O WITH HORN AND TILDE                                 LATIN CAPITAL LETTER O WITH HORN AND TILDE
-        0x1EE3, 0x1EE2, // LATIN SMALL LETTER O WITH HORN AND DOT BELOW                             LATIN CAPITAL LETTER O WITH HORN AND DOT BELOW
-        0x1EE5, 0x1EE4, // LATIN SMALL LETTER U WITH DOT BELOW                                      LATIN CAPITAL LETTER U WITH DOT BELOW
-        0x1EE7, 0x1EE6, // LATIN SMALL LETTER U WITH HOOK ABOVE                                     LATIN CAPITAL LETTER U WITH HOOK ABOVE
-        0x1EE9, 0x1EE8, // LATIN SMALL LETTER U WITH HORN AND ACUTE                                 LATIN CAPITAL LETTER U WITH HORN AND ACUTE
-        0x1EEB, 0x1EEA, // LATIN SMALL LETTER U WITH HORN AND GRAVE                                 LATIN CAPITAL LETTER U WITH HORN AND GRAVE
-        0x1EED, 0x1EEC, // LATIN SMALL LETTER U WITH HORN AND HOCK ABOVE                            LATIN CAPITAL LETTER U WITH HORN AND HOOK ABOVE
-        0x1EEF, 0x1EEE, // LATIN SMALL LETTER U WITH HORN AND TILDE                                 LATIN CAPITAL LETTER U WITH HORN AND TILDE
-        0x1EF1, 0x1EF0, // LATIN SMALL LETTER U WITH HORN AND DOT BELOW                             LATIN CAPITAL LETTER U WITH HORN AND DOT BELOW
-        0x1EF3, 0x1EF2, // LATIN SMALL LETTER Y WITH GRAVE                                          LATIN CAPITAL LETTER Y WITH GRAVE
-        0x1EF5, 0x1EF4, // LATIN SMALL LETTER Y WITH DOT BELOW                                      LATIN CAPITAL LETTER Y WITH DOT BELOW
-        0x1EF7, 0x1EF6, // LATIN SMALL LETTER Y WITH HOOK ABOVE                                     LATIN CAPITAL LETTER Y WITH HOOK ABOVE
-        0x1EF9, 0x1EF8, // LATIN SMALL LETTER Y WITH TILDE                                          LATIN CAPITAL LETTER Y WITH TILDE
-        0x1F00, 0x1F08, // GREEK SMALL LETTER ALPHA WITH PSILI                                      GREEK CAPITAL LETTER ALPHA WITH PSILI
-        0x1F01, 0x1F09, // GREEK SMALL LETTER ALPHA WITH DASIA                                      GREEK CAPITAL LETTER ALPHA WITH DASIA
-        0x1F02, 0x1F0A, // GREEK SMALL LETTER ALPHA WITH PSILI AND VARIA                            GREEK CAPITAL LETTER ALPHA WITH PSILI AND VARIA
-        0x1F03, 0x1F0B, // GREEK SMALL LETTER ALPHA WITH DASIA AND VARIA                            GREEK CAPITAL LETTER ALPHA WITH DASIA AND VARIA
-        0x1F04, 0x1F0C, // GREEK SMALL LETTER ALPHA WITH PSILI AND OXIA                             GREEK CAPITAL LETTER ALPHA WITH PSILI AND OXIA
-        0x1F05, 0x1F0D, // GREEK SMALL LETTER ALPHA WITH DASIA AND OXIA                             GREEK CAPITAL LETTER ALPHA WITH DASIA AND OXIA
-        0x1F06, 0x1F0E, // GREEK SMALL LETTER ALPHA WITH PSILI AND PERISPOMENI                      GREEK CAPITAL LETTER ALPHA WITH PSILI AND PERISPOMENI
-        0x1F07, 0x1F0F, // GREEK SMALL LETTER ALPHA WITH DASIA AND PERISPOMENI                      GREEK CAPITAL LETTER ALPHA WITH DASIA AND PERISPOMENI
-        0x1F10, 0x1F18, // GREEK SMALL LETTER EPSILON WITH PSILI                                    GREEK CAPITAL LETTER EPSILON WITH PSILI
-        0x1F11, 0x1F19, // GREEK SMALL LETTER EPSILON WITH DASIA                                    GREEK CAPITAL LETTER EPSILON WITH DASIA
-        0x1F12, 0x1F1A, // GREEK SMALL LETTER EPSILON WITH PSILI AND VARIA                          GREEK CAPITAL LETTER EPSILON WITH PSILI AND VARIA
-        0x1F13, 0x1F1B, // GREEK SMALL LETTER EPSILON WITH DASIA AND VARIA                          GREEK CAPITAL LETTER EPSILON WITH DASIA AND VARIA
-        0x1F14, 0x1F1C, // GREEK SMALL LETTER EPSILON WITH PSILI AND OXIA                           GREEK CAPITAL LETTER EPSILON WITH PSILI AND OXIA
-        0x1F15, 0x1F1D, // GREEK SMALL LETTER EPSILON WITH DASIA AND OXIA                           GREEK CAPITAL LETTER EPSILON WITH DASIA AND OXIA
-        0x1F20, 0x1F28, // GREEK SMALL LETTER ETA WITH PSILI                                        GREEK CAPITAL LETTER ETA WITH PSILI
-        0x1F21, 0x1F29, // GREEK SMALL LETTER ETA WITH DASIA                                        GREEK CAPITAL LETTER ETA WITH DASIA
-        0x1F22, 0x1F2A, // GREEK SMALL LETTER ETA WITH PSILI AND VARIA                              GREEK CAPITAL LETTER ETA WITH PSILI AND VARIA
-        0x1F23, 0x1F2B, // GREEK SMALL LETTER ETA WITH DASIA AND VARIA                              GREEK CAPITAL LETTER ETA WITH DASIA AND VARIA
-        0x1F24, 0x1F2C, // GREEK SMALL LETTER ETA WITH PSILI AND OXIA                               GREEK CAPITAL LETTER ETA WITH PSILI AND OXIA
-        0x1F25, 0x1F2D, // GREEK SMALL LETTER ETA WITH DASIA AND OXIA                               GREEK CAPITAL LETTER ETA WITH DASIA AND OXIA
-        0x1F26, 0x1F2E, // GREEK SMALL LETTER ETA WITH PSILI AND PERISPOMENI                        GREEK CAPITAL LETTER ETA WITH PSILI AND PERISPOMENI
-        0x1F27, 0x1F2F, // GREEK SMALL LETTER ETA WITH DASIA AND PERISPOMENI                        GREEK CAPITAL LETTER ETA WITH DASIA AND PERISPOMENI
-        0x1F30, 0x1F38, // GREEK SMALL LETTER IOTA WITH PSILI                                       GREEK CAPITAL LETTER IOTA WITH PSILI
-        0x1F31, 0x1F39, // GREEK SMALL LETTER IOTA WITH DASIA                                       GREEK CAPITAL LETTER IOTA WITH DASIA
-        0x1F32, 0x1F3A, // GREEK SMALL LETTER IOTA WITH PSILI AND VARIA                             GREEK CAPITAL LETTER IOTA WITH PSILI AND VARIA
-        0x1F33, 0x1F3B, // GREEK SMALL LETTER IOTA WITH DASIA AND VARIA                             GREEK CAPITAL LETTER IOTA WITH DASIA AND VARIA
-        0x1F34, 0x1F3C, // GREEK SMALL LETTER IOTA WITH PSILI AND OXIA                              GREEK CAPITAL LETTER IOTA WITH PSILI AND OXIA
-        0x1F35, 0x1F3D, // GREEK SMALL LETTER IOTA WITH DASIA AND OXIA                              GREEK CAPITAL LETTER IOTA WITH DASIA AND OXIA
-        0x1F36, 0x1F3E, // GREEK SMALL LETTER IOTA WITH PSILI AND PERISPOMENI                       GREEK CAPITAL LETTER IOTA WITH PSILI AND PERISPOMENI
-        0x1F37, 0x1F3F, // GREEK SMALL LETTER IOTA WITH DASIA AND PERISPOMENI                       GREEK CAPITAL LETTER IOTA WITH DASIA AND PERISPOMENI
-        0x1F40, 0x1F48, // GREEK SMALL LETTER OMICRON WITH PSILI                                    GREEK CAPITAL LETTER OMICRON WITH PSILI
-        0x1F41, 0x1F49, // GREEK SMALL LETTER OMICRON WITH DASIA                                    GREEK CAPITAL LETTER OMICRON WITH DASIA
-        0x1F42, 0x1F4A, // GREEK SMALL LETTER OMICRON WITH PSILI AND VARIA                          GREEK CAPITAL LETTER OMICRON WITH PSILI AND VARIA
-        0x1F43, 0x1F4B, // GREEK SMALL LETTER OMICRON WITH DASIA AND VARIA                          GREEK CAPITAL LETTER OMICRON WITH DASIA AND VARIA
-        0x1F44, 0x1F4C, // GREEK SMALL LETTER OMICRON WITH PSILI AND OXIA                           GREEK CAPITAL LETTER OMICRON WITH PSILI AND OXIA
-        0x1F45, 0x1F4D, // GREEK SMALL LETTER OMICRON WITH DASIA AND OXIA                           GREEK CAPITAL LETTER OMICRON WITH DASIA AND OXIA
-        0x1F51, 0x1F59, // GREEK SMALL LETTER UPSILON WITH DASIA                                    GREEK CAPITAL LETTER UPSILON WITH OASIS
-        0x1F53, 0x1F5B, // GREEK SMALL LETTER UPSILON WITH DASIA AND VARIA                          GREEK CAPITAL LETTER UPSILON WITH DASIA AND VARIA
-        0x1F55, 0x1F5D, // GREEK SMALL LETTER UPSILON WITH DASIA AND OXIA                           GREEK CAPITAL LETTER UPSILON WITH DASIA AND OXIA
-        0x1F57, 0x1F5F, // GREEK SMALL LETTER UPSILON WITH DASIA AND PERISPOMENI                    GREEK CAPITAL LETTER UPSILON WITH DASIA AND PERISPOMENI
-        0x1F60, 0x1F68, // GREEK SMALL LETTER OMEGA WITh PSILI                                      GREEK CAPITAL LETTER OMEGA WITH PSILI
-        0x1F61, 0x1F69, // GREEK SMALL LETTER OMEGA WITH DASIA                                      GREEK CAPITAL LETTER OMEGA WITH DASIA
-        0x1F62, 0x1F6A, // GREEK SMALL LETTER OMEGA WITH PSILI AND VARIA                            GREEK CAPITAL LETTER OMEGA WITH PSILI AND VARIA
-        0x1F63, 0x1F6B, // GREEK SMALL LETTER OMEGA WITH DASIA AND VARIA                            GREEK CAPITAL LETTER OMEGA WITH DASIA AND VARIA
-        0x1F64, 0x1F6C, // GREEK SMALL LETTER OMEGA WITH PSILI AND OXIA                             GREEK CAPITAL LETTER OMEGA WITH PSILI AND OXIA
-        0x1F65, 0x1F6D, // GREEK SMALL LETTER OMEGA WITH DASIA AND OXIA                             GREEK CAPITAL LETTER OMEGA WITH DASIA AND OXIA
-        0x1F66, 0x1F6E, // GREEK SMALL LETTER OMEGA WITH PSILI AND PERISPOMENI                      GREEK CAPITAL LETTER OMEGA WITH PSILI AND PERISPOMENI
-        0x1F67, 0x1F6F, // GREEK SMALL LETTER OMEGA WITH DASIA AND PERISPOMENI                      GREEK CAPITAL LETTER OMEGA WITH DASIA AND PERISPOMENI
-        0x1F80, 0x1F88, // GREEK SMALL LETTER ALPHA WITH PSILI AND YPOGEGRAMMENI                    GREEK CAPITAL LETTER ALPHA WITh PSILI AND PROSGEGRAMMENI
-        0x1F81, 0x1F89, // GREEK SMALL LETTER ALPHA WITH DASIA AND YPOGEGRAMMENI                    GREEK CAPITAL LETTER ALPHA WITH DASIA AND PROSGEGRAMMENI
-        0x1F82, 0x1F8A, // GREEK SMALL LETTER ALPHA WITH PSILI AND VARIA AND YPOGEGRAMMENI          GREEK CAPITAL LETTER ALPHA WITH PSILI AND VARIA AND PROSGEGRAMMENI
-        0x1F83, 0x1F8B, // GREEK SMALL LETTER ALPHA WITH DASIA AND VARIA AND YPOGEGRAMMENI          GREEK CAPITAL LETTER ALPHA WITH DASIA AND VARIA AND PROSGEGRAMMENI
-        0x1F84, 0x1F8C, // GREEK SMALL LETTER ALPHA WITH PSILI AND OXIA AND YPOGEGRAMMENI           GREEK CAPITAL LETTER ALPHA WITH PSILI AND OXIA AND PROSGEGRAMMEN
-        0x1F85, 0x1F8D, // GREEK SMALL LETTER ALPHA WITH DASIA AND OXIA AND YPOGEGRAMMENI           GREEK CAPITAL LETTER ALPHA WITH DASIA AND OXIA AND PROSGEGRAMMEN
-        0x1F86, 0x1F8E, // GREEK SMALL LETTER ALPHA WITH PSILI AND PERISPOMENI AND YPOGEGRAMMENI    GREEK CAPITAL LETTER ALPHA WITH PSILI AND PERISPOMENI AND PROSGEGRAMMENI
-        0x1F87, 0x1F8F, // GREEK SMALL LETTER ALPHA WITH DASIA AND PERISPOMENI AND YPOGEGRAMMENI    GREEK CAPITAL LETTER ALPHA WITH DASIA AND PERISPOMENI AND PROSGEGRAMMENI
-        0x1F90, 0x1F98, // GREEK SMALL LETTER ETA WITH PSILI AND YPOGEGRAMMENI                      GREEK CAPITAL LETTER ETA WITH PSILI AND PROSGEGRAMMENI
-        0x1F91, 0x1F99, // GREEK SMALL LETTER ETA WITH DASIA AND YPOGEGRAMMENI                      GREEK CAPITAL LETTER ETA WITH DASIA AND PROSGEGRAMMENI
-        0x1F92, 0x1F9A, // GREEK SMALL LETTER ETA WITH PSILI AND VARIA AND YPOGEGRAMMENI            GREEK CAPITAL LETTER ETA WITH PSILI AND VARIA AND PROSGEGRAMMENI
-        0x1F93, 0x1F9B, // GREEK SMALL LETTER ETA WITH DASIA AND VARIA AND YPOGEGRAMMENI            GREEK CAPITAL LETTER ETA WITH DASIA AND VARIA AND PROSGEGRAMMENI
-        0x1F94, 0x1F9C, // GREEK SMALL LETTER ETA WITH PSILI AND OXIA AND YPOGEGRAMMENI             GREEK CAPITAL LETTER ETA WITH PSILI AND OXIA AND PROSGEGRAMMENI
-        0x1F95, 0x1F9D, // GREEK SMALL LETTER ETA WITH DASIA AND OXIA AND YPOGEGRAMMENI             GREEK CAPITAL LETTER ETA WITH DASIA AND OXIA AND PROSGEGRAMMENI
-        0x1F96, 0x1F9E, // GREEK SMALL LETTER ETA WITH PSILI AND PERISPOMENI AND YPOGEGRAMMENI      GREEK CAPITAL LETTER ETA WITH PSILI AND PERISPOMENI AND PROSGEGRAMMENI
-        0x1F97, 0x1F9F, // GREEK SMALL LETTER ETA WITH DASIA AND PERISPOMENI AND YPOGEGRAMMENI      GREEK CAPITAL LETTER ETA WITH DASIA AND PERISPOMENI AND PROSGEGRAMMENI
-        0x1FA0, 0x1FA8, // GREEK SMALL LETTER OMEGA WITH PSILI AND YPOGEGRAMMENI                    GREEK CAPITAL LETTER OMEGA WITH PSILI AND PROSGEGRAMMENI
-        0x1FA1, 0x1FA9, // GREEK SMALL LETTER OMEGA WITH DASIA AND YPOGEGRAMMENI                    GREEK CAPITAL LETTER OMEGA WITH DASIA AND PROSGEGRAMMENI
-        0x1FA2, 0x1FAA, // GREEK SMALL LETTER OMEGA WITH PSILI AND VARIA AND YPOGEGRAMMENI GREEK    CAPITAL LETTER OMEGA WITH PSILI AND VARIA AND PROSGEGRAMMENI
-        0x1FA3, 0x1FAB, // GREEK SMALL LETTER OMEGA WITH DASIA AND VARIA AND YPOGEGRAMMENI GREEK    CAPITAL LETTER OMEGA WITH DASIA AND VARIA AND PROSGEGRAMMENI
-        0x1FA4, 0x1FAC, // GREEK SMALL LETTER OMEGA WITH PSILI AND OXIA AND YPOGEGRAMMENI  GREEK    CAPITAL LETTER OMEGA WITH PSILI AND OXIA AND PROSGEGRAMMENI
-        0x1FA5, 0x1FAD, // GREEK SMALL LETTER OMEGA WITH DASIA AND OXIA AND YPOGEGRAMMENI  GREEK    CAPITAL LETTER OMEGA WITH DASIA AND OXIA AND PROSGEGRAMMENI
-        0x1FA6, 0x1FAE, // GREEK SMALL LETTER OMEGA WITh PSILI AND PERISPOMENI AND YPOGEGRAMMENI    GREEK CAPITAL LETTER OMEGA WITH PSILI AND PERISPOMENI AND PROSGEGRAMMENI
-        0x1FA7, 0x1FAF, // GREEK SMALL LETTER OMEGA WITH DASIA AND PEPISPOMENI AND YPOGEGRAMMENI    GREEK CAPITAL LETTER OMECA WITH DASIA AND PERISPOMENI AND PROSGEGRAMMENI
-        0x1FB0, 0x1FB8, // GREEK SMALL LETTER ALPHA WITH VRACHY                                     GREEK CAPITAL LETTER ALPHA WITH VRACHY
-        0x1FB1, 0x1FB9, // GREEK SMALL LETTER ALPHA WITH MACRON                                     GREEK CAPITAL LETTER ALPHA WITH MACRON
-        0x1FD0, 0x1FD8, // GREEK SMALL LETTER IOTA WITH VRACHY                                      GREEK CAPITAL LETTER IOTA WITH VRACHY
-        0x1FD1, 0x1FD9, // GREEK SMALL LETTER IOTA WITH MACRON                                      GREEK CAPITAL LETTER IOTA WITH MACRON
-        0x1FE0, 0x1FE8, // GREEK SMALL LETTER UPSILON WITH VRACHY                                   GREEK CAPITAL LETTER UPSILON WITH VRACHY
-        0x1FE1, 0x1FE9, // GREEK SMALL LETTER UPSILON WITH MACRON                                   GREEK CAPITAL LETTER UPSILON WITH MACRON
-        0x24D0, 0x24B6, // CIRCLED LATIN SMALL LETTER A                                             CIRCLED LATIN CAPITAL LETTER A
-        0x24D1, 0x24B7, // CIRCLED LATIN SMALL LETTER B                                             CIRCLED LATIN CAPITAL LETTER B
-        0x24D2, 0x24B8, // CIRCLED LATIN SMALL LETTER C                                             CIRCLED LATIN CAPITAL LETTER C
-        0x24D3, 0x24B9, // CIRCLED LATIN SMALL LETTER D                                             CIRCLED LATIN CAPITAL LETTER D
-        0x24D4, 0x24BA, // CIRCLED LATIN SMALL LETTER E                                             CIRCLED LATIN CAPITAL LETTER E
-        0x24D5, 0x24BB, // CIRCLED LATIN SMALL LETTER F                                             CIRCLED LATIN CAPITAL LETTER F
-        0x24D6, 0x24BC, // CIRCLED LATIN SMALL LETTER G                                             CIRCLED LATIN CAPITAL LETTER G
-        0x24D7, 0x24BD, // CIRCLED LATIN SMALL LETTER H                                             CIRCLED LATIN CAPITAL LETTER H
-        0x24D8, 0x24BE, // CIRCLED LATIN SMALL LETTER I                                             CIRCLED LATIN CAPITAL LETTER I
-        0x24D9, 0x24BF, // CIRCLED LATIN SMALL LETTER J                                             CIRCLED LATIN CAPITAL LETTER J
-        0x24DA, 0x24C0, // CIRCLED LATIN SMALL LETTER K                                             CIRCLED LATIN CAPITAL LETTER K
-        0x24DB, 0x24C1, // CIRCLED LATIN SMALL LETTER L                                             CIRCLED LATIN CAPITAL LETTER L
-        0x24DC, 0x24C2, // CIRCLED LATIN SMALL LETTER M                                             CIRCLED LATIN CAPITAL LETTER M
-        0x24DD, 0x24C3, // CIRCLED LATIN SMALL LETTER N                                             CIRCLED LATIN CAPITAL LETTER N
-        0x24DE, 0x24C4, // CIRCLED LATIN SMALL LETTER O                                             CIRCLED LATIN CAPITAL LETTER O
-        0x24DF, 0x24C5, // CIRCLED LATIN SMALL LETTER P                                             CIRCLED LATIN CAPITAL LETTER P
-        0x24E0, 0x24C6, // CIRCLED LATIN SMALL LETTER Q                                             CIRCLED LATIN CAPITAL LETTER Q
-        0x24E1, 0x24C7, // CIRCLED LATIN SMALL LETTER R                                             CIRCLED LATIN CAPITAL LETTER R
-        0x24E2, 0x24C8, // CIRCLED LATIN SMALL LETTER S                                             CIRCLED LATIN CAPITAL LETTER S
-        0x24E3, 0x24C9, // CIRCLED LATIN SMALL LETTER T                                             CIRCLED LATIN CAPITAL LETTER T
-        0x24E4, 0x24CA, // CIRCLED LATIN SMALL LETTER U                                             CIRCLED LATIN CAPITAL LETTER U
-        0x24E5, 0x24CB, // CIRCLED LATIN SMALL LETTER V                                             CIRCLED LATIN CAPITAL LETTER V
-        0x24E6, 0x24CC, // CIRCLED LATIN SMALL LETTER W                                             CIRCLED LATIN CAPITAL LETTER W
-        0x24E7, 0x24CD, // CIRCLED LATIN SMALL LETTER X                                             CIRCLED LATIN CAPITAL LETTER X
-        0x24E8, 0x24CE, // CIRCLED LATIN SMALL LETTER Y                                             CIRCLED LATIN CAPITAL LETTER Y
-        0x24E9, 0x24CF, // CIRCLED LATIN SMALL LETTER Z                                             CIRCLED LATIN CAPITAL LETTER Z
-        0xFF41, 0xFF21, // FULLWIDTH LATIN SMALL LETTER A                                           FULLWIDTH LATIN CAPITAL LETTER A
-        0xFF42, 0xFF22, // FULLWIDTH LATIN SMALL LETTER B                                           FULLWIDTH LATIN CAPITAL LETTER B
-        0xFF43, 0xFF23, // FULLWIDTH LATIN SMALL LETTER C                                           FULLWIDTH LATIN CAPITAL LETTER C
-        0xFF44, 0xFF24, // FULLWIDTH LATIN SMALL LETTER D                                           FULLWIDTH LATIN CAPITAL LETTER D
-        0xFF45, 0xFF25, // FULLWIDTH LATIN SMALL LETTER E                                           FULLWIDTH LATIN CAPITAL LETTER E
-        0xFF46, 0xFF26, // FULLWIDTH LATIN SMALL LETTER F                                           FULLWIDTH LATIN CAPITAL LETTER F
-        0xFF47, 0xFF27, // FULLWIDTH LATIN SMALL LETTER G                                           FULLWIDTH LATIN CAPITAL LETTER G
-        0xFF48, 0xFF28, // FULLWIDTH LATIN SMALL LETTER H                                           FULLWIDTH LATIN CAPITAL LETTER H
-        0xFF49, 0xFF29, // FULLWIDTH LATIN SMALL LETTER I                                           FULLWIDTH LATIN CAPITAL LETTER I
-        0xFF4A, 0xFF2A, // FULLWIDTH LATIN SMALL LETTER J                                           FULLWIDTH LATIN CAPITAL LETTER J
-        0xFF4B, 0xFF2B, // FULLWIDTH LATIN SMALL LETTER K                                           FULLWIDTH LATIN CAPITAL LETTER K
-        0xFF4C, 0xFF2C, // FULLWIDTH LATIN SMALL LETTER L                                           FULLWIDTH LATIN CAPITAL LETTER L
-        0xFF4D, 0xFF2D, // FULLWIDTH LATIN SMALL LETTER M                                           FULLWIDTH LATIN CAPITAL LETTER M
-        0xFF4E, 0xFF2E, // FULLWIDTH LATIN SMALL LETTER N                                           FULLWIDTH LATIN CAPITAL LETTER N
-        0xFF4F, 0xFF2F, // FULLWIDTH LATIN SMALL LETTER O                                           FULLWIDTH LATIN CAPITAL LETTER O
-        0xFF50, 0xFF30, // FULLWIDTH LATIN SMALL LETTER P                                           FULLWIDTH LATIN CAPITAL LETTER P
-        0xFF51, 0xFF31, // FULLWIDTH LATIN SMALL LETTER Q                                           FULLWIDTH LATIN CAPITAL LETTER Q
-        0xFF52, 0xFF32, // FULLWIDTH LATIN SMALL LETTER R                                           FULLWIDTH LATIN CAPITAL LETTER R
-        0xFF53, 0xFF33, // FULLWIDTH LATIN SMALL LETTER S                                           FULLWIDTH LATIN CAPITAL LETTER S
-        0xFF54, 0xFF34, // FULLWIDTH LATIN SMALL LETTER T                                           FULLWIDTH LATIN CAPITAL LETTER T
-        0xFF55, 0xFF35, // FULLWIDTH LATIN SMALL LETTER U                                           FULLWIDTH LATIN CAPITAL LETTER U
-        0xFF56, 0xFF36, // FULLWIDTH LATIN SMALL LETTER V                                           FULLWIDTH LATIN CAPITAL LETTER V
-        0xFF57, 0xFF37, // FULLWIDTH LATIN SMALL LETTER W                                           FULLWIDTH LATIN CAPITAL LETTER W
-        0xFF58, 0xFF38, // FULLWIDTH LATIN SMALL LETTER X                                           FULLWIDTH LATIN CAPITAL LETTER X
-        0xFF59, 0xFF39, // FULLWIDTH LATIN SMALL LETTER Y                                           FULLWIDTH LATIN CAPITAL LETTER Y
-        0xFF5A, 0xFF3A, // FULLWIDTH LATIN SMALL LETTER Z                                           FULLWIDTH LATIN CAPITAL LETTER Z
+    // From the toupper table in ISO/IEC 30112 WD10, dated 2014.
+    // https://www.open-std.org/JTC1/SC35/WG5/docs/30112d10.pdf
+    // Accessed 16 November 2025.
+    static const uint32_t lower_upper[] = {
+        0x0061UL,0x0041UL,    0x0062UL,0x0042UL,    0x0063UL,0x0043UL,    0x0064UL,0x0044UL,
+        0x0065UL,0x0045UL,    0x0066UL,0x0046UL,    0x0067UL,0x0047UL,    0x0068UL,0x0048UL,
+        0x0069UL,0x0049UL,    0x006AUL,0x004AUL,    0x006BUL,0x004BUL,    0x006CUL,0x004CUL,
+        0x006DUL,0x004DUL,    0x006EUL,0x004EUL,    0x006FUL,0x004FUL,    0x0070UL,0x0050UL,
+        0x0071UL,0x0051UL,    0x0072UL,0x0052UL,    0x0073UL,0x0053UL,    0x0074UL,0x0054UL,
+        0x0075UL,0x0055UL,    0x0076UL,0x0056UL,    0x0077UL,0x0057UL,    0x0078UL,0x0058UL,
+        0x0079UL,0x0059UL,    0x007AUL,0x005AUL,    0x00B5UL,0x039CUL,    0x00E0UL,0x00C0UL,
+        0x00E1UL,0x00C1UL,    0x00E2UL,0x00C2UL,    0x00E3UL,0x00C3UL,    0x00E4UL,0x00C4UL,
+        0x00E5UL,0x00C5UL,    0x00E6UL,0x00C6UL,    0x00E7UL,0x00C7UL,    0x00E8UL,0x00C8UL,
+        0x00E9UL,0x00C9UL,    0x00EAUL,0x00CAUL,    0x00EBUL,0x00CBUL,    0x00ECUL,0x00CCUL,
+        0x00EDUL,0x00CDUL,    0x00EEUL,0x00CEUL,    0x00EFUL,0x00CFUL,    0x00F0UL,0x00D0UL,
+        0x00F1UL,0x00D1UL,    0x00F2UL,0x00D2UL,    0x00F3UL,0x00D3UL,    0x00F4UL,0x00D4UL,
+        0x00F5UL,0x00D5UL,    0x00F6UL,0x00D6UL,    0x00F8UL,0x00D8UL,    0x00F9UL,0x00D9UL,
+        0x00FAUL,0x00DAUL,    0x00FBUL,0x00DBUL,    0x00FCUL,0x00DCUL,    0x00FDUL,0x00DDUL,
+        0x00FEUL,0x00DEUL,    0x00FFUL,0x0178UL,    0x0101UL,0x0100UL,    0x0103UL,0x0102UL,
+        0x0105UL,0x0104UL,    0x0107UL,0x0106UL,    0x0109UL,0x0108UL,    0x010BUL,0x010AUL,
+        0x010DUL,0x010CUL,    0x010FUL,0x010EUL,    0x0111UL,0x0110UL,    0x0113UL,0x0112UL,
+        0x0115UL,0x0114UL,    0x0117UL,0x0116UL,    0x0119UL,0x0118UL,    0x011BUL,0x011AUL,
+        0x011DUL,0x011CUL,    0x011FUL,0x011EUL,    0x0121UL,0x0120UL,    0x0123UL,0x0122UL,
+        0x0125UL,0x0124UL,    0x0127UL,0x0126UL,    0x0129UL,0x0128UL,    0x012BUL,0x012AUL,
+        0x012DUL,0x012CUL,    0x012FUL,0x012EUL,    0x0131UL,0x0049UL,    0x0133UL,0x0132UL,
+        0x0135UL,0x0134UL,    0x0137UL,0x0136UL,    0x013AUL,0x0139UL,    0x013CUL,0x013BUL,
+        0x013EUL,0x013DUL,    0x0140UL,0x013FUL,    0x0142UL,0x0141UL,    0x0144UL,0x0143UL,
+        0x0146UL,0x0145UL,    0x0148UL,0x0147UL,    0x014BUL,0x014AUL,    0x014DUL,0x014CUL,
+        0x014FUL,0x014EUL,    0x0151UL,0x0150UL,    0x0153UL,0x0152UL,    0x0155UL,0x0154UL,
+        0x0157UL,0x0156UL,    0x0159UL,0x0158UL,    0x015BUL,0x015AUL,    0x015DUL,0x015CUL,
+        0x015FUL,0x015EUL,    0x0161UL,0x0160UL,    0x0163UL,0x0162UL,    0x0165UL,0x0164UL,
+        0x0167UL,0x0166UL,    0x0169UL,0x0168UL,    0x016BUL,0x016AUL,    0x016DUL,0x016CUL,
+        0x016FUL,0x016EUL,    0x0171UL,0x0170UL,    0x0173UL,0x0172UL,    0x0175UL,0x0174UL,
+        0x0177UL,0x0176UL,    0x017AUL,0x0179UL,    0x017CUL,0x017BUL,    0x017EUL,0x017DUL,
+        0x017FUL,0x0053UL,    0x0180UL,0x0243UL,    0x0183UL,0x0182UL,    0x0185UL,0x0184UL,
+        0x0188UL,0x0187UL,    0x018CUL,0x018BUL,    0x0192UL,0x0191UL,    0x0195UL,0x01F6UL,
+        0x0199UL,0x0198UL,    0x019AUL,0x023DUL,    0x019EUL,0x0220UL,    0x01A1UL,0x01A0UL,
+        0x01A3UL,0x01A2UL,    0x01A5UL,0x01A4UL,    0x01A8UL,0x01A7UL,    0x01ADUL,0x01ACUL,
+        0x01B0UL,0x01AFUL,    0x01B4UL,0x01B3UL,    0x01B6UL,0x01B5UL,    0x01B9UL,0x01B8UL,
+        0x01BDUL,0x01BCUL,    0x01BFUL,0x01F7UL,    0x01C5UL,0x01C4UL,    0x01C6UL,0x01C4UL,
+        0x01C8UL,0x01C7UL,    0x01C9UL,0x01C7UL,    0x01CBUL,0x01CAUL,    0x01CCUL,0x01CAUL,
+        0x01CEUL,0x01CDUL,    0x01D0UL,0x01CFUL,    0x01D2UL,0x01D1UL,    0x01D4UL,0x01D3UL,
+        0x01D6UL,0x01D5UL,    0x01D8UL,0x01D7UL,    0x01DAUL,0x01D9UL,    0x01DCUL,0x01DBUL,
+        0x01DDUL,0x018EUL,    0x01DFUL,0x01DEUL,    0x01E1UL,0x01E0UL,    0x01E3UL,0x01E2UL,
+        0x01E5UL,0x01E4UL,    0x01E7UL,0x01E6UL,    0x01E9UL,0x01E8UL,    0x01EBUL,0x01EAUL,
+        0x01EDUL,0x01ECUL,    0x01EFUL,0x01EEUL,    0x01F2UL,0x01F1UL,    0x01F3UL,0x01F1UL,
+        0x01F5UL,0x01F4UL,    0x01F9UL,0x01F8UL,    0x01FBUL,0x01FAUL,    0x01FDUL,0x01FCUL,
+        0x01FFUL,0x01FEUL,    0x0201UL,0x0200UL,    0x0203UL,0x0202UL,    0x0205UL,0x0204UL,
+        0x0207UL,0x0206UL,    0x0209UL,0x0208UL,    0x020BUL,0x020AUL,    0x020DUL,0x020CUL,
+        0x020FUL,0x020EUL,    0x0211UL,0x0210UL,    0x0213UL,0x0212UL,    0x0215UL,0x0214UL,
+        0x0217UL,0x0216UL,    0x0219UL,0x0218UL,    0x021BUL,0x021AUL,    0x021DUL,0x021CUL,
+        0x021FUL,0x021EUL,    0x0223UL,0x0222UL,    0x0225UL,0x0224UL,    0x0227UL,0x0226UL,
+        0x0229UL,0x0228UL,    0x022BUL,0x022AUL,    0x022DUL,0x022CUL,    0x022FUL,0x022EUL,
+        0x0231UL,0x0230UL,    0x0233UL,0x0232UL,    0x023CUL,0x023BUL,    0x0242UL,0x0241UL,
+        0x0247UL,0x0246UL,    0x0249UL,0x0248UL,    0x024BUL,0x024AUL,    0x024DUL,0x024CUL,
+        0x024FUL,0x024EUL,    0x0250UL,0x2C6FUL,    0x0251UL,0x2C6DUL,    0x0253UL,0x0181UL,
+        0x0254UL,0x0186UL,    0x0256UL,0x0189UL,    0x0257UL,0x018AUL,    0x0259UL,0x018FUL,
+        0x025BUL,0x0190UL,    0x0260UL,0x0193UL,    0x0263UL,0x0194UL,    0x0268UL,0x0197UL,
+        0x0269UL,0x0196UL,    0x026BUL,0x2C62UL,    0x026FUL,0x019CUL,    0x0271UL,0x2C6EUL,
+        0x0272UL,0x019DUL,    0x0275UL,0x019FUL,    0x027DUL,0x2C64UL,    0x0280UL,0x01A6UL,
+        0x0283UL,0x01A9UL,    0x0288UL,0x01AEUL,    0x0289UL,0x0244UL,    0x028AUL,0x01B1UL,
+        0x028BUL,0x01B2UL,    0x028CUL,0x0245UL,    0x0292UL,0x01B7UL,    0x0345UL,0x0399UL,
+        0x0371UL,0x0370UL,    0x0373UL,0x0372UL,    0x0377UL,0x0376UL,    0x037BUL,0x03FDUL,
+        0x037CUL,0x03FEUL,    0x037DUL,0x03FFUL,    0x03ACUL,0x0386UL,    0x03ADUL,0x0388UL,
+        0x03AEUL,0x0389UL,    0x03AFUL,0x038AUL,    0x03B1UL,0x0391UL,    0x03B2UL,0x0392UL,
+        0x03B3UL,0x0393UL,    0x03B4UL,0x0394UL,    0x03B5UL,0x0395UL,    0x03B6UL,0x0396UL,
+        0x03B7UL,0x0397UL,    0x03B8UL,0x0398UL,    0x03B9UL,0x0399UL,    0x03BAUL,0x039AUL,
+        0x03BBUL,0x039BUL,    0x03BCUL,0x039CUL,    0x03BDUL,0x039DUL,    0x03BEUL,0x039EUL,
+        0x03BFUL,0x039FUL,    0x03C0UL,0x03A0UL,    0x03C1UL,0x03A1UL,    0x03C2UL,0x03A3UL,
+        0x03C3UL,0x03A3UL,    0x03C4UL,0x03A4UL,    0x03C5UL,0x03A5UL,    0x03C6UL,0x03A6UL,
+        0x03C7UL,0x03A7UL,    0x03C8UL,0x03A8UL,    0x03C9UL,0x03A9UL,    0x03CAUL,0x03AAUL,
+        0x03CBUL,0x03ABUL,    0x03CCUL,0x038CUL,    0x03CDUL,0x038EUL,    0x03CEUL,0x038FUL,
+        0x03D0UL,0x0392UL,    0x03D1UL,0x0398UL,    0x03D5UL,0x03A6UL,    0x03D6UL,0x03A0UL,
+        0x03D9UL,0x03D8UL,    0x03DBUL,0x03DAUL,    0x03DDUL,0x03DCUL,    0x03DFUL,0x03DEUL,
+        0x03E1UL,0x03E0UL,    0x03E3UL,0x03E2UL,    0x03E5UL,0x03E4UL,    0x03E7UL,0x03E6UL,
+        0x03E9UL,0x03E8UL,    0x03EBUL,0x03EAUL,    0x03EDUL,0x03ECUL,    0x03EFUL,0x03EEUL,
+        0x03F0UL,0x039AUL,    0x03F1UL,0x03A1UL,    0x03F2UL,0x03F9UL,    0x03F5UL,0x0395UL,
+        0x03F8UL,0x03F7UL,    0x03FBUL,0x03FAUL,    0x0430UL,0x0410UL,    0x0431UL,0x0411UL,
+        0x0432UL,0x0412UL,    0x0433UL,0x0413UL,    0x0434UL,0x0414UL,    0x0435UL,0x0415UL,
+        0x0436UL,0x0416UL,    0x0437UL,0x0417UL,    0x0438UL,0x0418UL,    0x0439UL,0x0419UL,
+        0x043AUL,0x041AUL,    0x043BUL,0x041BUL,    0x043CUL,0x041CUL,    0x043DUL,0x041DUL,
+        0x043EUL,0x041EUL,    0x043FUL,0x041FUL,    0x0440UL,0x0420UL,    0x0441UL,0x0421UL,
+        0x0442UL,0x0422UL,    0x0443UL,0x0423UL,    0x0444UL,0x0424UL,    0x0445UL,0x0425UL,
+        0x0446UL,0x0426UL,    0x0447UL,0x0427UL,    0x0448UL,0x0428UL,    0x0449UL,0x0429UL,
+        0x044AUL,0x042AUL,    0x044BUL,0x042BUL,    0x044CUL,0x042CUL,    0x044DUL,0x042DUL,
+        0x044EUL,0x042EUL,    0x044FUL,0x042FUL,    0x0450UL,0x0400UL,    0x0451UL,0x0401UL,
+        0x0452UL,0x0402UL,    0x0453UL,0x0403UL,    0x0454UL,0x0404UL,    0x0455UL,0x0405UL,
+        0x0456UL,0x0406UL,    0x0457UL,0x0407UL,    0x0458UL,0x0408UL,    0x0459UL,0x0409UL,
+        0x045AUL,0x040AUL,    0x045BUL,0x040BUL,    0x045CUL,0x040CUL,    0x045DUL,0x040DUL,
+        0x045EUL,0x040EUL,    0x045FUL,0x040FUL,    0x0461UL,0x0460UL,    0x0463UL,0x0462UL,
+        0x0465UL,0x0464UL,    0x0467UL,0x0466UL,    0x0469UL,0x0468UL,    0x046BUL,0x046AUL,
+        0x046DUL,0x046CUL,    0x046FUL,0x046EUL,    0x0471UL,0x0470UL,    0x0473UL,0x0472UL,
+        0x0475UL,0x0474UL,    0x0477UL,0x0476UL,    0x0479UL,0x0478UL,    0x047BUL,0x047AUL,
+        0x047DUL,0x047CUL,    0x047FUL,0x047EUL,    0x0481UL,0x0480UL,    0x048BUL,0x048AUL,
+        0x048DUL,0x048CUL,    0x048FUL,0x048EUL,    0x0491UL,0x0490UL,    0x0493UL,0x0492UL,
+        0x0495UL,0x0494UL,    0x0497UL,0x0496UL,    0x0499UL,0x0498UL,    0x049BUL,0x049AUL,
+        0x049DUL,0x049CUL,    0x049FUL,0x049EUL,    0x04A1UL,0x04A0UL,    0x04A3UL,0x04A2UL,
+        0x04A5UL,0x04A4UL,    0x04A7UL,0x04A6UL,    0x04A9UL,0x04A8UL,    0x04ABUL,0x04AAUL,
+        0x04ADUL,0x04ACUL,    0x04AFUL,0x04AEUL,    0x04B1UL,0x04B0UL,    0x04B3UL,0x04B2UL,
+        0x04B5UL,0x04B4UL,    0x04B7UL,0x04B6UL,    0x04B9UL,0x04B8UL,    0x04BBUL,0x04BAUL,
+        0x04BDUL,0x04BCUL,    0x04BFUL,0x04BEUL,    0x04C2UL,0x04C1UL,    0x04C4UL,0x04C3UL,
+        0x04C6UL,0x04C5UL,    0x04C8UL,0x04C7UL,    0x04CAUL,0x04C9UL,    0x04CCUL,0x04CBUL,
+        0x04CEUL,0x04CDUL,    0x04CFUL,0x04C0UL,    0x04D1UL,0x04D0UL,    0x04D3UL,0x04D2UL,
+        0x04D5UL,0x04D4UL,    0x04D7UL,0x04D6UL,    0x04D9UL,0x04D8UL,    0x04DBUL,0x04DAUL,
+        0x04DDUL,0x04DCUL,    0x04DFUL,0x04DEUL,    0x04E1UL,0x04E0UL,    0x04E3UL,0x04E2UL,
+        0x04E5UL,0x04E4UL,    0x04E7UL,0x04E6UL,    0x04E9UL,0x04E8UL,    0x04EBUL,0x04EAUL,
+        0x04EDUL,0x04ECUL,    0x04EFUL,0x04EEUL,    0x04F1UL,0x04F0UL,    0x04F3UL,0x04F2UL,
+        0x04F5UL,0x04F4UL,    0x04F7UL,0x04F6UL,    0x04F9UL,0x04F8UL,    0x04FBUL,0x04FAUL,
+        0x04FDUL,0x04FCUL,    0x04FFUL,0x04FEUL,    0x0501UL,0x0500UL,    0x0503UL,0x0502UL,
+        0x0505UL,0x0504UL,    0x0507UL,0x0506UL,    0x0509UL,0x0508UL,    0x050BUL,0x050AUL,
+        0x050DUL,0x050CUL,    0x050FUL,0x050EUL,    0x0511UL,0x0510UL,    0x0513UL,0x0512UL,
+        0x0515UL,0x0514UL,    0x0517UL,0x0516UL,    0x0519UL,0x0518UL,    0x051BUL,0x051AUL,
+        0x051DUL,0x051CUL,    0x051FUL,0x051EUL,    0x0521UL,0x0520UL,    0x0523UL,0x0522UL,
+        0x0561UL,0x0531UL,    0x0562UL,0x0532UL,    0x0563UL,0x0533UL,    0x0564UL,0x0534UL,
+        0x0565UL,0x0535UL,    0x0566UL,0x0536UL,    0x0567UL,0x0537UL,    0x0568UL,0x0538UL,
+        0x0569UL,0x0539UL,    0x056AUL,0x053AUL,    0x056BUL,0x053BUL,    0x056CUL,0x053CUL,
+        0x056DUL,0x053DUL,    0x056EUL,0x053EUL,    0x056FUL,0x053FUL,    0x0570UL,0x0540UL,
+        0x0571UL,0x0541UL,    0x0572UL,0x0542UL,    0x0573UL,0x0543UL,    0x0574UL,0x0544UL,
+        0x0575UL,0x0545UL,    0x0576UL,0x0546UL,    0x0577UL,0x0547UL,    0x0578UL,0x0548UL,
+        0x0579UL,0x0549UL,    0x057AUL,0x054AUL,    0x057BUL,0x054BUL,    0x057CUL,0x054CUL,
+        0x057DUL,0x054DUL,    0x057EUL,0x054EUL,    0x057FUL,0x054FUL,    0x0580UL,0x0550UL,
+        0x0581UL,0x0551UL,    0x0582UL,0x0552UL,    0x0583UL,0x0553UL,    0x0584UL,0x0554UL,
+        0x0585UL,0x0555UL,    0x0586UL,0x0556UL,    0x1D7DUL,0x2C63UL,    0x1E01UL,0x1E00UL,
+        0x1E03UL,0x1E02UL,    0x1E05UL,0x1E04UL,    0x1E07UL,0x1E06UL,    0x1E09UL,0x1E08UL,
+        0x1E0BUL,0x1E0AUL,    0x1E0DUL,0x1E0CUL,    0x1E0FUL,0x1E0EUL,    0x1E11UL,0x1E10UL,
+        0x1E13UL,0x1E12UL,    0x1E15UL,0x1E14UL,    0x1E17UL,0x1E16UL,    0x1E19UL,0x1E18UL,
+        0x1E1BUL,0x1E1AUL,    0x1E1DUL,0x1E1CUL,    0x1E1FUL,0x1E1EUL,    0x1E21UL,0x1E20UL,
+        0x1E23UL,0x1E22UL,    0x1E25UL,0x1E24UL,    0x1E27UL,0x1E26UL,    0x1E29UL,0x1E28UL,
+        0x1E2BUL,0x1E2AUL,    0x1E2DUL,0x1E2CUL,    0x1E2FUL,0x1E2EUL,    0x1E31UL,0x1E30UL,
+        0x1E33UL,0x1E32UL,    0x1E35UL,0x1E34UL,    0x1E37UL,0x1E36UL,    0x1E39UL,0x1E38UL,
+        0x1E3BUL,0x1E3AUL,    0x1E3DUL,0x1E3CUL,    0x1E3FUL,0x1E3EUL,    0x1E41UL,0x1E40UL,
+        0x1E43UL,0x1E42UL,    0x1E45UL,0x1E44UL,    0x1E47UL,0x1E46UL,    0x1E49UL,0x1E48UL,
+        0x1E4BUL,0x1E4AUL,    0x1E4DUL,0x1E4CUL,    0x1E4FUL,0x1E4EUL,    0x1E51UL,0x1E50UL,
+        0x1E53UL,0x1E52UL,    0x1E55UL,0x1E54UL,    0x1E57UL,0x1E56UL,    0x1E59UL,0x1E58UL,
+        0x1E5BUL,0x1E5AUL,    0x1E5DUL,0x1E5CUL,    0x1E5FUL,0x1E5EUL,    0x1E61UL,0x1E60UL,
+        0x1E63UL,0x1E62UL,    0x1E65UL,0x1E64UL,    0x1E67UL,0x1E66UL,    0x1E69UL,0x1E68UL,
+        0x1E6BUL,0x1E6AUL,    0x1E6DUL,0x1E6CUL,    0x1E6FUL,0x1E6EUL,    0x1E71UL,0x1E70UL,
+        0x1E73UL,0x1E72UL,    0x1E75UL,0x1E74UL,    0x1E77UL,0x1E76UL,    0x1E79UL,0x1E78UL,
+        0x1E7BUL,0x1E7AUL,    0x1E7DUL,0x1E7CUL,    0x1E7FUL,0x1E7EUL,    0x1E81UL,0x1E80UL,
+        0x1E83UL,0x1E82UL,    0x1E85UL,0x1E84UL,    0x1E87UL,0x1E86UL,    0x1E89UL,0x1E88UL,
+        0x1E8BUL,0x1E8AUL,    0x1E8DUL,0x1E8CUL,    0x1E8FUL,0x1E8EUL,    0x1E91UL,0x1E90UL,
+        0x1E93UL,0x1E92UL,    0x1E95UL,0x1E94UL,    0x1E9BUL,0x1E60UL,    0x1EA1UL,0x1EA0UL,
+        0x1EA3UL,0x1EA2UL,    0x1EA5UL,0x1EA4UL,    0x1EA7UL,0x1EA6UL,    0x1EA9UL,0x1EA8UL,
+        0x1EABUL,0x1EAAUL,    0x1EADUL,0x1EACUL,    0x1EAFUL,0x1EAEUL,    0x1EB1UL,0x1EB0UL,
+        0x1EB3UL,0x1EB2UL,    0x1EB5UL,0x1EB4UL,    0x1EB7UL,0x1EB6UL,    0x1EB9UL,0x1EB8UL,
+        0x1EBBUL,0x1EBAUL,    0x1EBDUL,0x1EBCUL,    0x1EBFUL,0x1EBEUL,    0x1EC1UL,0x1EC0UL,
+        0x1EC3UL,0x1EC2UL,    0x1EC5UL,0x1EC4UL,    0x1EC7UL,0x1EC6UL,    0x1EC9UL,0x1EC8UL,
+        0x1ECBUL,0x1ECAUL,    0x1ECDUL,0x1ECCUL,    0x1ECFUL,0x1ECEUL,    0x1ED1UL,0x1ED0UL,
+        0x1ED3UL,0x1ED2UL,    0x1ED5UL,0x1ED4UL,    0x1ED7UL,0x1ED6UL,    0x1ED9UL,0x1ED8UL,
+        0x1EDBUL,0x1EDAUL,    0x1EDDUL,0x1EDCUL,    0x1EDFUL,0x1EDEUL,    0x1EE1UL,0x1EE0UL,
+        0x1EE3UL,0x1EE2UL,    0x1EE5UL,0x1EE4UL,    0x1EE7UL,0x1EE6UL,    0x1EE9UL,0x1EE8UL,
+        0x1EEBUL,0x1EEAUL,    0x1EEDUL,0x1EECUL,    0x1EEFUL,0x1EEEUL,    0x1EF1UL,0x1EF0UL,
+        0x1EF3UL,0x1EF2UL,    0x1EF5UL,0x1EF4UL,    0x1EF7UL,0x1EF6UL,    0x1EF9UL,0x1EF8UL,
+        0x1EFBUL,0x1EFAUL,    0x1EFDUL,0x1EFCUL,    0x1EFFUL,0x1EFEUL,    0x1F00UL,0x1F08UL,
+        0x1F01UL,0x1F09UL,    0x1F02UL,0x1F0AUL,    0x1F03UL,0x1F0BUL,    0x1F04UL,0x1F0CUL,
+        0x1F05UL,0x1F0DUL,    0x1F06UL,0x1F0EUL,    0x1F07UL,0x1F0FUL,    0x1F10UL,0x1F18UL,
+        0x1F11UL,0x1F19UL,    0x1F12UL,0x1F1AUL,    0x1F13UL,0x1F1BUL,    0x1F14UL,0x1F1CUL,
+        0x1F15UL,0x1F1DUL,    0x1F20UL,0x1F28UL,    0x1F21UL,0x1F29UL,    0x1F22UL,0x1F2AUL,
+        0x1F23UL,0x1F2BUL,    0x1F24UL,0x1F2CUL,    0x1F25UL,0x1F2DUL,    0x1F26UL,0x1F2EUL,
+        0x1F27UL,0x1F2FUL,    0x1F30UL,0x1F38UL,    0x1F31UL,0x1F39UL,    0x1F32UL,0x1F3AUL,
+        0x1F33UL,0x1F3BUL,    0x1F34UL,0x1F3CUL,    0x1F35UL,0x1F3DUL,    0x1F36UL,0x1F3EUL,
+        0x1F37UL,0x1F3FUL,    0x1F40UL,0x1F48UL,    0x1F41UL,0x1F49UL,    0x1F42UL,0x1F4AUL,
+        0x1F43UL,0x1F4BUL,    0x1F44UL,0x1F4CUL,    0x1F45UL,0x1F4DUL,    0x1F51UL,0x1F59UL,
+        0x1F53UL,0x1F5BUL,    0x1F55UL,0x1F5DUL,    0x1F57UL,0x1F5FUL,    0x1F60UL,0x1F68UL,
+        0x1F61UL,0x1F69UL,    0x1F62UL,0x1F6AUL,    0x1F63UL,0x1F6BUL,    0x1F64UL,0x1F6CUL,
+        0x1F65UL,0x1F6DUL,    0x1F66UL,0x1F6EUL,    0x1F67UL,0x1F6FUL,    0x1F70UL,0x1FBAUL,
+        0x1F71UL,0x1FBBUL,    0x1F72UL,0x1FC8UL,    0x1F73UL,0x1FC9UL,    0x1F74UL,0x1FCAUL,
+        0x1F75UL,0x1FCBUL,    0x1F76UL,0x1FDAUL,    0x1F77UL,0x1FDBUL,    0x1F78UL,0x1FF8UL,
+        0x1F79UL,0x1FF9UL,    0x1F7AUL,0x1FEAUL,    0x1F7BUL,0x1FEBUL,    0x1F7CUL,0x1FFAUL,
+        0x1F7DUL,0x1FFBUL,    0x1F80UL,0x1F88UL,    0x1F81UL,0x1F89UL,    0x1F82UL,0x1F8AUL,
+        0x1F83UL,0x1F8BUL,    0x1F84UL,0x1F8CUL,    0x1F85UL,0x1F8DUL,    0x1F86UL,0x1F8EUL,
+        0x1F87UL,0x1F8FUL,    0x1F90UL,0x1F98UL,    0x1F91UL,0x1F99UL,    0x1F92UL,0x1F9AUL,
+        0x1F93UL,0x1F9BUL,    0x1F94UL,0x1F9CUL,    0x1F95UL,0x1F9DUL,    0x1F96UL,0x1F9EUL,
+        0x1F97UL,0x1F9FUL,    0x1FA0UL,0x1FA8UL,    0x1FA1UL,0x1FA9UL,    0x1FA2UL,0x1FAAUL,
+        0x1FA3UL,0x1FABUL,    0x1FA4UL,0x1FACUL,    0x1FA5UL,0x1FADUL,    0x1FA6UL,0x1FAEUL,
+        0x1FA7UL,0x1FAFUL,    0x1FB0UL,0x1FB8UL,    0x1FB1UL,0x1FB9UL,    0x1FB3UL,0x1FBCUL,
+        0x1FBEUL,0x0399UL,    0x1FC3UL,0x1FCCUL,    0x1FD0UL,0x1FD8UL,    0x1FD1UL,0x1FD9UL,
+        0x1FE0UL,0x1FE8UL,    0x1FE1UL,0x1FE9UL,    0x1FE5UL,0x1FECUL,    0x1FF3UL,0x1FFCUL,
+        0x214EUL,0x2132UL,    0x2170UL,0x2160UL,    0x2171UL,0x2161UL,    0x2172UL,0x2162UL,
+        0x2173UL,0x2163UL,    0x2174UL,0x2164UL,    0x2175UL,0x2165UL,    0x2176UL,0x2166UL,
+        0x2177UL,0x2167UL,    0x2178UL,0x2168UL,    0x2179UL,0x2169UL,    0x217AUL,0x216AUL,
+        0x217BUL,0x216BUL,    0x217CUL,0x216CUL,    0x217DUL,0x216DUL,    0x217EUL,0x216EUL,
+        0x217FUL,0x216FUL,    0x2184UL,0x2183UL,    0x24D0UL,0x24B6UL,    0x24D1UL,0x24B7UL,
+        0x24D2UL,0x24B8UL,    0x24D3UL,0x24B9UL,    0x24D4UL,0x24BAUL,    0x24D5UL,0x24BBUL,
+        0x24D6UL,0x24BCUL,    0x24D7UL,0x24BDUL,    0x24D8UL,0x24BEUL,    0x24D9UL,0x24BFUL,
+        0x24DAUL,0x24C0UL,    0x24DBUL,0x24C1UL,    0x24DCUL,0x24C2UL,    0x24DDUL,0x24C3UL,
+        0x24DEUL,0x24C4UL,    0x24DFUL,0x24C5UL,    0x24E0UL,0x24C6UL,    0x24E1UL,0x24C7UL,
+        0x24E2UL,0x24C8UL,    0x24E3UL,0x24C9UL,    0x24E4UL,0x24CAUL,    0x24E5UL,0x24CBUL,
+        0x24E6UL,0x24CCUL,    0x24E7UL,0x24CDUL,    0x24E8UL,0x24CEUL,    0x24E9UL,0x24CFUL,
+        0x2C30UL,0x2C00UL,    0x2C31UL,0x2C01UL,    0x2C32UL,0x2C02UL,    0x2C33UL,0x2C03UL,
+        0x2C34UL,0x2C04UL,    0x2C35UL,0x2C05UL,    0x2C36UL,0x2C06UL,    0x2C37UL,0x2C07UL,
+        0x2C38UL,0x2C08UL,    0x2C39UL,0x2C09UL,    0x2C3AUL,0x2C0AUL,    0x2C3BUL,0x2C0BUL,
+        0x2C3CUL,0x2C0CUL,    0x2C3DUL,0x2C0DUL,    0x2C3EUL,0x2C0EUL,    0x2C3FUL,0x2C0FUL,
+        0x2C40UL,0x2C10UL,    0x2C41UL,0x2C11UL,    0x2C42UL,0x2C12UL,    0x2C43UL,0x2C13UL,
+        0x2C44UL,0x2C14UL,    0x2C45UL,0x2C15UL,    0x2C46UL,0x2C16UL,    0x2C47UL,0x2C17UL,
+        0x2C48UL,0x2C18UL,    0x2C49UL,0x2C19UL,    0x2C4AUL,0x2C1AUL,    0x2C4BUL,0x2C1BUL,
+        0x2C4CUL,0x2C1CUL,    0x2C4DUL,0x2C1DUL,    0x2C4EUL,0x2C1EUL,    0x2C4FUL,0x2C1FUL,
+        0x2C50UL,0x2C20UL,    0x2C51UL,0x2C21UL,    0x2C52UL,0x2C22UL,    0x2C53UL,0x2C23UL,
+        0x2C54UL,0x2C24UL,    0x2C55UL,0x2C25UL,    0x2C56UL,0x2C26UL,    0x2C57UL,0x2C27UL,
+        0x2C58UL,0x2C28UL,    0x2C59UL,0x2C29UL,    0x2C5AUL,0x2C2AUL,    0x2C5BUL,0x2C2BUL,
+        0x2C5CUL,0x2C2CUL,    0x2C5DUL,0x2C2DUL,    0x2C5EUL,0x2C2EUL,    0x2C61UL,0x2C60UL,
+        0x2C65UL,0x023AUL,    0x2C66UL,0x023EUL,    0x2C68UL,0x2C67UL,    0x2C6AUL,0x2C69UL,
+        0x2C6CUL,0x2C6BUL,    0x2C73UL,0x2C72UL,    0x2C76UL,0x2C75UL,    0x2C81UL,0x2C80UL,
+        0x2C83UL,0x2C82UL,    0x2C85UL,0x2C84UL,    0x2C87UL,0x2C86UL,    0x2C89UL,0x2C88UL,
+        0x2C8BUL,0x2C8AUL,    0x2C8DUL,0x2C8CUL,    0x2C8FUL,0x2C8EUL,    0x2C91UL,0x2C90UL,
+        0x2C93UL,0x2C92UL,    0x2C95UL,0x2C94UL,    0x2C97UL,0x2C96UL,    0x2C99UL,0x2C98UL,
+        0x2C9BUL,0x2C9AUL,    0x2C9DUL,0x2C9CUL,    0x2C9FUL,0x2C9EUL,    0x2CA1UL,0x2CA0UL,
+        0x2CA3UL,0x2CA2UL,    0x2CA5UL,0x2CA4UL,    0x2CA7UL,0x2CA6UL,    0x2CA9UL,0x2CA8UL,
+        0x2CABUL,0x2CAAUL,    0x2CADUL,0x2CACUL,    0x2CAFUL,0x2CAEUL,    0x2CB1UL,0x2CB0UL,
+        0x2CB3UL,0x2CB2UL,    0x2CB5UL,0x2CB4UL,    0x2CB7UL,0x2CB6UL,    0x2CB9UL,0x2CB8UL,
+        0x2CBBUL,0x2CBAUL,    0x2CBDUL,0x2CBCUL,    0x2CBFUL,0x2CBEUL,    0x2CC1UL,0x2CC0UL,
+        0x2CC3UL,0x2CC2UL,    0x2CC5UL,0x2CC4UL,    0x2CC7UL,0x2CC6UL,    0x2CC9UL,0x2CC8UL,
+        0x2CCBUL,0x2CCAUL,    0x2CCDUL,0x2CCCUL,    0x2CCFUL,0x2CCEUL,    0x2CD1UL,0x2CD0UL,
+        0x2CD3UL,0x2CD2UL,    0x2CD5UL,0x2CD4UL,    0x2CD7UL,0x2CD6UL,    0x2CD9UL,0x2CD8UL,
+        0x2CDBUL,0x2CDAUL,    0x2CDDUL,0x2CDCUL,    0x2CDFUL,0x2CDEUL,    0x2CE1UL,0x2CE0UL,
+        0x2CE3UL,0x2CE2UL,    0x2D00UL,0x10A0UL,    0x2D01UL,0x10A1UL,    0x2D02UL,0x10A2UL,
+        0x2D03UL,0x10A3UL,    0x2D04UL,0x10A4UL,    0x2D05UL,0x10A5UL,    0x2D06UL,0x10A6UL,
+        0x2D07UL,0x10A7UL,    0x2D08UL,0x10A8UL,    0x2D09UL,0x10A9UL,    0x2D0AUL,0x10AAUL,
+        0x2D0BUL,0x10ABUL,    0x2D0CUL,0x10ACUL,    0x2D0DUL,0x10ADUL,    0x2D0EUL,0x10AEUL,
+        0x2D0FUL,0x10AFUL,    0x2D10UL,0x10B0UL,    0x2D11UL,0x10B1UL,    0x2D12UL,0x10B2UL,
+        0x2D13UL,0x10B3UL,    0x2D14UL,0x10B4UL,    0x2D15UL,0x10B5UL,    0x2D16UL,0x10B6UL,
+        0x2D17UL,0x10B7UL,    0x2D18UL,0x10B8UL,    0x2D19UL,0x10B9UL,    0x2D1AUL,0x10BAUL,
+        0x2D1BUL,0x10BBUL,    0x2D1CUL,0x10BCUL,    0x2D1DUL,0x10BDUL,    0x2D1EUL,0x10BEUL,
+        0x2D1FUL,0x10BFUL,    0x2D20UL,0x10C0UL,    0x2D21UL,0x10C1UL,    0x2D22UL,0x10C2UL,
+        0x2D23UL,0x10C3UL,    0x2D24UL,0x10C4UL,    0x2D25UL,0x10C5UL,    0xFF41UL,0xFF21UL,
+        0xFF42UL,0xFF22UL,    0xFF43UL,0xFF23UL,    0xFF44UL,0xFF24UL,    0xFF45UL,0xFF25UL,
+        0xFF46UL,0xFF26UL,    0xFF47UL,0xFF27UL,    0xFF48UL,0xFF28UL,    0xFF49UL,0xFF29UL,
+        0xFF4AUL,0xFF2AUL,    0xFF4BUL,0xFF2BUL,    0xFF4CUL,0xFF2CUL,    0xFF4DUL,0xFF2DUL,
+        0xFF4EUL,0xFF2EUL,    0xFF4FUL,0xFF2FUL,    0xFF50UL,0xFF30UL,    0xFF51UL,0xFF31UL,
+        0xFF52UL,0xFF32UL,    0xFF53UL,0xFF33UL,    0xFF54UL,0xFF34UL,    0xFF55UL,0xFF35UL,
+        0xFF56UL,0xFF36UL,    0xFF57UL,0xFF37UL,    0xFF58UL,0xFF38UL,    0xFF59UL,0xFF39UL,
+        0xFF5AUL,0xFF3AUL,    0x10428UL,0x10400UL,  0x10429UL,0x10401UL,  0x1042AUL,0x10402UL,
+        0x1042BUL,0x10403UL,  0x1042CUL,0x10404UL,  0x1042DUL,0x10405UL,  0x1042EUL,0x10406UL,
+        0x1042FUL,0x10407UL,  0x10430UL,0x10408UL,  0x10431UL,0x10409UL,  0x10432UL,0x1040AUL,
+        0x10433UL,0x1040BUL,  0x10434UL,0x1040CUL,  0x10435UL,0x1040DUL,  0x10436UL,0x1040EUL,
+        0x10437UL,0x1040FUL,  0x10438UL,0x10410UL,  0x10439UL,0x10411UL,  0x1043AUL,0x10412UL,
+        0x1043BUL,0x10413UL,  0x1043CUL,0x10414UL,  0x1043DUL,0x10415UL,  0x1043EUL,0x10416UL,
+        0x1043FUL,0x10417UL,  0x10440UL,0x10418UL,  0x10441UL,0x10419UL,  0x10442UL,0x1041AUL,
+        0x10443UL,0x1041BUL,  0x10444UL,0x1041CUL,  0x10445UL,0x1041DUL,  0x10446UL,0x1041EUL,
+        0x10447UL,0x1041FUL,  0x10448UL,0x10420UL,  0x10449UL,0x10421UL,  0x1044AUL,0x10422UL,
+        0x1044BUL,0x10423UL,  0x1044CUL,0x10424UL,  0x1044DUL,0x10425UL,  0x1044EUL,0x10426UL,
+        0x1044FUL,0x10427UL,
     };
+    constexpr size_t last_lower_upper = std::size(lower_upper) - 2;
 
-    for (size_t i = 0; i < lower_upper.size(); i += 2) {
-        if (c32 < lower_upper[i])
-            return c32;
-        if (c32 == lower_upper[i])
-            return lower_upper[i + 1];
-    }
+    size_t i = 0;
+    while (i < last_lower_upper and c32 > lower_upper[i])
+        i += 2;
+    if (c32 == lower_upper[i])
+        return lower_upper[i + 1];
     return c32;
+
+    // It's adequate for the purposes of ELIZA, OK?
 }
 
 
@@ -1094,7 +680,7 @@ std::string eliza_uppercase(const std::string & utf8_string)
         People may type fancy quotation marks and apostrophes, or copy
         and paste into ELIZA text from documents containing such characters.
         Punctuation, apart from comma and full stop, may get attached to
-        words so that they are not recognised: e.g. COMPUTER" is not a
+        words so that they are not recognised: e.g. COMPUTER! is not a
         keyword. We'll remove or reinterpret such punctuation.
 
         E.g. from https://www.wired.com/story/ai-mother-eliza-claude-therapy/
@@ -1107,7 +693,8 @@ std::string eliza_uppercase(const std::string & utf8_string)
             "IS IT BECAUSE YOU ARE NOT ENTIRELY CERTAIN---MAYBE THE NERVOUSNESS
              WAS THERE BEFORE THAT YOU CAME TO ME"
         instead of
-            "IS IT BECAUSE YOU ARE NOT ENTIRELY CERTAIN THAT YOU CAME TO ME". */
+            "IS IT BECAUSE YOU ARE NOT ENTIRELY CERTAIN THAT YOU CAME TO ME"
+        which seems a little better. */
 
     std::string result;
     std::u32string utf32(utf8_to_utf32(utf8_string));
@@ -1151,6 +738,29 @@ std::string eliza_uppercase(const std::string & utf8_string)
             result += ',';  //   => 'COMMA' (U+002C)
             break;
 
+        case 0x00DF:        // 'LATIN SMALL LETTER SHARP S' (U+00DF)
+            result += "SS";
+            break;
+        case 0xFB00:        // 'LATIN SMALL LIGATURE FF' (U+FB00)
+            result += "FF";
+            break;
+        case 0xFB01:        // 'LATIN SMALL LIGATURE FI' (U+FB01)
+            result += "FI";
+            break;
+        case 0xFB02:        // 'LATIN SMALL LIGATURE FL' (U+FB02)
+            result += "FL";
+            break;
+        case 0xFB03:        // 'LATIN SMALL LIGATURE FFI' (U+FB03)
+            result += "FFI";
+            break;
+        case 0xFB04:        // 'LATIN SMALL LIGATURE FFL' (U+FB04)
+            result += "FFL";
+            break;
+        case 0xFB05:        // 'LATIN SMALL LIGATURE LONG S T' (U+FB05)
+        case 0xFB06:        // 'LATIN SMALL LIGATURE ST' (U+FB06)
+            result += "ST";
+            break;
+
         default:
             result += utf32_to_utf8(uppercase_utf32(c32));
             break;
@@ -1164,12 +774,18 @@ DEF_TEST_FUNC(eliza_uppercase_test)
 {
     TEST_EQUAL(eliza_uppercase(""), "");
     TEST_EQUAL(eliza_uppercase("HELLO"), "HELLO");
-    TEST_EQUAL(eliza_uppercase("Hello! How are you?"), "HELLO. HOW ARE YOU.");
-    TEST_EQUAL(eliza_uppercase("Æmilia, æsop & Phœbë"), "ÆMILIA, ÆSOP & PHŒBË");
-    TEST_EQUAL(eliza_uppercase("à â ç é è ê ë î ï ô ù û ü ÿ æ œ"), "À Â Ç É È Ê Ë Î Ï Ô Ù Û Ü Ÿ Æ Œ");
-    TEST_EQUAL(eliza_uppercase("Maroš Šefčovič"), "MAROŠ ŠEFČOVIČ");
-    TEST_EQUAL(eliza_uppercase("Сайфи Кудаш Гилемдар Зигандарович"), "САЙФИ КУДАШ ГИЛЕМДАР ЗИГАНДАРОВИЧ");
-    TEST_EQUAL(eliza_uppercase("¡pónk!"), " PÓNK.");
+    TEST_EQUAL(eliza_uppercase("Hello! How are you?"),
+                               "HELLO. HOW ARE YOU.");
+    TEST_EQUAL(eliza_uppercase("Æmilia, æsop & Phœbë"),
+                               "ÆMILIA, ÆSOP & PHŒBË");
+    TEST_EQUAL(eliza_uppercase("à â ç é è ê ë î ï ô ù û ü ÿ æ œ eﬃgy Straße"),
+                               "À Â Ç É È Ê Ë Î Ï Ô Ù Û Ü Ÿ Æ Œ EFFIGY STRASSE");
+    TEST_EQUAL(eliza_uppercase("Maroš Šefčovič"),
+                               "MAROŠ ŠEFČOVIČ");
+    TEST_EQUAL(eliza_uppercase("Сайфи Кудаш Гилемдар Зигандарович"),
+                               "САЙФИ КУДАШ ГИЛЕМДАР ЗИГАНДАРОВИЧ");
+    TEST_EQUAL(eliza_uppercase("¡pónk!"),
+                               " PÓNK.");
 
     // 'RIGHT SINGLE QUOTATION MARK' (U+2019)
     TEST_EQUAL(eliza_uppercase("I’m depressed"), "I'M DEPRESSED");          // good
@@ -1216,17 +832,21 @@ DEF_TEST_FUNC(eliza_uppercase_test)
         "\xF0\x90\x80\x80"  // 'LINEAR B SYLLABLE B008 A' (U+10000)
         "\xF0\x90\x80\x81"  // 'LINEAR B SYLLABLE B038 E' (U+10001)
         "\xF4\x8F\xBF\xBD"  // Unicode Character '<Plane 16 Private Use, Last>' (U+10FFFD)
+        "\xEF\xBD\x9A"      // 'FULLWIDTH LATIN SMALL LETTER Z' (U+FF5A)
+        "\xF0\x90\x91\x8F"  // 'DESERET SMALL LETTER EW' (U+1044F)
         "\xEA\x9E\xB7"      // 'LATIN SMALL LETTER OMEGA' (U+A7B7)
         "omega"),
         "ALPHA"
-        "\xC9\x91"          // 'LATIN SMALL LETTER ALPHA' (U+0251) [i.e. not uppercased]
+        "\xE2\xB1\xAD"      // 'LATIN CAPITAL LETTER ALPHA' (U+2C6D)
         "\xC3\x87"          // 'LATIN CAPITAL LETTER C WITH CEDILLA' (U+00C7)
         "\xEF\xBF\xBE"      // not a valid unicode character
         "\xEF\xBF\xBF"      // not a valid unicode character
         "\xF0\x90\x80\x80"  // 'LINEAR B SYLLABLE B008 A' (U+10000)
         "\xF0\x90\x80\x81"  // 'LINEAR B SYLLABLE B038 E' (U+10001)
         "\xF4\x8F\xBF\xBD"  // Unicode Character '<Plane 16 Private Use, Last>' (U+10FFFD)
-        "\xEA\x9E\xB7"      // 'LATIN SMALL LETTER OMEGA' (U+A7B7) [i.e. not uppercased]
+        "\xEF\xBC\xBA"      // 'FULLWIDTH LATIN CAPITAL LETTER Z' (U+FF3A)
+        "\xF0\x90\x90\xA7"  // 'DESERET CAPITAL LETTER EW' (U+10427)
+        "\xEA\x9E\xB7"      // 'LATIN SMALL LETTER OMEGA' (U+A7B7) [i.e. not uppercased because uppercase_utf32() is not comprehensive]
         "OMEGA");
 
     TEST_EQUAL(eliza_uppercase(
@@ -1240,7 +860,6 @@ DEF_TEST_FUNC(eliza_uppercase_test)
         ","                 // 'COMMA' (U+002C)
         "MAYBE THE NERVOUSNESS WAS THERE BEFORE"
         );
-
 }
 
 
@@ -1279,7 +898,7 @@ bool inlist(const std::string & word, std::string wordlist, const tagmap & tags)
 
     auto six_char_matching_behavior = [&]() { // return true iff behavior enabled
         const auto t = tags.find(tag_six_char_matching_behavior);
-        return t != tags.end() && t->second == stringlist{tag_six_char_matching_behavior};
+        return t != tags.end() and t->second == stringlist{tag_six_char_matching_behavior};
     };
 
     if (wordlist.back() == ')')
@@ -2504,7 +2123,7 @@ stringlist reassemble(const stringlist & reassembly_rule, const stringlist & com
         int n = to_int(r);
         if (n < 0)
             result.push_back(r);
-        else if (n == 0 || static_cast<size_t>(n) > components.size()) {
+        else if (n == 0 or static_cast<size_t>(n) > components.size()) {
             // index out of range should never happen because indexes
             // are checked when the script is processed
             result.emplace_back("HMMM");
@@ -2551,6 +2170,9 @@ DEF_TEST_FUNC(reassemble_test)
 }
 
 
+// Return true iff all decimal numbers in the given reassembly rule are
+// valid indexes into the decomposed parts defined by the given decomposition
+// rule. If not, a suitable error message is returned in index_out_of_range_msg.
 bool reassembly_indexes_valid(
     const stringlist & decomposition_rule,
     const stringlist & reassembly_rule,
@@ -2562,7 +2184,7 @@ bool reassembly_indexes_valid(
         int n = to_int(r);
         if (n < 0)
             continue; // it's not an index
-        if (n == 0 || static_cast<size_t>(n) > last_dissassembly_part_index) {
+        if (n == 0 or static_cast<size_t>(n) > last_dissassembly_part_index) {
             index_out_of_range_msg = std::string("reassembly index '")
                 + std::to_string(n)
                 + "' out of range [1.."
@@ -2637,7 +2259,8 @@ uint_least64_t last_chunk_as_bcd(std::string s)
                 ELIZA conversation we need to use the Hollerith encoding
                 for the character. We can only do that if the character
                 exists in the Hollerith character set. In this case it does. */
-            result |= hollerith_encoding[static_cast<unsigned char>(c)];
+            const unsigned char uc{ static_cast<unsigned char>(c) };
+            result |= hollerith_encoding[uc];
         }
         else {
             /*  Since this character is not in the Hollerith character set
@@ -2774,8 +2397,8 @@ DEF_TEST_FUNC(last_chunk_as_bcd_test)
     of the top bit has no effect on the result.
 */
 
-// Recreate the SLIP HASH function: return an n-bit hash value, for n in [0..15],
-// for the given 36-bit datum d. (Uses the von Neumann middle square method.)
+// Return an n-bit hash value for the given 36-bit datum d, for n in [0..15].
+// Uses the von Neumann middle square method and recreates the SLIP HASH function.
 int hash(uint_least64_t d, int n)
 {
     /*  This code implements the SLIP HASH algorithm from the FAP
@@ -2801,7 +2424,7 @@ int hash(uint_least64_t d, int n)
         n is 15, the middle 15 bits of a 70-bit number are bits 42-28
         (bit 0 least significant), which is well within our 64-bit
         calculation. */
-    assert(0 <= n && n <= 15);
+    assert(0 <= n and n <= 15);
 
     d &= 0x7FFFFFFFFULL;        // clear all but least significant 35 bits
     d *= d;                     // square it (any overflow may be safely ignored)
@@ -3099,7 +2722,7 @@ public:
     // replace 'word' with substitute specified by script rule, if any
     virtual action apply_word_substitution(std::string & word)
     {
-        if (word_substitution_.empty() || word != keyword_)
+        if (word_substitution_.empty() or word != keyword_)
             return action::inapplicable;
         word = word_substitution_;
         return action::complete;
@@ -3108,7 +2731,7 @@ public:
     // replace 'word' with substitute specified by script rule, if any
     virtual std::string word_substitute(const std::string & word) const
     {
-        if (word_substitution_.empty() || word != keyword_)
+        if (word_substitution_.empty() or word != keyword_)
             return word;
         return word_substitution_;
     }
@@ -3179,7 +2802,7 @@ public:
         : rule_base(keyword, "", 0)
     {}
 
-    bool empty() const { return keyword_.empty() || trans_.empty(); }
+    bool empty() const { return keyword_.empty() or trans_.empty(); }
 
     void create_memory(const std::string & keyword, const stringlist & words, const tagmap & tags)
     {
@@ -3291,7 +2914,7 @@ public:
 
     virtual bool has_transformation() const
     {
-        return !trans_.empty() || !link_keyword_.empty();
+        return !trans_.empty() or !link_keyword_.empty();
     }
 
     virtual action apply_transformation(
@@ -3300,7 +2923,7 @@ public:
         trace_begin(words);
         stringlist constituents;
         auto rule = trans_.begin();
-        while (rule != trans_.end() && !match(tags, rule->decomposition, words, constituents))
+        while (rule != trans_.end() and !match(tags, rule->decomposition, words, constituents))
             ++rule;
         if (rule == trans_.end()) {
             if (link_keyword_.empty()) {
@@ -3323,18 +2946,18 @@ public:
             rule->next_reassembly_rule = 0;
 
         // is it the special-case reassembly rule (NEWKEY)?
-        if (reassembly_rule.size() == 1 && reassembly_rule[0] == "NEWKEY")
+        if (reassembly_rule.size() == 1 and reassembly_rule[0] == "NEWKEY")
             return action::newkey; // yes, try the next highest priority keyword, if any
 
         // is it the special-case reassembly rule (=XXXX)?
-        if (reassembly_rule.size() == 2 && reassembly_rule[0].size() == 1 && reassembly_rule[0][0] == '=') {
+        if (reassembly_rule.size() == 2 and reassembly_rule[0].size() == 1 and reassembly_rule[0][0] == '=') {
             link_keyword = reassembly_rule[1];
             return action::linkkey; // yes, try the specified keyword
         }
 
         // is it the special-case reassembly rule (PRE (reassembly) (=reference))
         // (note: this is the only reassembly_rule that is still in a list)
-        if (!reassembly_rule.empty() && reassembly_rule[0] == "(") {
+        if (!reassembly_rule.empty() and reassembly_rule[0] == "(") {
             auto r = std::next(reassembly_rule.begin(), 3); // skip '(', 'PRE', '('
             stringlist reassembly;
             while (*r != ")")
@@ -3436,7 +3059,7 @@ tagmap collect_tags(const rulemap & rules)
         for (auto t : keyword_tags) {
             if (t == "/")
                 continue;
-            if (t.size() > 1 && t.front() == '/')
+            if (t.size() > 1 and t.front() == '/')
                 pop_front(t);
             tags[t].push_back(tag.second->keyword());
         }
@@ -3467,7 +3090,7 @@ auto get_rule(rulemap & rules, const std::string & keyword)
 // return true iff given c is delimiter (see delimiter())
 bool delimiter_character(char c)
 {
-    return c == ',' || c == '.';
+    return c == ',' or c == '.';
 };
 
 
@@ -3482,7 +3105,7 @@ stringlist split_user_input(const std::string & s, const std::string & punctuati
     stringlist result;
     std::string word;
     for (auto ch : s) {
-        if (ch == ' ' || std::find(punctuation.begin(), punctuation.end(), ch) != punctuation.end()) {
+        if (ch == ' ' or std::find(punctuation.begin(), punctuation.end(), ch) != punctuation.end()) {
             if (!word.empty()) {
                 result.push_back(word);
                 word.clear();
@@ -3805,7 +3428,7 @@ public:
                 JW's 1966 CACM paper refers to this decision as "a certain counting
                 mechanism is in a particular state." The ELIZA code shows that the
                 memory is recalled only when LIMIT has the value 4 */
-            if ((!use_limit_ || limit_ == 4) && mem_rule_->memory_exists()) {
+            if ((!use_limit_ or limit_ == 4) and mem_rule_->memory_exists()) {
                 trace_->using_memory(mem_rule_->to_string());
                 return mem_rule_->recall_memory();
             }
@@ -3847,7 +3470,7 @@ public:
                 break; // (use NONE message)
             }
 
-            assert(act == rule_base::action::linkkey || act == rule_base::action::newkey);
+            assert(act == rule_base::action::linkkey or act == rule_base::action::newkey);
 
             if (act == rule_base::action::linkkey)
                 keystack.push_front(link_keyword); // rule links to another; loop
@@ -3857,13 +3480,15 @@ public:
                 // The 1966 CACM ELIZA paper, page 41, implies in this situation
                 // a NONE message is used. The conversations in the Quarton pilot
                 // study suggests that a built-in message is used.
-                if (!on_newkey_fail_use_none_ && use_nomatch_msgs_) {
+                if (!on_newkey_fail_use_none_ and use_nomatch_msgs_) {
                     trace_->newkey_failed("built-in nomatch");
                     return nomatch_msgs_[limit_ - 1];
                 }
                 trace_->newkey_failed("NONE");
                 break; // (use NONE message)
             }
+
+            // try again with the keyword at the top of the stack
         }
 
         // last resort: the NONE rule never fails to produce a response [page 41 (d)]
@@ -4135,13 +3760,13 @@ struct token {
     token(typ t, const std::string & value) : t(t), value(value) {}
 
     bool symbol()               const { return t == typ::symbol; }
-    bool symbol(const char * v) const { return t == typ::symbol && value == v; }
+    bool symbol(const char * v) const { return t == typ::symbol and value == v; }
     bool number()               const { return t == typ::number; }
     bool open()                 const { return t == typ::open_bracket; }
     bool close()                const { return t == typ::close_bracket; }
     bool eof()                  const { return t == typ::eof; }
 
-    bool operator==(const token & rhs) const { return t == rhs.t && value == rhs.value; }
+    bool operator==(const token & rhs) const { return t == rhs.t and value == rhs.value; }
 };
 
 
@@ -4180,8 +3805,8 @@ private:
     T & stream_;
     token t_;
     bool got_token_{ false };
-    const static size_t buflen_ = 512;
-    uint8_t buf_[buflen_];
+    const static size_t buflen_{ 512 };
+    uint8_t buf_[buflen_]{ 0 };
     size_t bufdata_{ 0 };
     size_t bufptr_{ 0 };
     size_t line_number_{ 1 };
@@ -4217,7 +3842,7 @@ private:
         if (is_digit(ch)) {
             token t(token::typ::number);
             t.value.push_back(ch);
-            while (peekch(ch) && is_digit(ch)) {
+            while (peekch(ch) and is_digit(ch)) {
                 t.value.push_back(ch);
                 nextch(ch);
             }
@@ -4227,7 +3852,7 @@ private:
         // everything else is a symbol
         token t(token::typ::symbol);
         t.value.push_back(ch);
-        while (peekch(ch) && !non_symbol(ch) && ch != '=') {
+        while (peekch(ch) and !non_symbol(ch) and ch != '=') {
             t.value.push_back(ch);
             nextch(ch);
         }
@@ -4266,23 +3891,23 @@ private:
 
     inline bool is_whitespace(uint8_t ch) const
     {
-        return ch <= 0x20 || ch == 0x7F;
+        return ch <= 0x20 or ch == 0x7F;
         // this must hold: is_newline(ch) implies is_whitespace(ch)
     }
 
     inline bool is_newline(uint8_t ch) const
     {
         return ch == '\x0A'     // LF
-            || ch == '\x0B'     // VT
-            || ch == '\x0C'     // FF
-            || ch == '\x0D';    // CR
+            or ch == '\x0B'     // VT
+            or ch == '\x0C'     // FF
+            or ch == '\x0D';    // CR
     }
 
     inline void consume_newline(uint8_t ch)
     {
         if (ch == '\x0D'        // CR
-            && peekch(ch)
-            && ch == '\x0A')    // LF
+            and peekch(ch)
+            and ch == '\x0A')   // LF
             nextch(ch);
         ++line_number_;
     }
@@ -4294,7 +3919,7 @@ private:
 
     inline bool non_symbol(uint8_t ch) const
     {
-        return ch == '(' || ch == ')' || ch == ';' || is_whitespace(ch);
+        return ch == '(' or ch == ')' or ch == ';' or is_whitespace(ch);
     }
 };
 
@@ -4345,27 +3970,6 @@ public:
                 throw std::runtime_error(msg);
             }
         }
-#if 0
-        std::cout << "----------------\n";
-        const int dict_size = 7;
-        stringlist dict[1 << dict_size];
-        int count = 0;
-        for (const auto & tag : script_.rules) {
-            if (tag.first == elizalogic::special_rule_none)
-                continue;
-            //std::cout << tag.first << " '" << tag.first.substr(0, 6) << "' " << elizalogic::hash(elizalogic::last_chunk_as_bcd(tag.first.substr(0, 6)), dict_size) << "\n";
-            dict[elizalogic::hash(elizalogic::last_chunk_as_bcd(tag.first.substr(0, 6)), dict_size)].push_back(tag.first);
-            ++count;
-        }
-        std::cout << count << " total entries\n";
-        for (int i = 0; i < (1 << dict_size); ++i) {
-            std::cout << i << ":";
-            for (const auto k : dict[i]) {
-                std::cout << " " << k;
-            }
-            std::cout << "\n";
-        }
-#endif
     }
 
 private:
@@ -4461,7 +4065,7 @@ private:
 
             if (!tok_.nexttok().open())
                 throw std::runtime_error(errormsg("expected '('" MEMFORM));
-            for (t = tok_.nexttok(); !t.symbol("=") && !t.eof(); t = tok_.nexttok())
+            for (t = tok_.nexttok(); !t.symbol("=") and !t.eof(); t = tok_.nexttok())
                 decomposition.push_back(t.value);
             if (decomposition.empty())
                 throw std::runtime_error(errormsg("expected 'decompose_terms = reassemble_terms'" MEMFORM));
@@ -4469,7 +4073,7 @@ private:
                 throw std::runtime_error(errormsg("expected '='" MEMFORM));
 
             stringlist reassembly;
-            for (t = tok_.nexttok(); !t.close() && !t.eof(); t = tok_.nexttok())
+            for (t = tok_.nexttok(); !t.close() and !t.eof(); t = tok_.nexttok())
                 reassembly.push_back(t.value);
             if (reassembly.empty())
                 throw std::runtime_error(errormsg("expected 'decompose_terms = reassemble_terms'" MEMFORM));
@@ -4512,7 +4116,7 @@ private:
         stringlist pre{ "(", "PRE" };
         stringlist reconstruct = rdlist();
         stringlist reference = rdlist();
-        if (reference.size() != 2 || reference[0] != "=")
+        if (reference.size() != 2 or reference[0] != "=")
             throw std::runtime_error(errormsg("expected '(=reference)' in PRE rule"));
         occurrences_of_references_.emplace_back(ref(tok_.line(), reference[1]));
         pre.emplace_back("(");
@@ -5158,6 +4762,9 @@ const char * const CACM_1966_01_DOCTOR_script =
     "; punctuation         : ',' | '.'                                             ;\n"
     "; integer             : digit {digit}                                         ;\n"
     "; digit               : '0'-'9'                                               ;\n"
+    "\n"
+    "\n"
+    "; (See https://github.com/anthay/ELIZA for details of this implementation.)\n"
     "\n";
 
 
@@ -7908,15 +7515,6 @@ DEF_TEST_FUNC(test_11_june_1964_prof_student_convo)
     //eliza.set_use_limit(false);
     elizalogic::string_tracer trace;
     eliza.set_tracer(&trace);
-
-    /*for (const auto & exchg : conversation) {
-        std::cout << exchg.prompt << '\n';
-        //TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
-        const std::string response(eliza.response(exchg.prompt));
-        std::cout << trace.text();
-        std::cout << response << '\n';
-        TEST_EQUAL(response, exchg.response);
-    }*/
 }
 
 
@@ -8064,7 +7662,8 @@ int main(int argc, const char * argv[])
            "                  (for watching the operation of Turing machines)\n"
         };
 
-        if (!parse_cmdline(argc, argv, showscript, nobanner, quick, help, port, port_name, script_filename) || help) {
+
+        if (!parse_cmdline(argc, argv, showscript, nobanner, quick, help, port, port_name, script_filename) or help) {
             (help ? std::cout : std::cerr)
                 << "Usage: ELIZA [options] [<filename>]\n"
                 << "\n"
@@ -8260,7 +7859,7 @@ int main(int argc, const char * argv[])
                         }
                         std::sort(v.begin(), v.end(),
                             [](const pair & a, const pair & b) {
-                                return a.second > b.second || (a.second == b.second && a.first < b.first);
+                                return a.second > b.second or (a.second == b.second and a.first < b.first);
                             });
                         for (const auto & p : v)
                             std::cout << std::setw(3) << p.second << " " << p.first << "\n";
