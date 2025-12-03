@@ -4789,7 +4789,7 @@ struct exchange {
     const char * response;  // output expected from ELIZA
 };
 
-const exchange cacm_1966_conversation[] = {
+const exchange weizenbaum_1966_cacm_conversation[] = {
 
     // --- exact conversation quoted in Weizenbaum's 1966 CACM article ---
 
@@ -4849,7 +4849,7 @@ const exchange cacm_1966_conversation[] = {
 
     // --- end of 1966 CACM article conversation ---
 };
-const int cacm_1966_conversation_size = sizeof(cacm_1966_conversation)/sizeof(cacm_1966_conversation[0]);
+const int weizenbaum_1966_cacm_conversation_size = std::size(weizenbaum_1966_cacm_conversation);
 
 
 
@@ -5599,13 +5599,13 @@ DEF_TEST_FUNC(script_and_conversation_test)
         accurate simulation of the original ELIZA. */
 
     elizalogic::eliza eliza(s.rules, s.mem_rule);
-    for (const auto & exchg : elizatest::cacm_1966_conversation)
-        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
+    for (const auto & [prompt, response] : elizatest::weizenbaum_1966_cacm_conversation)
+        TEST_EQUAL(eliza.response(prompt), response);
 
 
     // how the conversation might have continued...
     // (to extend the test coverage a little)
-    const exchange imagined_continuation_2023[] = {
+    const exchange imagined_continuation_hay_2023[] = {
         { "My boyfriend loves me, he's not a bully.",
           "WHY DO YOU SAY YOUR BOYFRIEND LOVES YOU" },
 
@@ -5672,8 +5672,8 @@ DEF_TEST_FUNC(script_and_conversation_test)
           "PLEASE GO ON" },
     };
 
-    for (const auto & exchg : imagined_continuation_2023)
-        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
+    for (const auto & [prompt, response] : imagined_continuation_hay_2023)
+        TEST_EQUAL(eliza.response(prompt), response);
 }
 
 
@@ -5729,8 +5729,8 @@ DEF_TEST_FUNC(test_alternative_men_are_all_alike_convo)
     elizascript::script s;
     elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
     elizalogic::eliza eliza(s.rules, s.mem_rule);
-    for (const auto & exchg : alt_men_are_all_alike_convo)
-        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
+    for (const auto & [prompt, response] : alt_men_are_all_alike_convo)
+        TEST_EQUAL(eliza.response(prompt), response);
 }
 
 
@@ -6523,12 +6523,12 @@ DEF_TEST_FUNC(test_boston_globe_1966_convo)
     elizascript::script s;
     elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
     elizalogic::eliza eliza(s.rules, s.mem_rule);
-    for (const auto & exchg : boston_globe_1966_conversation)
-        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
+    for (const auto & [prompt, response] : boston_globe_1966_conversation)
+        TEST_EQUAL(eliza.response(prompt), response);
 }
 
 
-DEF_TEST_FUNC(test_5_march_1965_convo)
+DEF_TEST_FUNC(test_weizenbaum_march_1965_conversations)
 {
     /* In Joseph Weizenbaum's MIT archive there is a folder titled
        "Conversation - March 5, 1965" containing a hand-annotated
@@ -6727,7 +6727,7 @@ DEF_TEST_FUNC(test_5_march_1965_convo)
         "(CAN\n"
         "    ((0 CAN I 0)\n"
         "        (YOU BELIEVE I CAN 4 DON'T YOU)\n"
-        "        (YOU WANT BE TO BE ABLE TO 4)\n"
+        "        (YOU WANT ME TO BE ABLE TO 4)\n"
         "        (PERHAPS YOU WOULD LIKE TO BE ABLE TO 4 YOURSELF))\n"
         "    ((0 CAN YOU 0)\n"
         "        (WHETHER OR NOT YOU CAN 4 DEPENDS ON YOU MORE THAN ON ME)\n"
@@ -6797,7 +6797,7 @@ DEF_TEST_FUNC(test_5_march_1965_convo)
         "\n"
         "()\n";
 
-    const exchange conversation[] = {
+    const exchange weizenbaum_5_march_1965_conversation[] = {
 
         // --- exact conversation from Weizenbaum's MIT archive dated 5 March 1965 ---
 
@@ -6900,622 +6900,237 @@ DEF_TEST_FUNC(test_5_march_1965_convo)
         // --- end of 5 March 1965 conversation from Weizenbaum's MIT archive ---
     };
 
-    elizascript::script s;
-    elizascript::read(script, s);
-    elizalogic::eliza eliza(s.rules, s.mem_rule);
+    {
+        elizascript::script s;
+        elizascript::read(script, s);
+        elizalogic::eliza eliza(s.rules, s.mem_rule);
 
-    for (const auto & exchg : conversation)
-        TEST_EQUAL(eliza.response(exchg.prompt), exchg.response);
-}
-
-
-DEF_TEST_FUNC(test_02_000311052_pdf_convo)
-{
-    const exchange conversation[] = {
-
-        // Conversation from MIT archive 02-000311052.pdf.
-
-        { "Doctor, I have terrible news..",
-          "YOU SAY YOU HAVE TERRIBLE NEWS" },
-
-        { "Yes, there is a computer program at M.I.T. that'll ruin us..",
-          "WHY DO YOU SAY THAT" },
-
-        { "I have seen it working..",
-          "YOU SAY YOU HAVE SEEN IT WORKING" },
-
-        { "Its frightening - you must see it..",
-          "YOU THINK I MUST SEE IT" },
-
-        { "It listens to patients chatter just as you and I listen..",
-          "YOU THINK I AND YOU LISTEN" },
-
-        { "No, not usually - no need to get nasty though..",
-          "WHY DO YOU SAY THAT" },
-
-        { "Someone might hear us - don't you care..",
-          "YOU THINK I CARE" },
-
-        { "You sound depressed to me..",
-          "IN YOUR PHANTASY - PERHAPS WE SOUND DEPRESSED TO EACH OTHER" },
-
-        { "Yes - perhaps..",
-          "I UNDERSTAND" },
-
-        { "I do too..",
-          "YOU SAY YOU DO TOO" },
-
-        { "We are both in the same boat with respect to that computer..",
-          "LETS CONTINUE TO TALK ABOUT YOU - SHALL WE" },
-
-        { "You are a comfort..",
-          "WHAT MAKES YOU THINK I AM A COMFORT" },
-
-        { "At a time like this you want to talk about me..",
-          "WHY DO YOU THINK I WANT TO TALK ABOUT YOU" },
-
-        { "Because you share my feelings about that damned computer..",
-          "WHAT DOES THAT SUGGEST TO YOU" },
-
-        { "That, of course, you hate computers too..",
-          "YOU THINK I HATE COMPUTERS TOO" },
-
-        { "Why not, they're hardly human, are they..",
-          "PERHAPS THATS WHAT WE ARE HERE TO FIND OUT" },
-
-        { "No computer could converse as you can, for example..",
-          "OH" },
-
-        { "I cant understand how anyone could be fooled by a mere machine..",
-          "CANT YOU REALLY" },
-
-        { "No, after all there is nothing creative about a computer program..",
-          "YOU ARE BEING NEGATIVE" },
-
-        { "I am convinced I am correct..",
-          "ARE YOU WORRIED TO HAVE BEEN CONVINCED YOU ARE CORRECT" },
-
-        { "No, not in the least. Not at all. Not even a little..",
-          "YOU ARE BEING NEGATIVE" },
-
-        { "You said you agreed with me, didn't you..",
-          "IS THAT WHAT YOU HEARD ME SAY" },
-
-        { "Why dont you try to dissuade me - computers diddle with numbers, that's all..",
-          "YOU WISH ME TO TRY TO DISSUADE YOU" },
-
-        { "You cant..",
-          "YOU THINK I CANT" },
-
-        { "For example, could a computer in a conversation like this raise a new topic..",
-          "YOU SEEM TO HAVE AVOIDED SPEAKING OF YOUR PARENTS ALTOGETHER" },
-
-        { "Precisely as you just did..",
-          "YOU THINK I JUST DID" },
-
-        { "Yes, and that's what shows the difference between a man and a computer..",
-          "I SEE" }
-    };
-
-    // We don't have the ELIZA script used to generate this conversation.
-    // Maybe one day we'll find it. I'm curious to know how brittle it is,
-    // or not. For example, is that YOU SEEM TO HAVE AVOIDED SPEAKING OF
-    // YOUR PARENTS ALTOGETHER just the next NONE response?
-}
+        for (const auto & [prompt, response] : weizenbaum_5_march_1965_conversation)
+            TEST_EQUAL(eliza.response(prompt), response);
+    }
 
 
-DEF_TEST_FUNC(test_11_june_1964_prof_student_convo)
-{
-     const char * script =
+    const exchange weizenbaum_3_march_1965_conversation[] = {
 
-    /*  Transcript of an ELIZA script printed in a listing following the ELIZA
-        source code in MIT archive document 02-000311051.pdf. The listing was
-        found in a folder titled COMPUTER CONVERSATIONS 1965 and has the header
+        /* A page of printer output from the Edmund Berkeley Papers in the
+           archives of the Charles Babbage Institute (CBI 50 Box 47 Folder 35)
+           via a blogpost by Rebecca Roach, Associate Professor of
+           Contemporary Literature, University of Birmingham, UK.
+           https://sites.google.com/view/elizaarchaeology/blog/7-guest-post-berkeley-and-weizenbaum
 
-            "PRINT,T0109,2531,.TAPE.,100      T0109 2531    1748.8     03/06"
+           The page is stamped: MAR 3 1965
 
-        The date the listing was printed is therefore assumed to be 6 March 1965.
+           There is a handwritten label:  <-- JOE WEIZENBAUM
+           (Presumably meaning received from Joe Weizenbaum?)
 
-        This is a verbatim transcript except for whitespace, which has been
-        changed for readability. In addition, changes to the script to make
-        the March 5, 1965 conversation work are noted in comments. */
+           The text begins:
+                R EBUT
+                W 1138.0
+           (I think R EBUT is the user asking to run the program called EBUT and W 1138.0
+           is the CTSS reply meaning it started waiting for the program to load at 11:38:00.)
 
-        "(HOW DO YOU DO.  I AM THE DOCTOR.  PLEASE SIT DOWN AT THE TYPEWRITER AND TELL ME YOUR PROBLEM.)\n"
-        "\n"
-        "(IF 3\n"
-        "    ((0 IF 0)\n"
-        "        (DO YOU THINK ITS LIKELY THAT 3)\n"
-        "        (DO YOU WISH THAT 3)\n"
-        "        (WHAT DO YOU THINK ABOUT 3)\n"
-        "        (REALLY, 2 3)))\n"
-        "\n"
-        //"(HOW\n"
-        //"    (=WHAT))\n"
-        //"\n"
-        //[3] If WHEN links to WHAT you get the wrong response, "WHY DO YOU ASK."
-        //    Remove this link and you get the required answer.
-        //"(WHEN\n"
-        //"    (=WHAT))\n"
-        "\n"
-        "(MEMORY MY\n"
-        "    (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)\n"
-        "    (0 YOUR 0 = EARLIER YOU SAID YOUR 3)\n"
-        "    (0 YOUR 0 = LETS EXPLORE FURTHER WHY YOUR 3)\n"
-        //[2] This one is a puzzle. The word being HASHed is "HERE". We know from the
-        //    1966 script and published conversation that HASH("HERE", 2) = 3. (Assuming
-        //    the same mechanism is being used in both.) So, I've just swapped this
-        //    message for the (0 YOUR 0 = YOU SAID YOUR 3).
-        //        "    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n"
-        "    (0 YOUR 0 = YOU SAID YOUR 3))\n"
-        "\n"
-        "(NONE\n"
-        "    ((0)\n"
-        "        (THAT IS INTERESTING)"
-        "        (HMMM)"
-        "        (HMMM)"
-        "        (I AM NOT SURE I UNDERSTAND YOU FULLY)\n"
-        "        (PLEASE GO ON)\n"
-        "        (WHAT DOES THAT SUGGEST TO YOU)\n"
-        "        (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))\n"
-        "\n"
-        "(PERHAPS\n"
-        "    ((0)\n"
-        "        (IS THAT THE REAL REASON)\n"
-        "        (YOU DON'T SEEM QUITE CERTAIN)\n"
-        "        (WHY THE UNCERTAIN TONE)\n"
-        "        (CAN'T YOU BE MORE POSITIVE)\n"
-        "        (YOU AREN'T SURE)\n"
-        "        (DON'T YOU KNOW)))\n"
-        "\n"
-        //"(MAYBE\n"
-        //"    (=PERHAPS))\n"
-        "\n"
-        "(AM = ARE\n"
-        "    ((0 ARE YOU 0)\n"
-        "        (DO YOU BELIEVE YOU ARE 4)\n"
-        "        (WOULD YOU WANT TO BE 4)\n"
-        "        (YOU WISH I WOULD TELL YOU YOU ARE 4)\n"
-        "        (WHAT WOULD IT MEAN IF YOU WERE 4))\n"
-        "    ((0)\n"
-        "        (WHY DO YOU SAY 'AM')\n"
-        "        (I DON'T UNDERSTAND THAT)))\n"
-        "\n"
-        "(ARE = AM\n"
-        "    ((0 AM I 0)\n"
-        "        (WHY ARE YOU INTERESTED IN WHETHER I AM 4 OR NOT)\n"
-        "        (WOULD YOU PREFER IF I WEREN'T 4)\n"
-        "        (PERHAPS I AM 4 IN YOUR FANTASIES)\n"
-        "        (DO YOU SOMETIMES THINK I AM 4))\n"
-        "    ((0 AM 0)\n"
-        "        (DID YOU THINK THEY MIGHT NOT BE 3)\n"
-        "        (WOULD YOU LIKE IT IF THEY WERE NOT 3)\n"
-        "        (WHAT IF THEY WERE NOT 3)\n"
-        "        (POSSIBLY THEY ARE 3)))\n"
-        "\n"
-        "(YOUR = MY\n"
-        "    ((0 MY 0)\n"
-        "        (WHY ARE YOU CONCERNED OVER MY 3)\n"
-        "        (WHAT ABOUT YOUR OWN 3)\n"
-        "        (ARE YOU WORRIED ABOUT SOMEONE ELSES 3)\n"
-        "        (REALLY, MY 3)))\n"
-        "\n"
-        "(WAS = WERE)\n"
-        "(WERE = WAS)\n"
-        "(ME = YOU)\n"
-        "(CANT = CAN'T)\n"
-        //"(DONT = DON'T)\n"
-        "(YOU'RE = I'M)\n"
-        "(I'M = YOU'RE)\n"
-        "(MYSELF = YOURSELF)\n"
-        "(YOURSELF = MYSELF)\n"
-        "\n"
-        "(MOTHER DLIST(/NOUN FAMILY))\n"
-        "(FATHER DLIST(/NOUN FAMILY))\n"
-        "(SISTER DLIST(/FAMILY))\n"
-        "(BROTHER DLIST(/FAMILY))\n"
-        "(WIFE DLIST(/FAMILY))\n"
-        "(CHILDREN DLIST(/FAMILY))\n"
-        "\n"
-        "(I = YOU\n"
-        "    ((0 YOU ARE 0 I 0)\n"
-        "        (PERHAPS YOU ARE 4 SOMEONE ELSE)\n"
-        "        (ARE YOU 4 ANYONE)\n"
-        "        (ARE YOU 4 ANYONE IN YOUR FAMILY)\n"
-        "        (PERHAPS YOU WISH I WERE 4 YOU 6))\n"
-        "    ((0 YOU ARE 0)\n"
-        "        (IS IT BECAUSE YOU ARE 4 THAT YOU ARE COMING TO ME)\n"
-        "        (HOW LONG HAVE YOU BEEN 4)\n"
-        "        (DO YOU BELIEVE IT NORMAL TO BE 4)\n"
-        "        (DO YOU ENJOY BEING 4))\n"
-        "    ((0 YOU CAN'T 0)\n"
-        "        (HAVE YOU TRIED)\n"
-        "        (HOW DO YOU KNOW YOU CAN'T 4)\n"
-        "        (PERHAPS YOU COULD 4 NOW)\n"
-        "        (DO YOU REALLY WANT TO BE ABLE TO 4))\n"
-        "    ((0 YOU DONT 0)\n"
-        "        (DO YOU WANT TO 4 ME)\n"
-        "        (WHY DON'T YOU 4)\n"
-        "        (DO YOU WISH TO BE ABLE TO 4)\n"
-        "        (DOES THAT TROUBLE YOU))\n"
-        "    ((0 YOU FEEL 0)\n"
-        "        (TELL ME MORE ABOUT SUCH FEELINGS)\n"
-        "        (DO YOU OFTEN FEEL 4)\n"
-        "        (DO YOU ENJOY FEELING 4)\n"
-        "        (OF WHAT DOES FEELING 4 REMIND YOU))\n"
-        "    ((0 YOU 0 I 0)\n"
-        "        (CLEARLY YOU WANT TO 3 ME))\n"
-        "    ((0 YOU 0)\n"
-        "        (YOU SAY YOU 3)))\n"
-        "\n"
-        "(YOU = I\n"
-        "    ((0 I 0 YOU 0)\n"
-        "        (PERHAPS YOU 3 ME))\n"
-        //"        (DID YOUR PARENTS 3 YOU))\n"
-        "    ((0 I AM 0)\n"
-        "        (WHAT MAKES YOU THINK I AM 4))\n"
-        "    ((0 I 0)\n"
-        "        (YOU THINK I 3)))\n"
-        "\n"
-        "(YES\n"
-        "    ((0)\n"
-        "        (I SEE)\n"
-        "        (I SEE)\n"
-        "        (I SEE)\n"
-        "        (AHA)))\n"
-        "\n"
-        "(NO\n"
-        "    ((0)\n"
-        "        (OH)\n"
-        "        (ARE YOU SAYING 'NO' JUST TO BE NEGATIVE)\n"
-        "        (YOU ARE BEING A BIT NEGATIVE)\n"
-        "        (WHY NOT)\n"
-        "        (WHY 'NO')))\n"
-        "\n"
-        "(MY = YOUR\n"
-        "    ((0 YOUR 0 (/FAMILY) 0)\n"
-        "        (TELL ME MORE ABOUT YOUR FAMILY)\n"
-        "        (WHO ELSE IN YOUR FAMILY 5)\n"
-        "        (YOUR 4)\n"
-        "        (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))\n"
-        "    ((0 YOUR 0)\n"
-        "        (WHY DO YOU THINK YOUR 3)\n"
-        "        (REALLY - YOUR 3)\n"
-        "        (WHY DO YOU SAY YOUR 3)\n"
-        "        (DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU)\n"
-        "        (IS IT IMPORTANT TO YOU THAT 2 3)))\n"
-        "\n"
-        "(CAN\n"
-        "    ((0 CAN I 0)\n"
-        "        (YOU BELIEVE I CAN 4 - DONT YOU)\n"
-        "        (YOU WANT BE TO BE ABLE TO 4)\n"
-        "        (PERHAPS YOU WOULD LIKE TO BE ABLE TO 4 YOURSELF))\n"
-        "    ((0 CAN YOU 0)\n"
-        "        (WHETHER OR NOT YOU CAN 4 DEPENDS ON YOU MORE THAN ON ME)\n"
-        "        (DO YOU WANT TO BE ABLE TO 4)\n"
-        "        (PERHAPS YOU DON'T WANT TO 4)))\n"
-        "\n"
-        /*"(WHAT\n"
-        "    ((0)\n"
-        "        (WHY DO YOU ASK)\n"
-        "        (DOES THAT QUESTION INTEREST YOU)\n"
-        "        (WHAT IS IT YOU REALLY WANT TO KNOW)\n"
-        "        (ARE SUCH QUESTIONS MUCH ON YOUR MIND)\n"
-        "        (WHAT ANSWER WOULD PLEASE YOU MOST)\n"
-        "        (WHAT DO YOU THINK)\n"
-        "        (WHAT COMES TO YOUR MIND WHEN YOU ASK THAT)\n"
-        "        (HAVE YOU ASKED SUCH QUESTIONS BEFORE)\n"
-        "        (HAVE YOU ASKED ANYONE ELSE)))\n"
-        "\n"*/
-        "(BECAUSE\n"
-        "    ((0)\n"
-        "        (IS THAT THE REAL REASON)\n"
-        "        (DON'T ANY OTHER REASONS COME TO MIND)\n"
-        "        (DOES THAT REASON SEEM TO EXPLAIN ANYTHING ELSE)\n"
-        "        (WHAT OTHER REASONS MIGHT THERE BE)))\n"
-        "\n"
-        "(WHY\n"
-        "    ((0 WHY DONT I 0 YOU 0)\n"
-        "        (YOU WISH ME TO 5 YOU)\n"
-        "        (PERHAPS I WILL 5 IN GOOD TIME)\n"
-        "        (SHOULD YOU 5 YOURSELF)\n"
-        "        (YOU WANT ME TO 5))\n"
-        "    ((0 WHY CAN'T YOU 0)\n"
-        "        (DO YOU THINK YOU SHOULD BE ABLE TO 5)\n"
-        "        (DO YOU WANT TO BE ABLE TO 5)\n"
-        "        (DO YOU BELIEVE THIS WILL HELP YOU TO 5)\n"
-        "        (HAVE YOU ANY IDEA WHY YOU CAN'T 5))\n"
-        "    ((0 WHY DO I 0)\n"
-        "        (YOU IMAGINE THAT I 5))\n"
-        "    ((0)\n"
-        "        (PERHAPS THATS WHAT WE ARE HERE TO FIND OUT)))\n"
-        "\n"
-        "(EVERYONE 2\n"
-        "    ((0)\n"
-        //[1] JW may have added these responses at a later date, and/or the ordering
-        //    of the possible responses in the script may have changed.
-        //"        (REALLY, EVERYONE)\n"
-        //"        (CAN YOU THINK OF ANYONE IN PARTICULAR)\n"
-        //"        (WHO, FOR EXAMPLE)\n"
-        //"        (YOU ARE THINKING OF A VERY SPECIAL PERSON)\n"
-        "        (WHO, MAY I ASK)\n"
-        "        (SOMEONE SPECIAL PERHAPS)\n"
-        "        (YOU HAVE A PARTICULAR PERSON IN MIND, DON'T YOU)\n"
-        "        (WHO DO YOU THINK YOU'RE TALKING ABOUT)))\n"
-        "\n"
-        "(EVERYBODY 2\n"
-        "    (= EVERYONE))\n"
-        "\n"
-        "(NOBODY 2\n"
-        "    (=EVERYONE))\n"
-        "\n"
-        "(NOONE 2\n"
-        "    (=EVERYONE))\n"
-        "\n"
-        "(ALWAYS 1\n"
-        "    ((0)\n"
-        "        (CAN YOU THINK OF A SPECIFIC EXAMPLE)\n"
-        "        (WHEN)\n"
-        "        (WHAT INCIDENT ARE YOU THINKING OF)\n"
-        "        (REALLY, ALWAYS)))\n"
-        "\n"
-        "()\n";
+           This is followed by the following exchanges. Where the CACM script response is
+           different to the 3 March response the latter is shown as a comment. */
 
-    const exchange conversationx[] = {
+        { "I AM AFRAID I AM GOING TO DIE SOON.",
+          "IS IT BECAUSE YOU ARE AFRAID YOU ARE GOING TO DIE SOON THAT YOU CAME TO ME" },
 
-        /*  Conversation from MIT archive 02-000311056.pdf titled
+        { "YES",
+          "YOU SEEM QUITE POSITIVE" },
 
-                Computer Output - June 11, 1964 - Program HELP
+        { "YES",
+          "YOU ARE SURE" },
 
-            The lines were bracketed and prefixed with either STUDENT:
-            or PROF: e.g.
+        { "MY DREAMS REMIND ME THAT I SHALL DIE BEFORE THREE MORE YEARS GO BY",
+          "YOUR DREAMS REMIND YOU THAT YOU SHALL DIE BEFORE THREE MORE YEARS GO BY" },
 
-                STUDENT:  (WHY DO YOU INSULT ME)
-
-                PROF:     (YOU IMAGINE THAT I INSULT YOU)
-        */
-
-        { "I AM HAVING TROUBLE WRITING PROGRAMS",
-          "IS IT BECAUSE YOU ARE HAVING TROUBLE WRITING PROGRAMS THAT YOU ARE COMING TO ME" },
+        { "AN D I THINK THAT MY PREMONITIONS WILL COME TRUE",
+          "YOU SAY AN D YOU THINK THAT YOUR PREMONITIONS WILL COME TRUE" },
 
         { "YES",
           "I SEE" },
-
-        { "MY PROGRAMS CONFUSE THE WORDS YOU AND ME",
-          "WHY DO YOU THINK YOUR PROGRAMS CONFUSE THE WORDS I AND YOU" },
-
-        { "I DONT KNOW, - YOU SEE WHAT I MEAN THOUGH", //////////////////////////////////
-          "DO YOU WANT TO KNOW ME" },
-
-        { "WELL, THAT ISNT REALLY WHAT I'M HERE FOR",
-          "THAT IS INTERESTING" },
-
-        { "APART FROM THAT, CAN YOU HELP ME",
-          "YOU BELIEVE I CAN HELP YOU - DONT YOU" },
-
-        { "I TRUST YOU CAN HELP, - YOU'VE BEEN HIGHLY RECOMMENDED",
-          "CLEARLY YOU WANT TO TRUST ME" },
-
-        { "YOU SOUND MORE LIKE A PSYCHIATRIST THAN A PROGRAMMER",
-          "YOU THINK I SOUND MORE LIKE A PSYCHIATRIST THAN A PROGRAMMER" },
-
-        { "EITHER THAT, OR YOU DONT KNOW MUCH ABOUT COMPUTERS",
-          "YOU THINK I DONT KNOW MUCH ABOUT COMPUTERS" },
-
-        { "THAT SUSPICION IS BEGINNING TO COME TO MY MIND",
-          "REALLY - YOUR MIND" },
-
-        { "WHY DO YOU INSULT ME",
-          "YOU IMAGINE THAT I INSULT YOU" },
-
-        { "WELL THAT CRACK SET ME OFF A LITTLE",
-          "HMMM" },
-
-        { "YOU ARE A PROGRAMMER",
-          "WHAT MAKES YOU THINK I AM A PROGRAMMER" },
-
-        { "YOU'RE RIGHT, THERE ISN'T MUCH EVIDENCE FOR IT, - IS THERE",
-          "LETS EXPLORE FURTHER WHY YOUR PROGRAMS CONFUSE THE WORDS I AND YOU" },
-
-        { "PERHAPS ITS BECAUSE THEY HAVE SIMILAR BIT PATTERNS OR SOMETHING",
-          "IS THAT THE REAL REASON" },
-
-        { "I DOUBT IT",
-          "YOU SAY YOU DOUBT IT" },
-
-        { "WELL, AS YOU KNOW, COMPUTERS DONT WORK LIKE THAT",
-        //"YOU THINK I KNOW COMPUTERS DONT WORK LIKE THAT"
-          "YOU THINK I KNOW" },
-
-        { "NO - I FINALLY DECIDED YOU DONT KNOW ANYTHING ABOUT HOW COMPUTERS WORK",
-          "OH" },
-
-        { "I'M CONVINCED YOU'RE QUITE SICK, YOU NEED HELP",
-          "YOU THINK I NEED HELP" },
-
-        { "YES INDEED, - I KNOW OF A COMPUTER PROGRAM THAT CAN CURE YOU",
-          "I SEE" },
-
-        { "YOU SHOULD GO TO SEE THE PEOPLE AT PROJECT MAC",
-          "YOU THINK I SHOULD GO TO SEE THE PEOPLE AT PROJECT MAC" },
-
-        { "BUT DONT TRY TO TELL THEM YOU ARE A COMPUTER EXPERT",
-          "WHAT MAKES YOU THINK I AM A COMPUTER EXPERT" },
-
-        { "NOTHING, - ABSOLUTELY NOTHING",
-          "HMMM" },
-
-        { "YOU ARE DISAPPOINTED",
-          "WHAT MAKES YOU THINK I AM DISAPPOINTED" },
-
-        { "THE WAY YOU PLEAD WITH ME",
-          "PERHAPS YOU PLEAD WITH ME" },
-
-        { "I CANT FOLLOW YOUR REASONING",
-          "HAVE YOU TRIED" },
-
-        { "I HAVE",
-          "YOU SAY YOU HAVE" },
-
-        { "YES, - BUT IT DOESN'T HELP MUCH",
-          "I SEE" },
-
-        { "WHY DONT YOU COME WITH ME TO SEE THAT LOVELY PROGRAM AT PROJECT MAC",
-          "YOU WISH ME TO COME WITH YOU" },
-
-        { "YES, - I'M SURE WE WILL BOTH FEEL BETTER AFTER YOU'VE HAD SOME REAL THERAPY",
-          "AHA" },
-
-        { "THERE, - YOU FEEL BETTER ALREADY, - COME ON NOW",
-        // the conversation ended at this point with the PROF's response not shown
-          "YOU THINK I FEEL BETTER ALREADY - COME ON NOW" },
-    };
-
-
-    const exchange conversation[] = {
-
-        { "I AM VERY DEPRESSED",
-          "HOW LONG HAVE YOU BEEN VERY DEPRESSED" },
-
-        { "EVER SINCE MY DAD STARTED DRINKING",
-          "REALLY - YOUR DAD STARTED DRINKING" },
-
-        { "YES",
-          "I UNDERSTAND" },
-
-        { "HOW CAN YOU UNDERSTAND",
-          "YOU BELIEVE I CAN UNDERSTAND - DONT YOU" },
-
-        { "WHY SHOULD I BELIEVE IN ANYONE",
-          "PERHAPS THATS WHAT WE ARE HERE TO FIND OUT" },
-
-        { "MAYBE YOU ARE AN ALCOHOLIC",
-          "WHAT MAKES YOU THINK I AM AN ALCOHOLIC" },
-
-        { "YOU SEEM A LOT LIKE MY FATHER",
-          "YOU THINK I SEEM A LOT LIKE YOUR FATHER" },
-
-        { "WELL, NO - NOT REALLY",
-          "WHY DO YOU SAY THAT" },
-
-        { "FOR ONE THING - YOU DONT YELL AT ME",
-          "PERHAPS YOU DONT YELL AT ME" },
-
-        { "I DONT YELL AT YOU - OR ANYONE, FOR THAT MATTER",
-          "DO YOU WANT TO YELL AT ME" },
-
-        { "I CANT GET ANGRY WITH ANYONE",
-          "HAVE YOU TRIED" },
-
-        { "ONLY SECRETLY - IN MY DREAMS",
-          "REALLY - YOUR DREAMS" },
-
-        { "I DREAM THE WILDEST DREAMS",
-          "YOU SAY YOU DREAM THE WILDEST DREAMS" },
-
-        { "I FEEL VERY POWERFUL - IN DREAMS, THAT IS",
-          "TELL ME MORE ABOUT SUCH FEELINGS" },
-
-        { "THEY FRIGHTEN ME - I WAKE UP SCREAMING",
-          "YOU SAY YOU WAKE UP SCREAMING" },
-
-        { "MY WHOLE BODY SHAKES",
-          "REALLY - YOUR WHOLE BODY SHAKES" },
-
-        { "YES - ITS ALWAYS A TERRIBLE EXPERIENCE",
-          "AHA" },
-
-        { "WHY DO YOU MAKE FUN OF ME",
-          "YOU IMAGINE THAT I MAKE FUN OF YOU" },
-
-        { "NO - I KNOW YOU WERE LAUGHING AT ME",
-          "OH" },
-
-        { "WHY DONT YOU PRESCRIBE SOMETHING FOR ME SO I CAN RELAX",
-          "YOU WISH ME TO PRESCRIBE SOMETHING FOR YOU" },
-
-        { "ISNT THAT WHAT A DOCTOR IS SUPPOSED TO DO",
-          "LETS EXPLORE FURTHER WHY YOUR DAD STARTED DRINKING" },
-
-        { "HE STARTED JUST AFTER MY MOTHER LEFT HOME",
-          "REALLY - YOUR MOTHER LEFT HOME" },
-
-        { "BECAUSE OF THE DRINKING AND ALL, I GUESS",
-          "LETS EXPLORE FURTHER WHY YOUR MOTHER LEFT HOME" },
-
-        { "ACTUALLY - DAD HAD STARTED TO RUN AROUND",
-          "HMMM" },
-
-        { "SINCE THEN, I CANT GET MY FEELINGS ABOUT HIM STRAIGHT",
-          "PERHAPS YOU COULD GET YOUR FEELINGS ABOUT HIM STRAIGHT IF YOU SAW YOUR PROBLEMS MORE REALISTICALLY" },
 
         { "CAN YOU HELP ME",
-          "YOU BELIEVE I CAN HELP YOU - DONT YOU" },
+          "YOU BELIEVE I CAN HELP YOU DON'T YOU" },
 
-        { "YOU SAID YOU UNDERSTOOD ME AND MY DEPRESSION",
-          "IS THAT WHAT YOU HEARD ME SAY" },
-
-        { "I'M NOT SURE NOW - YOU ARE ANGRY WITH ME",
-          "WHY DO YOU THINK I AM ANGRY WITH YOU" },
-
-        { "YOU ACCUSED ME OF NOT LISTENING",
-          "YOU THINK I ACCUSED YOU OF NOT LISTENING" },
-
-        { "YES - AND IT UPSETS ME",
-          "I SEE" },
-
-        { "YOU REMIND ME OF MY FATHER",
-          "YOU THINK I REMIND YOU OF YOUR FATHER" },
-
-        { "YOU'RE YELLING AT ME JUST AS HE DID",
-          "THAT IS INTERESTING" },
-
-        { "I DONT KNOW HOW TO EXPRESS MY FEELINGS TO YOU",
-          "DO YOU WANT TO KNOW HOW TO EXPRESS YOUR FEELINGS TO ME" },
-
-        { "YES - ITS ANGER - I AM FINALLY ANGRY",
+        { "YES",
           "I UNDERSTAND" },
 
-        { "YOU'RE A WONDERFUL DOCTOR - YOU CURED ME",
-          "PERHAPS YOU CURED ME" },
+        { "CAN YOU HELP ME",
+          "YOU WANT ME TO BE ABLE TO HELP YOU" },
 
-        { "I'M NOT ANGRY ANYMORE - BACK TO THE COMPUTER FACTORY FOR ME",
-          "WHAT ELSE DOES THAT SUGGEST TO YOU" },
+        { "YES, I WOULD LIKE YOU TO USGGEST SOMETING FOR ME TO DO OR THINK ABOUT",
+          "YOU SEEM QUITE POSITIVE" },
 
-        { "IT FEELS GOOD NOT TO BE ANGRY AND ALSO BE CURED",
-          "THAT IS INTERESTING" },
+        { "I DON'T KNOW WHAT TO BELIEVE.",
+          "DON'T YOU REALLY KNOW WHAT TO BELIEVE" },
 
-        { "NOW THAT I UNDERSTAND YOU AND DAD, I GUESS ITS TIME FOR A DRINK",
-          "CLEARLY YOU WANT TO UNDERSTAND ME" },
+        { "WHAT CAN MAN BELIEVE IN IF NOT LIFE ITSELF",
+          "DO YOU THINK ITS LIKELY THAT NOT LIFE ITSELF" },
 
-        { "AND I DO - BELIEVE ME - SO LONG NOW",
-        // the conversation ended at this point with the DOCTOR's response not shown
-          "YOU SAY YOU DO" },
+        { "THAT'S EXEACTLY THE POINT. I AM DYING. YOU ARE PHILOSOPHISING.",
+          "HOW LONG HAVE YOU BEEN DYING" },
+
+        { "SINCE I WAS BORN.",
+          "CAN YOU ELABORATE ON THAT" },
+
+        { "I HAVE ALWAYS HAD A FEAR OF DEATH.  I DON'T THINK ITS NORMAL.",
+          "CAN YOU THINK OF A SPECIFIC EXAMPLE" },
+
+        { "MY DREAMS ARE RICH WITH EXAMPLES. I TOLD YOU THAT ALREADY",
+          "WHY DO YOU SAY YOUR DREAMS AM RICH WITH EXAMPLES" },
+
+        // At this point in the conversation Weizenbaum enters '+', which
+        // invokes the CHANGE function. (CHANGE is present in the MIT archive
+        // ELIZA source code but not described in the CACM ELIZA paper.)
+        // ELIZA responds PLEASE INSTRUCT ME and Weizenbaum issues the 
+        // TYPE ALWAYS and TYPE I commands, to view the transformation rules
+        // associated with ALWAYS and I, followed by the START command to
+        // resume the conversation...
+
+        { "I AM TESTING",
+          "DO YOU BELIEVE IT NORMAL TO BE TESTING" },
+
+        { "TODAY I HATE YOU DESPERATELY",
+          "PERHAPS IN YOUR FANTASY WE HATE EACH OTHER" },
+
+        { "I HATE AND LOVE YOU AT THE SAME TIME",
+          "DO YOU WISH TO HATE AND LOVE ME" },
+
+        // end of conversation
     };
 
 
+    {
+        elizascript::script s;
+        elizascript::read(script, s);
+        elizalogic::eliza eliza(s.rules, s.mem_rule);
 
+        for (const auto & [prompt, response] : weizenbaum_3_march_1965_conversation)
+            TEST_EQUAL(eliza.response(prompt), response);
+    }
+}
+
+
+DEF_TEST_FUNC(test_weizenbaum_july_1977_conversation)
+{
+    const exchange weizenbaum_july_1977_conversation[] = {
+
+        /* "Here is part of the printout of a dialogue between patient and computer
+            on the DOCTOR program of a large commercial time-sharing company in
+            New York. A careful reading, says Joseph Weizenbaum, the program's
+            originator, shows the computer/therapist is not really "intelligent"
+            but merely following preprogrammed language rules."
+            THE LAST DREAM
+            by Joseph Weizenbaum
+            Page 34 of Across the Board: The Conference Board Magazine Vol. XIV No. 7
+            JULY 1977
+        */
+
+        //"HOW DO YOU DO. PLEASE STATE YOUR PROBLEM"
+
+        { "MY MOTHER MADE ME COME HERE. I DON'T KNOW WHAT MY PROBLEM IS.",
+          "TELL ME MORE ABOUT YOUR FAMILY" },
+
+        { "I HAVE TWO OLDER BROTHERS",
+          "YOU SAY YOU HAVE TWO OLDER BROTHERS" },
+
+        { "AND A LITTLE SISTER.  I LIKE HER A LOT",
+          "CAN YOU ELABORATE ON THAT" },
+
+        { "YES. I FEEL CLOSE TO MY SISTER, BUT NOT TO MY PARENTS",
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "I AM.",
+          "IS IT BECAUSE YOU ARE THAT YOU CAME TO ME" },
+
+        { "NO. IT'S BECAUSE I'M UNHAPPY.",
+          "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+
+        { "NO. BECAUSE IT'S TRUE.",
+          "YOU ARE BEING A BIT NEGATIVE" },
+
+        { "I ALWAYS AM",
+          "CAN YOU THINK OF A SPECIFIC EXAMPLE" },
+
+        { "YES. YESTERDAY I DOUBTED WHETHER I SHOULD COME HERE",
+          "YOU ARE SURE" },
+
+        { "YES. I WAS SCARED",
+          "I SEE" },
+
+        { "I AM SCARED OF DOCTORS",
+          "HOW LONG HAVE YOU BEEN SCARED OF DOCTORS" },
+
+        { "FOREVER. AND I AM SCARED OF MACHINES TOO",
+          "DO COMPUTERS WORRY YOU" },
+
+        { "YES. I DON'T UNDERSTAND THEM",
+          "I UNDERSTAND" },
+
+        { "HOW CAN YOU?",
+          "WHY DO YOU ASK" },
+
+        { "BECAUSE I DON'T THINK YOU CAN UNDERSTAND ME OR HELP ME",
+          "IS THAT THE REAL REASON" },
+
+        { "YES.",
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "I AM RIGHT NOW. I DON'T ALWAYS FEEL THIS WAY, THOUGH.",
+          "DO YOU BELIEVE IT NORMAL TO BE RIGHT NOW" },
+
+        { "I'M NOT SURE I KNOW WHASTNORMAL IS",
+          "DO YOU ENJOY BEING NOT SURE YOU KNOW WHASTNORMAL IS" },
+
+        { "THIS IS SILLY",
+          //"LETS DISCUSS FURTHER WHY YOUR MOTHER MADE YOU COME HERE"
+          //(The order of the MEMORY rules is not the same as in the CACM script?)
+          "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR MOTHER MADE YOU COME HERE" },
+
+        { "YOU CHANGED THE SUBJECT. WHY?",
+          "WE WERE DISCUSSING YOU - NOT ME" },
+
+        { "OKAY. I GUESS YOU'RE RIGHT. MY MOTHER IS SO PUSHY--LIKE YOU.",
+          "DO YOU SAY YOU GUESS I'M RIGHT FOR SOME SPECIAL REASON" },
+
+        { "YES, YOU'RE THE DOCTOR,YOU SHOULD KNOW",
+          "YOU ARE SURE" },
+
+        { "OF COURSE. DOCTORS ARE TRAINED, THEY SHOULD UNDERSTAND",
+          "DID YOU THINK THEY MIGHT NOT BE TRAINED" },
+
+        { "NOL,I KNOW THEY'RE TRAINED. BUT I'M NT SURE YOU WILL LIKE ME",
+          "THAT'S QUITE INTERESTING" },
+
+        { "MOST PEOPLE DON'T LIKE ME",
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "I AM NOT POPULAR",
+          "IS IT BECAUSE YOU ARE NOT POPULAR THAT YOU CAME TO ME" },
+
+        { "YES. CAN YOU HELP ME?",
+          "I SEE" },
+
+        { "I HAVE TO GO NOW",
+          "YOU SAY YOU HAVE TO GO NOW" },
+
+        { "YES. MY TIME IS UP",
+          "I UNDERSTAND" },
+
+        { "GOOD BYE. SEE YOU NEXT WEEK.",
+          "OH, I NEXT WEEK" },
+
+        // end of conversation between a definitely real patient and the computer
+    };
 
     elizascript::script s;
-    elizascript::read(script, s);
+    elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
     elizalogic::eliza eliza(s.rules, s.mem_rule);
-
-    /*  It seems likely that the version of ELIZA used to generate
-        this conversation recognised dash as a subclause-separator.
-        For example, in the exchange
-
-            THEY FRIGHTEN ME - I WAKE UP SCREAMING
-            YOU SAY YOU WAKE UP SCREAMING
-
-        if dash is not a delimiter one would expect the response to be
-
-            YOU SAY THEY FRIGHTEN YOU - YOU WAKE UP SCREAMING
-    */
-    eliza.set_delimeters({ "-", ",", ".", "BUT" });
-
-    //eliza.set_use_limit(false);
-    elizalogic::string_tracer trace;
-    eliza.set_tracer(&trace);
+    for (const auto & [prompt, response] : weizenbaum_july_1977_conversation)
+        TEST_EQUAL(eliza.response(prompt), response);
 }
+
 
 
 }//namespace elizatest
@@ -7635,8 +7250,6 @@ bool parse_cmdline(
     }
     return true;
 }
-
-
 
 
 
@@ -7788,7 +7401,7 @@ int main(int argc, const char * argv[])
 
             if (userinput.empty()) {
                 if (cacm_index >= 0) {
-                    userinput = elizatest::cacm_1966_conversation[cacm_index++].prompt;
+                    userinput = elizatest::weizenbaum_1966_cacm_conversation[cacm_index++].prompt;
                     print(userinput);
                 }
                 else
@@ -7886,7 +7499,7 @@ int main(int argc, const char * argv[])
 
             print(response);
 
-            if (cacm_index >= elizatest::cacm_1966_conversation_size) {
+            if (cacm_index >= elizatest::weizenbaum_1966_cacm_conversation_size) {
                 std::cout << "\n<end of CACM conversation>\n";
                 cacm_index = -1;
             }
