@@ -3375,18 +3375,19 @@ same as the original 1966 ELIZA/DOCTOR would have made.`);
             writeText('');
             writeText(`
 Your conversation is private to your machine; nothing you say is
-transmitted anywhere else. (But ELIZA is not a real psychiatrist!)`);
+transmitted anywhere else. (But ELIZA/DOCTOR is not a real psychiatrist!)`);
             writeText('');
             writeText(`
 Commands have been added to this implementation that were not part
 of the original ELIZA. All of these commands begin with an asterisk.
-Type the command and then press the Enter button. The 'trace'
-referred to shows how ELIZA produced its reply and is best
-understood in conjunction with Weizenbaum's 1966 CACM paper.
+Type the command and then press the Enter button. For example, you can
+replace the DOCTOR script with your own using the *load command.
+The 'trace' referred to shows how ELIZA produced its reply and is best
+understood in conjunction with Weizenbaum's January 1966 Communications
+of the Association for Computing Machinery paper.
 The commands are:`);
 
             writeText(`<pre>
-
 *            - show a trace of the most recent reply
 **           - show the transformation rules used in the most recent reply
 *amber       - change display colour; also *black, *green, *white
