@@ -1,10 +1,10 @@
 # Joseph Weizenbaum’s 1966 ELIZA recreated in C++
 
-I’ve made in C++ what I think is an accurate simulation of the original ELIZA. It is a console application that takes as input the original format script file, which looks like a series of S-expressions, and then waits for the user to type a line of text before responding with a line of text of its own.
+I’ve made in C++ what I think is an accurate simulation of the original ELIZA. It is a console application that takes as input the original format script file, which looks like a series of S-expressions, and then waits for the user to type a line of text before responding with a line of text of its own. The C++ code has since been translated to JavaScript.
 
 [![A simulated blurry CRT terminal screen showing ELIZA running and the start of the famous "men are all alike" conversation.](https://github.com/anthay/ELIZA/blob/master/doc/action-shot.jpg)](https://anthay.github.io/eliza.html)
 
-ELIZA is a chatbot—the first chatbot—created 1964-1966 at MIT by Joseph Weizenbaum. It is configured via a script, the most famous of which is called DOCTOR. The script contains simple pattern matching rules that ELIZA uses to reflect back parts of the text typed in by the user. It appears that Weizenbaum's purpose was not to advance our understanding of intelligence, but to create the illusion that ELIZA understood what had been said to it in order to demonstrate how easily people can be fooled. He showed that if you try to fool people, you may succeed.
+ELIZA is the first chatbot. It was developed at MIT by Joseph Weizenbaum between 1964 and 1966. It is configured via a script, the most famous of which is called DOCTOR. The script contains simple pattern matching rules that ELIZA uses to reflect back parts of the text typed in by the user. It appears that Weizenbaum's purpose was not to advance our understanding of intelligence, but to create the illusion that ELIZA understood what had been said to it in order to demonstrate how easily people can be fooled. He showed that if you try to fool people, you may succeed.
 
 I made this before the ELIZA source code had been found, and wrote about it in [part 1](https://github.com/anthay/ELIZA/blob/master/doc/Eliza_part_1.md).
 
@@ -14,11 +14,11 @@ I made this before the ELIZA source code had been found, and wrote about it in [
 
 In a [footnote](https://github.com/anthay/ELIZA/blob/master/doc/Trying_to_recreate_RFC439.md) I document trying to recreate the PARRY/DOCTOR conversation from RFC439.
 
-My son Max Hay and I recreated ELIZA in JavaScript [here](https://github.com/anthay/ELIZA/blob/master/src/eliza.html). Try it [here](https://anthay.github.io/eliza.html).
+[Mark C. Marino](https://markcmarino.com/wordpress/) used ChatGPT4 to translate my C++ ELIZA to JavaScript and then my son Max Hay helped me develop this into a [web page](https://github.com/anthay/ELIZA/blob/master/src/eliza.html). Try it [here](https://anthay.github.io/eliza.html).
 
 I added [serial I/O](https://github.com/anthay/ELIZA/blob/master/doc/serial_io.md) to run ELIZA on an ASR 33 teletype.
 
-I helped show that 1966 CACM ELIZA is [Turing complete](https://sites.google.com/view/elizagen-org/blog/eliza-is-turing-complete).
+With [Peter Millican](https://www.millican.org/) I helped show that 1966 CACM ELIZA is [Turing complete](https://sites.google.com/view/elizagen-org/blog/eliza-is-turing-complete).
 There are several Turing machine ELIZA scripts [here](https://github.com/anthay/ELIZA/blob/master/scripts/scripts.md).
 
 There is a huge collection of ELIZA-related information at Jeff Shrager's [elizagen.org](https://elizagen.org).
