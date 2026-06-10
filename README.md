@@ -23,7 +23,7 @@ There are several Turing machine ELIZA scripts [here](https://github.com/anthay/
 
 There is a huge collection of ELIZA-related information at Jeff Shrager's [elizagen.org](https://elizagen.org).
 
-Along with Jeff and others I am contributing to a book about ELIZA. The website is [inventingeliza.com](https://inventingeliza.com/).
+Along with Jeff and others I am contributing to a [book](https://mitpress.mit.edu/9780262052481/inventing-eliza/) about ELIZA. The website is [inventingeliza.com](https://inventingeliza.com/).
 
 Thanks to Rupert Lane, you can [run the ELIZA code found in the MIT archive](https://github.com/rupertl/eliza-ctss), which is a slightly earlier version than 1966 ELIZA. (Jeff's [ELIZA Reanimated paper](https://doi.org/10.48550/arXiv.2501.06707).)
 
