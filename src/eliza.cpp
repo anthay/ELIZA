@@ -63,6 +63,7 @@
 #include <array>
 #include <cstdint>
 #include <locale>
+#include <iomanip>
 
 
 
@@ -6320,8 +6321,8 @@ DEF_TEST_FUNC(test_every_DOCTOR_response)
         //         (NEWKEY)))
         { "She was not like the others.",
           "WHAT OTHER CONNECTIONS DO YOU SEE" },
-        { "I dig you man!",
-          "DO YOU WISH TO DIG ME" }
+        { "she wasn't like you",
+          "OH, I" }
     };
 
 
@@ -7311,6 +7312,24 @@ int main(int argc, const char * argv[])
     try {
         bool showscript, nobanner, quick, help, port, traceauto = false;
         std::string port_name, script_filename;
+        const std::string introduction_help{
+           "By default, ELIZA is configured with Joseph Weizenbaum's 1966 DOCTOR script.\n"
+           "Type about your feelings and thoughts; make the sort of statements you might\n"
+           "make to a psychiatrist in an initial psychiatric interview. When you wish a\n"
+           "reply to what you have said, press the Enter button. We believe the reply you\n"
+           "receive will be exactly the same as the original 1966 ELIZA/DOCTOR would have\n"
+           "made.\n"
+           "\n"
+           "You can replace the DOCTOR script with your own by specifying your script\n"
+           "filename on the command line.\n"
+           "\n"
+           "Commands have been added to this implementation that were not part of the\n"
+           "original ELIZA. All of these commands begin with an asterisk. Type the\n"
+           "command and then press the Enter button. The 'trace' referred to shows how\n"
+           "ELIZA produced its reply and is best understood in conjunction with\n"
+           "Weizenbaum's January 1966 Communications of the Association for Computing\n"
+           "Machinery paper. The commands are:\n"
+        };
         const std::string command_help{
            "  <blank line>    quit\n"
            "  *               print trace of most recent exchange\n"
@@ -7331,6 +7350,7 @@ int main(int argc, const char * argv[])
             (help ? std::cout : std::cerr)
                 << "Usage: ELIZA [options] [<filename>]\n"
                 << "\n"
+                << "  " << pad(as_option("help"))       << "show command line options and general help\n"
                 << "  " << pad(as_option("nobanner"))   << "don't display startup banner\n"
 #ifdef SUPPORT_SERIAL_IO
 #if defined(_WIN32)
@@ -7343,11 +7363,20 @@ int main(int argc, const char * argv[])
                 << "  " << pad(as_option("showscript")) << "print Weizenbaum's 1966 DOCTOR script\n"
                 << "  " << pad("")                      << "e.g. ELIZA " << as_option("showscript") << " > script.txt\n"
                 << "  " << pad(as_option("slow"))       << "print at IBM 2741 TTY speed (14 characters per second)\n"
-                << "  " << pad("<filename>")            << "use named script file (UTF-8) instead of built-in DOCTOR\n"
-                << "  " << pad("")                      << "e.g. ELIZA script.txt\n"
-                << "\nIn a conversation with ELIZA, these inputs have special meaning:\n"
-                << command_help;
-            return help ? EXIT_SUCCESS : EXIT_FAILURE;
+                << "  " << pad("<filename>")            << "use named script file (UTF-8 encoded) instead of built-in\n"
+                << "  " << pad("")                      << "DOCTOR script e.g. ELIZA script.txt\n";
+
+            if (help) {
+                std::cout
+                    << "\n"
+                    << introduction_help
+                    << "\n"
+                    << command_help;
+
+                return EXIT_SUCCESS;
+            }
+
+            return EXIT_FAILURE;
         }
 
         if (showscript) {
@@ -7362,9 +7391,10 @@ int main(int argc, const char * argv[])
                 << "      ELIZA -- A Computer Program for the Study of Natural\n"
                 << "         Language Communication Between Man and Machine\n"
                 << "DOCTOR script (c) 1966 Association for Computing Machinery, Inc.\n"
-                << " ELIZA implementation (v1.00) by Anthony Hay, 2020-25  (CC0 1.0)\n"
+                << " ELIZA implementation (v1.00) by Anthony Hay, 2020-26  (CC0 1.0)\n"
                 << "-----------------------------------------------------------------\n"
-                << "Use command line option '" << as_option("help") << "' for usage information.\n";
+                << "Use command line option '" << as_option("help") << "' for usage information.\n"
+                << "Type *help and press the Enter key to see a list of commands.\n";
         }
 
         RUN_TESTS(); // run all the tests defined with DEF_TEST_FUNC
@@ -7466,6 +7496,12 @@ int main(int argc, const char * argv[])
                 }
                 else if (command == "**") {
                     std::cout << trace.script();
+                }
+                else if (command == "*HELP") {
+                    std::cout
+                        << introduction_help
+                        << "\n"
+                        << command_help;
                 }
                 else if (command == "*TRACEON") {
                     eliza.set_tracer(&trace);
