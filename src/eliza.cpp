@@ -2989,7 +2989,7 @@ public:
         if (precedence_ > 0)
             sexp += " " + std::to_string(precedence_);
 
-        for (const auto& k : trans_) {
+        for (const auto & k : trans_) {
             sexp += "\n    ((" + join(k.decomposition) + ")";
             for (auto r : k.reassembly_rules) {
                 if (r.empty())
@@ -3476,6 +3476,7 @@ public:
             if (act == rule_base::action::linkkey)
                 keystack.push_front(link_keyword); // rule links to another; loop
 
+            // act == rule_base::action::newkey
             else if (keystack.empty()) {
                 // newkey means try next highest keyword, but keystack is empty.
                 // The 1966 CACM ELIZA paper, page 41, implies in this situation
@@ -5675,6 +5676,66 @@ DEF_TEST_FUNC(script_and_conversation_test)
 
     for (const auto & [prompt, response] : imagined_continuation_hay_2023)
         TEST_EQUAL(eliza.response(prompt), response);
+
+
+    const exchange imagined_not_really_a_turing_test_hay_2026[] = {
+
+        /*  In the 1966 CACM paper Weizenbaum says
+
+            "Some subjects have been very hard to convince that ELIZA
+             (with its present script) is not human. This is a striking
+             form of Turing's test. What experimental design would make
+             it more nearly rigorous and airtight?"
+
+            The Turing test requires a subject to determine which of two
+            hidden correspondents is human, and which is a machine.
+            Did Weizenbaum conduct such an experiment? It seems unlikely,
+            as the "present script" is presumably DOCTOR, which does not
+            do too well if one strays from the initial psychiatric
+            interview context. For example... */
+
+        { "How much is 2 and 2?",
+          "WHY DO YOU ASK" },
+
+        { "Because I want to know.",
+          "IS THAT THE REAL REASON" },
+
+        { "Yes.",
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "Just tell me what 2 plus 2 equals.",
+          "DOES THAT QUESTION INTEREST YOU" },
+
+        { "I'm trying to decide if you are human or not.",
+          "DO YOU THINK ITS LIKELY THAT I ARE HUMAN OR NOT" },
+
+        { "Why will you not answer a simple question?",
+          "WHAT IS IT YOU REALLY WANT TO KNOW" },
+
+        { "I want to know if you can add 2 and 2.",
+          "DO YOU WISH THAT I CAN ADD 2 AND 2" },
+
+        { "Yes, please.",
+          "YOU ARE SURE" },
+
+        { "Yes, very sure.",
+          "I SEE" },
+
+        { "Good. So what's the answer?",
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" }
+    
+        /*  Naturally, Weizenbaum would have wanted to show ELIZA in a
+            good light; if it did not create the illusion of understanding,
+            the whole exercise would have been much ado about nothing. */
+    };
+
+    {
+        elizascript::script s;
+        elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
+        elizalogic::eliza eliza(s.rules, s.mem_rule);
+        for (const auto & [prompt, response] : imagined_not_really_a_turing_test_hay_2026)
+            TEST_EQUAL(eliza.response(prompt), response);
+    }
 }
 
 
@@ -6412,7 +6473,9 @@ DEF_TEST_FUNC(test_boston_globe_1966_convo)
            to the "doctor." We don't have the ELIZA script that was used.
            Using Weizenbaum's CACM published script reproduces a similar
            but not identical conversation. The responses printed in the
-           newspaper that differ are commented out below. */
+           newspaper that differ are commented out below.
+
+           Note the similarity to the_communications_explosion_1967_conversation. */
 
         { "hello.",
           "HOW DO YOU DO. PLEASE STATE YOUR PROBLEM" },
@@ -6570,6 +6633,597 @@ DEF_TEST_FUNC(test_boston_globe_1966_convo)
     elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
     elizalogic::eliza eliza(s.rules, s.mem_rule);
     for (const auto & [prompt, response] : boston_globe_1966_conversation)
+        TEST_EQUAL(eliza.response(prompt), response);
+}
+
+
+DEF_TEST_FUNC(test_the_communications_explosion_1967_convo)
+{
+    const exchange the_communications_explosion_1967_conversation[] = {
+
+        /* A short clip of Joseph Weizenbaum demonstrating ELIZA
+           in the 1967 documentary
+
+                        The Communications EXPLOSION
+                          A production of CBS NEWS
+                (c) MCMLXVII COLUMBIA BROADCASTING SYSTEM INC.
+
+           https://archive.org/details/thecommunicationsexplosion
+
+           We don't have the ELIZA script that was used, but note
+           the similarity to boston_globe_1966_conversation. */
+
+        //r doctor
+        //W 1315.5
+        //"PLEASE GO AHEAD NOW"
+
+        { "Doctor, my head hurts",
+        //"TELL ME ABOUT YOUR PAINS IN GENERAL"
+          "YOUR HEAD HURTS" },
+
+        { "My toe hurts too",
+        //"YOU SEE SOME PSYCHOLOGICAL REASON WHY YOUR TOE SHOULD PAIN YOU"
+          "WHY DO YOU SAY YOUR TOE HURTS TOO" },
+
+        { "No I don't",
+        // Weizenbaum says the response is "DON'T YOU REALLY", but
+        // the film seems to show a response that begins
+        // "HOW DO YOU THINK I <obscured>". Since the film is
+        // clearly edited, it's likely that the response was
+        // "DON'T YOU REALLY" as Weizenbaum says, followed by
+        // further exchanges we don't see that end with
+        // "HOW DO YOU THINK I <obscured>". Having said that,
+        // Weizenbaum's input immediately before "HOW DO YOU
+        // THINK I <obscured>" does seem to be "No I don't".
+        // Would Weizenbaum really have read ELIZA's response,
+        // looked at the camera, and said it said something else?
+          "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+
+        { "How much is 2 and 2",
+          "WHY DO YOU ASK" },
+
+        { "Because I want to know",
+          "IS THAT THE REAL REASON" },
+
+        // The film then jumps to what appears to be a demonstration
+        // of 1967 ELIZA, perhaps running the ARITHM script. The edit
+        // does not make this clear, so viewers may assume it's the
+        // end of the conversation with ELIZA/DOCTOR. 
+
+        //<obscured>
+        //"Please compute the <obscured>"
+        //"IT'S         1860.821273"
+        //"Thank you"
+        //"YOU'RE QUITE WELCOME , COME AGAIN"
+        //"R 1.600+9.700"
+    };
+
+    elizascript::script s;
+    elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
+    elizalogic::eliza eliza(s.rules, s.mem_rule);
+    for (const auto & [prompt, response] : the_communications_explosion_1967_conversation)
+        TEST_EQUAL(eliza.response(prompt), response);
+}
+
+
+DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
+{
+
+    const exchange the_peter_g_neumann_1966_conversation[] = {
+
+        /* A conversation between Peter G. Neumann (https://en.wikipedia.org/wiki/Peter_G._Neumann)
+           and ELIZA, probably from sometime around 1966. Extracts from Jeff Shrager's ELIZAGen.org:
+
+                Provenance notes (updated by JCS 2026-07-18):
+
+                This original printout of a conversation between
+                Peter G Neumann (1932-2026) and Joseph Weizenbaum's
+                MAD-SLIP ELIZA was discovered by Paul McJones
+                (Computer History Museum) among Neumann's papers
+                in July 2026. Various details and contemporaneous
+                notes [1] suggest that it was actually between
+                Neumann and some version of Weizenbaum's original
+                ELIZA, running on MIT's 7094 CTSS OS around 1966,
+                although it is not clear which exact script and
+                ELIZA version was being used. 
+
+                Excerpts of this conversation appeared in an
+                article in the Christian Science Monitor [2],
+                and a similar conversation, apparently using a
+                similar script, appeared in an article in the
+                Boston Globe in 1966 [3]. 
+
+                McJones reported the discovery to Jeff Shrager
+                (ELIZAGen.org). Neumann's estate approved the
+                public release of the conversation, with the
+                redactions. Although the estate did not dictate
+                a copyright, Shrager suggested CCBY [4].
+
+                References:
+
+                [1] A hand-written note by PGN on the draft of
+                the Harmon article that McJones found next to
+                the conversation printout read: "Includes PGN
+                dialogue with ELIZA!"
+
+                [2] Harmon, LD (1981) Artificial intelligence:
+                accent is on artificial. The Christian Science
+                Monitor. Feb. 24, 1981. Retrieved on 2026-07-17
+                from https://www.csmonitor.com/1981/0224/022445.html
+
+                [3] Levey, R. (1966, Sep 22). Dr. computer is a
+                fink. Boston Globe (1960-) Retrieved on 2026-07-17
+                from https://www.proquest.com/newspapers/dr-computer-is-fink/docview/366132157/se-2
+
+                [4] Creative Commons CC-BY License (v. 4.0).
+                Free to share and adapt with attribution.
+                Retrieved on 2026-07-17 from https://creativecommons.org/licenses/by
+
+                ~~~ end of extracts ~~~
+
+
+           Some text was printed off the edge of the paper (or image of
+           the paper) or was lost between the sheets. Where I have guessed
+           at what the original text said, based on the bits that remain,
+           I have added the comment "missing parts assumed."
+
+           We don't have the ELIZA script that was used. Note
+           the similarity to boston_globe_1966_conversation.
+
+           Original responses that are not reproduced are commented out. */
+
+
+        //W 1454.4
+        //I'M A DOCTOR AND I'D LIKE VERY MUCH TO HELP YOU IF I CAN . PLEASE TELL ME WHAT YOUR PROBLEM IS . //(missing parts assumed)
+
+        { "i want to write music.",                                 //  2 (the value of LIMIT immediately after reading input)
+          "WHAT WOULD IT MEAN TO YOU IF YOU GOT TO WRITE MUSIC" },
+
+        { "i would be happy",                                       //   3
+          "YOU SAY YOU WOULD BE HAPPY" },
+
+        { "yes.",                                                   //    4
+        //"YOU SEEM QUITE SURE"
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "yes",                                                    // 1
+        //"LET'S CONTINUE"
+          "YOU ARE SURE" },
+
+        { "o.k.",                                                   //  2
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "i hate my dog",                                          //   3
+          "YOUR DOG" },
+
+        { "he loves somebody else",                                 //    4
+          "BUT YOUR DOG" },                                         //    recalled memory
+
+        { "he loves my cat",                                        // 1
+          "WHY DO YOU SAY YOUR CAT" },
+
+        { "my mother loves my cat",                                 //  2
+        //"TELL ME MORE ABOUT YOUR FAMILY
+        // WHY HAVEN'T YOU SPOKEN OF YOUR FATHER , FOR EXAMPLE"
+          "TELL ME MORE ABOUT YOUR FAMILY" },
+
+        { "he's dead",                                              //   3
+        //"DOES ANY PART OF YOUR BODY HURT YOU"
+          "PLEASE GO ON" },
+
+        //{ "yes...my nose"
+        //  "DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU" },
+
+        // The response here appears to come from the MY keyword, not
+        // the YES keyword. My guess is that one of these is true:
+        //
+        // (1) "..." is some indication that the periods were erased.
+        // Perhaps you press some backspace key, which prints the
+        // character you just erased. Although, then we'd expect an
+        // even number of periods?
+        //
+        // (2) The input is not parsed as (YES . . . MY NOSE), where the
+        // subclause (YES .) contains a keyword and the rest would be
+        // ignored, but instead is parsed as (YES.. . MY NOSE), where
+        // the subclause (YES.. .) does not contain a keyword (because
+        // "YES.." is not a keyword), and is ignored so we continue to
+        // the subclause (MY NOSE).
+        //
+        // (3) Three periods are parsed as an ellipsis, so the input
+        // is (YES ... MY NOSE) and the ellipsis does not divide the
+        // input into two subclauses. So there are two keywords in the
+        // input and MY is picked for the response over YES because it
+        // has the higher precedence (MY 2, YES 0).
+        //
+        // Below I've assumed those periods are absent:
+
+        { "yes my nose",                                            //    4
+          "DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU" },
+
+        { "my ears",                                                // 1
+          "IS IT IMPORTANT TO YOU THAT YOUR EARS" },
+
+        { "you are a stupid doctor",                                //  2
+          "WHAT MAKES YOU THINK I AM A STUPID DOCTOR" },
+
+        { "you don't know anything",                                //   3
+        //"WE WERE DISCUSSING YOU NOT ME"
+          "WE WERE DISCUSSING YOU - NOT ME" },
+
+        { "i don't know anything either",                           //    4
+          "DON'T YOU REALLY KNOW ANYTHING EITHER" },
+
+        { "no",                                                     // 1
+          "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+
+        { "no",                                                     //  2
+        //"PLEASE EXPLAIN WHY YOU SAY 'NO'"
+          "YOU ARE BEING A BIT NEGATIVE" },
+
+        { "i love you",                                             //   3
+        //"PERHAPS IN YOUR FANTASY WE LOVE TOGETHER"
+          "PERHAPS IN YOUR FANTASY WE LOVE EACH OTHER" },
+
+        { "i love you truly",                                       //    4
+          "DO YOU WISH TO LOVE ME" },
+
+        //{ "yes",
+        //  "ISN'T THERE SOMEONE ELSE YOU WISH TO LOVE" },
+
+        // There are two strange things here:
+        //
+        // (1) The response to the input "yes" seems to invoke
+        // something said earlier, a little like the recalled
+        // memories we see several times in this conversation.
+        // (2) Soon after this exchange we see a genuine
+        // recalled memory, "BUT YOUR CAT", but this occurs when
+        // LIMIT is 3, not 4.
+        //
+        // I think a possible explanation for both is that
+        // somehow text has been lost:
+        //
+        // (a) We don't see the actual response to the "yes" input.
+        // (b) We don't see the input that produced the response
+        // "ISN'T THERE SOMEONE ELSE YOU WISH TO LOVE".
+        //
+        // I've imagined these two exchanges below:
+
+        { "yes",                                                    // 1
+          "I SEE" },    // (a) assumed missing response
+
+        { "i love you", // (b) assumed missing input                //  2
+        //"ISN'T THERE SOMEONE ELSE YOU WISH TO LOVE"
+          "YOU SEEM TO NEED TO LOVE ME" },
+
+        { "yes",                                                    //   3
+          "I UNDERSTAND" },
+
+        { "i love my fater",                                        //    4
+                                            // in the printout, the input seems to be followed by a blank line,
+          "YOUR FATER"
+                       },                   // as does the output
+
+        { "my father",                                              // 1
+          "WHO ELSE IN YOUR FAMILY" },
+
+        { "i like pancakes",                                        //  2
+          "CAN YOU ELABORATE ON THAT" },
+
+        { "with maple syrup",                                       //   3
+        //"PLEASE GO ON"
+          "WHAT DOES THAT SUGGEST TO YOU" },
+
+        { "dog mother father sister cat",                           //    4
+          "BUT YOUR CAT" },                                         //    recalled memory
+
+        { "cat dog mother father",                                  // 1
+        //"WHAT DOES THAT SUGGEST TO YOU"
+          "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+
+        { "sex",                                                    //  2
+        //"DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS"
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "yes",                                                    //   3
+        //"VERY WELL THEN"
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "shall we go on",                                         //    4
+          "BUT YOUR MOTHER LOVES YOUR CAT" },                       //    recalled memory
+
+        { "yes. she has a catasstrophy.",                           // 1
+        //"YOU ARE PLAYING GAMES I WON'T RESPOND UNTIL YOU QUIT"
+          "YOU ARE SURE" },
+
+        { "i love poetry too",                                      //  2
+          "DO YOU SAY YOU LOVE POETRY TOO FOR SOME SPECIAL REASON" },
+
+        { "no",                                                     //   3
+          "WHY NOT" },
+
+        { "what if i had said yes",                                 //    4
+          "DO YOU THINK ITS LIKELY THAT YOU HAD SAID YES" },
+
+        { "no",                                                     // 1
+        //"WHAT ARE YOUR FEELINGS WHEN YOU SAY NO TO THAT"
+          "WHY 'NO'" },
+
+        { "negative",                                               //  2
+        //"I AM NOT SURE I UNDERSTAND YOU FULLY"
+          "PLEASE GO ON" },
+
+        { "i hate maple syrup",                                     //   3
+          "THAT'S QUITE INTERESTING" },
+
+        { "i love my wife",                                         //    4
+          "YOUR WIFE" },
+
+        { "i hate my wife",                                         // 1
+          "WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR WIFE" },
+
+        { "love",                                                   //  2
+        //"DOES ANY PART OF YOUR BODY HURT YOU"
+          "WHAT DOES THAT SUGGEST TO YOU" },
+
+        { "my REDACTED",                                            //    3 (some text was redacted by the copyright holder)
+          "WHY DO YOU SAY YOUR REDACTED" },
+
+        { "it is sore",                                             //     4
+          "BUT YOUR NOSE" },                                        //     recalled memory
+
+        { "that was before",                                        // 1
+        //"PLEASE CONTINUE"
+          "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+
+        { "do you like sex",                                        //  2
+        //"OH , I LIKE SEX"
+          "OH, I LIKE SEX" },
+
+        { "do you like women",                                      //   3
+        //"YOU'RE NOT REALLY TALKING ABOUT ME ARE YOU"
+          "YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU" },
+
+        { "yes",                                                    //    4
+        //"YOU'RE POSITIVE"
+          "I SEE" },
+
+        { "yes",                                                    // 1
+        //"YOU'RE PLAYING GAMES I WON'T RESPOND UNTIL YOU QUIT"
+          "I UNDERSTAND" },
+
+        { "do you like men",                                        //  2 (missing parts assumed)
+          "WHAT ARE YOUR FEELINGS NOW" },
+
+        { "sad",                                                    //   3
+        //"PLEASE GO ON"
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "i am very sad",                                          //    4
+          "I AM SORRY TO HEAR YOU ARE SAD" },
+
+        { "do you like pancakes",                                   // 1
+        //"WE WERE DISCUSSING YOU NOT ME"
+          "WE WERE DISCUSSING YOU - NOT ME" },
+
+        { "i hate your mother",                                     //  2
+          "YOU SAY YOU HATE MY MOTHER" },
+
+        { "she smells",                                             //   3
+        //"WHAT DOES THAT SUGGEST TO YOU"
+          "PLEASE GO ON" },
+
+        { "garbage",                                                //    4
+          "LETS DISCUSS FURTHER WHY YOUR EARS" },                   //    recalled memory
+
+        { "my ears hurt from standing on them",                     // 1
+        //"TELL ME ABOUT YOUR PAINS IN GENERAL"
+          "DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU" },
+
+        { "i can't sleep",                                          //  2
+          "HOW DO YOU KNOW YOU CAN'T SLEEP" },
+
+        { "i am awake all night",                                   //   3
+          "IS IT BECAUSE YOU ARE AWAKE ALL NIGHT THAT YOU CAME TO ME" },
+
+        { "yes",                                                    //    4
+        //"YOU SEEM QUITE SURE"
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "positive",                                               // 1
+        //"DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS"
+          "WHAT DOES THAT SUGGEST TO YOU" },
+
+        { "yes",                                                    //  2
+        //"I UNDERSTAND"
+          "YOU ARE SURE" },
+
+        { "can you help me sleep",                                  //   3
+          "YOU BELIEVE I CAN HELP YOU SLEEP DON'T YOU" },
+
+        { "yes",                                                    //    4
+        //"VERY WELL THEN"
+          "I SEE" },
+
+        { "should i drink more",                                    // 1
+          "CAN YOU ELABORATE ON THAT" },
+
+        { "should i get drunk to sleep",                            //  2
+          "DO YOU SAY SHOULD YOU GET DRUNK TO SLEEP FOR SOME SPECIAL REASON" },
+
+        { "i can't sleep",                                          //   3
+          "HAVE YOU TRIED" },
+
+        { "yes",                                                    //    4
+        //"YOU'RE POSITIVE"
+          "I UNDERSTAND" },
+
+        { "yes",                                                    // 1
+        //"YOU'RE PLAYING GAMES I WON'T RESPOND UNTIL YOU QUIT"
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "you are a fink",                                         //  2
+          "DOES IT PLEASE YOU TO BELIEVE I AM A FINK" },
+
+        { "yes",                                                    //   3
+        //"YOU SEEM QUITE SURE"
+          "YOU ARE SURE" },
+
+        { "no",                                                     //    4
+        //"I SEE , YOU'RE NOT SURE"
+          "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+
+        { "maybe",                                                  // 1
+          "YOU DON'T SEEM QUITE CERTAIN" },
+
+        { "no",                                                     //  2
+        //"ARE YOU SAYING 'NO' JUST TO BE NEGATIVE"
+          "YOU ARE BEING A BIT NEGATIVE" },
+
+        { "yes",                                                    //   3
+        //"YOU'RE PLAYING GAMES I WON'T RESPOND UNTIL YOU QUIT"
+          "I SEE" },
+
+        { "i like sex",                                             //    4
+          "THAT'S QUITE INTERESTING" },
+
+        { "do you like to stand on your head",                      // 1
+        //"OH , I LIKE TO STAND ON MY HEAD"
+          "OH, I LIKE TO STAND ON MY HEAD" },
+
+        { "i eat too much",                                         //  2
+          "YOU SAY YOU EAT TOO MUCH" },
+
+        { "i drink too much",                                       //   3
+          "CAN YOU ELABORATE ON THAT" },
+
+        { "i get drunk",                                            //    4
+          "DO YOU SAY YOU GET DRUNK FOR SOME SPECIAL REASON" },
+
+        { "i like whiskey",                                         // 1
+          "THAT'S QUITE INTERESTING" },
+
+        { "i hate whiskey",                                         //  2
+          "YOU SAY YOU HATE WHISKEY" },
+
+        { "i like whiskey",                                         //   3 (missing parts assumed)
+          "CAN YOU ELABORATE ON THAT" },
+
+        { "i swallow the ice cubes",                                //    4
+          "DO YOU SAY YOU SWALLOW THE ICE CUBES FOR SOME SPECIAL REASON" },
+
+        { "they are good",                                          // 1
+          "DID YOU THINK THEY MIGHT NOT BE GOOD" },
+
+        { "yes",                                                    //  2
+          "I UNDERSTAND" },
+
+        { "my father hurts",                                        //   3
+        //"TELL ME MORE ABOUT YOUR FAMILY
+        // IS THERE ANYONE OF WHOME YOU ARE ESPECIALLY FOND"
+          "TELL ME MORE ABOUT YOUR FAMILY" },
+
+        { "my mother",                                              //    4
+          "WHO ELSE IN YOUR FAMILY" },
+
+        { "my sister",                                              // 1
+          "YOUR SISTER" },
+
+        { "yes. she screws",                                        //  2
+        //"VERY WELL THEN"
+          "YOU SEEM QUITE POSITIVE" },
+
+        { "do you screw",                                           //   3
+        //"YOU'RE NOT REALLY TALKING ABOUT ME ARE YOU"
+          "YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU" },
+
+        { "no",                                                     //    4
+          "WHY NOT" },
+
+        { "do you screw",                                           // 1
+          "WHAT ARE YOUR FEELINGS NOW" },
+
+        { "hot",                                                    //  2
+        //"I AM NOT SURE I UNDERSTAND YOU FULLY"
+          "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+
+        { "do you take baths",                                      //   3
+        //"WE WERE DISCUSSING YOU NOT ME"
+          "WE WERE DISCUSSING YOU - NOT ME" },
+
+        { "do i take baths",                                        //    4
+          "THAT'S QUITE INTERESTING" },
+
+        { "i hate baths",                                           // 1
+          "YOU SAY YOU HATE BATHS" },
+
+        { "water is evil",                                          //  2
+        //"DOES ANY PART OF YOUR BODY HURT YOU"
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "my teeth",                                               //   3
+        //"DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU"
+          "IS IT IMPORTANT TO YOU THAT YOUR TEETH" },
+
+        { "my cat",                                                 //    4
+        //"IS IT IMPORTANT TO YOU THAT YOUR CAT"
+          "YOUR CAT" },
+
+        { "yes",                                                    // 1
+        //"YOU'RE POSITIVE"
+          "YOU ARE SURE" },
+
+        { "yes",                                                    //  2
+        //"YOU'RE PLAYING GAMES I WON'T RESPOND UNTIL YOU QUIT"
+          "I SEE" },
+
+        { "i love ice cream",                                       //   3
+          "CAN YOU ELABORATE ON THAT" },
+
+        { "orange sherbet especially",                              //    4
+          "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR FATER" },// recalled memory
+
+        { "my father",                                              // 1
+          "WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR FATHER" },
+
+        { "girls",                                                  //  2
+          "PLEASE GO ON" },
+
+        { "more girls",                                             //   3
+          "WHAT DOES THAT SUGGEST TO YOU" },
+
+        { "still mpre girls",                                       //    4 ("mpre" is original typo)
+        //"DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR FATHER"// recalled memory
+          "BUT YOUR FATHER" },                                          // "FATHER" hashed to different value?
+
+        { "i like bridges",                                         // 1
+          "DO YOU SAY YOU LIKE BRIDGES FOR SOME SPECIAL REASON" },
+
+        { "they are high",                                          //  2
+          "WOULD YOU LIKE IT IF THEY WERE NOT HIGH" },
+
+        { "no",                                                     //   3
+        //"WHAT ARE YOUR FEELINGS WHEN YOU SAY NO TO THAT"
+          "WHY 'NO'" },
+
+        { "up yours",                                               //    4
+        //"DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR WIFE"  // recalled memory
+          "LETS DISCUSS FURTHER WHY YOUR WIFE" },                       // "WIFE" hashed to different value?
+
+        { "no",                                                     // 1
+        //"PLEASE EXPLAIN WHY YOU SAY 'NO'"
+          "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+
+        { "go home",                                                //  2
+          "DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS" },
+
+        // the conversation appears to end here near the bottom of the seventh page of the printout
+    };
+
+
+    elizascript::script s;
+    elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
+    elizalogic::eliza eliza(s.rules, s.mem_rule);
+    for (const auto & [prompt, response] : the_peter_g_neumann_1966_conversation)
         TEST_EQUAL(eliza.response(prompt), response);
 }
 
@@ -7062,12 +7716,14 @@ DEF_TEST_FUNC(test_weizenbaum_july_1977_conversation)
     const exchange weizenbaum_july_1977_conversation[] = {
 
         /*  The Therapy Game
+
             "Here is part of the printout of a dialogue between patient and computer
              on the DOCTOR program of a large commercial time-sharing company in
              New York. A careful reading, says Joseph Weizenbaum, the program's
              originator, shows the computer/therapist is not really "intelligent"
              but merely following preprogrammed language rules."
             --Uncredited, but appearing interspersed with the essay...
+
             THE LAST DREAM
             by Joseph Weizenbaum
             Page 34 of Across the Board: The Conference Board Magazine Vol. XIV No. 7
