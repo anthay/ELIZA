@@ -6475,7 +6475,7 @@ DEF_TEST_FUNC(test_boston_globe_1966_convo)
            but not identical conversation. The responses printed in the
            newspaper that differ are commented out below.
 
-           Note the similarity to the_communications_explosion_1967_conversation. */
+           Note the similarity to weizenbaum_communications_explosion_1967_conversation. */
 
         { "hello.",
           "HOW DO YOU DO. PLEASE STATE YOUR PROBLEM" },
@@ -6639,7 +6639,7 @@ DEF_TEST_FUNC(test_boston_globe_1966_convo)
 
 DEF_TEST_FUNC(test_the_communications_explosion_1967_convo)
 {
-    const exchange the_communications_explosion_1967_conversation[] = {
+    const exchange weizenbaum_communications_explosion_1967_conversation[] = {
 
         /* A short clip of Joseph Weizenbaum demonstrating ELIZA
            in the 1967 documentary
@@ -6701,7 +6701,7 @@ DEF_TEST_FUNC(test_the_communications_explosion_1967_convo)
     elizascript::script s;
     elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
     elizalogic::eliza eliza(s.rules, s.mem_rule);
-    for (const auto & [prompt, response] : the_communications_explosion_1967_conversation)
+    for (const auto & [prompt, response] : weizenbaum_communications_explosion_1967_conversation)
         TEST_EQUAL(eliza.response(prompt), response);
 }
 
@@ -6776,7 +6776,9 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         //W 1454.4
         //I'M A DOCTOR AND I'D LIKE VERY MUCH TO HELP YOU IF I CAN . PLEASE TELL ME WHAT YOUR PROBLEM IS . //(missing parts assumed)
 
-        { "i want to write music.",                                 //  2 (the value of LIMIT immediately after reading input)
+        {
+        //"i want to wi#rite music." -- I assume the # indicates the deletion of the previous character
+          "i want to write music.",                                 //  2 (= the value of LIMIT immediately after reading input)
           "WHAT WOULD IT MEAN TO YOU IF YOU GOT TO WRITE MUSIC" },
 
         { "i would be happy",                                       //   3
@@ -6815,27 +6817,26 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         //  "DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU" },
 
         // The response here appears to come from the MY keyword, not
-        // the YES keyword. My guess is that one of these is true:
+        // the YES keyword, whereas 1966 ELIZA would use the latter.
         //
-        // (1) "..." is some indication that the periods were erased.
-        // Perhaps you press some backspace key, which prints the
-        // character you just erased. Although, then we'd expect an
-        // even number of periods?
+        // This conversation is being conducted via a teletype that
+        // prints directly onto paper and cannot erase what it has
+        // already printed. On some systems there is a backspace function
+        // that reprints the character just erased. But we saw in the
+        // very first user input that this system appears to print a
+        // # to indicate that the previous character was erased. So
+        // it seems likely that the three periods were transmitted to
+        // ELIZA. If 1966 ELIZA parsed the whole input it would divide
+        // it into four subclauses: (YES .)(.)(.)(MY NOSE). Since the
+        // first subclause contains a keyword, YES, that would be
+        // used to generate the response. The version of ELIZA being
+        // used here appears to behave differently. Perhaps related
+        // is the "ISN'T THERE SOMEONE ELSE YOU WISH TO LOVE" response
+        // later in this conversation and the "Yes, a terrible dream
+        // always wakes me" in weizenbaum_the_mind_machines_1978_conversation.
         //
-        // (2) The input is not parsed as (YES . . . MY NOSE), where the
-        // subclause (YES .) contains a keyword and the rest would be
-        // ignored, but instead is parsed as (YES.. . MY NOSE), where
-        // the subclause (YES.. .) does not contain a keyword (because
-        // "YES.." is not a keyword), and is ignored so we continue to
-        // the subclause (MY NOSE).
-        //
-        // (3) Three periods are parsed as an ellipsis, so the input
-        // is (YES ... MY NOSE) and the ellipsis does not divide the
-        // input into two subclauses. So there are two keywords in the
-        // input and MY is picked for the response over YES because it
-        // has the higher precedence (MY 2, YES 0).
-        //
-        // Below I've assumed those periods are absent:
+        // Below I've assumed those periods are absent, which is probably
+        // not a true recreation of the conversation.
 
         { "yes my nose",                                            //    4
           "DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU" },
@@ -7224,6 +7225,88 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
     elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
     elizalogic::eliza eliza(s.rules, s.mem_rule);
     for (const auto & [prompt, response] : the_peter_g_neumann_1966_conversation)
+        TEST_EQUAL(eliza.response(prompt), response);
+}
+
+
+DEF_TEST_FUNC(test_weizenbaum_1978_convo)
+{
+    const exchange weizenbaum_the_mind_machines_1978_conversation[] = {
+
+        /* A short clip of Joseph Weizenbaum demonstrating ELIZA
+           in the documentary
+
+                            The Mind Machines
+                    (c) WGBH Educational Foundation 1978
+                Publisher: Time-Life Multimedia, New York, 1979
+
+           https://archive.org/details/themindmachines/themindmachinesreel1.mov
+           (accessed 6 August 2026)
+
+           Weizenbaum appears to be sitting at a DEC VT50 video terminal
+           of some kind. We hear typing and see text appear on the screen.
+
+           The narrator says, "The patient - here Weizenbaum - types
+           in a complaint, and the program in the role of psychiatrist,
+           responds."
+
+           Luckily, Weizenbaum is here to clarify, telling us, "I would deny
+           that there's any important sense, non-negligible sense, in which
+           the program understands. It certainly creates the illusion of
+           understanding, there's no question about that. But we have to
+           understand that that illusion is an attribution that the person
+           conversing with the program contributes to the conversation;
+           it's not a function of the program itself."
+
+           We don't have the ELIZA script that was used. */
+
+
+        // The program is invoked by typing DOCTOR at a '>' prompt.
+        //   >DOCTOR
+        // The program startup is not shown.
+
+        { "I have great trouble sleeping.",
+        //"YOU SAY YOU HAVE GREAT TROUBLE SLEEPING."                // note the fullstop
+          "YOU SAY YOU HAVE GREAT TROUBLE SLEEPING" },
+
+        { "Yes, a terrible dream always wakes me.",
+        //"DID A TERRIBLE DREAM WAKE YOU RECENTLY?"
+          "YOU SEEM QUITE POSITIVE" },
+        // Notes:
+        //
+        // (1) The response contains a question mark.
+        // 1966 ELIZA's responses don't end with punctuation.
+        //
+        // (2) "wakes" is in the input becomes "WAKE" in the response.
+        //
+        // (3) Although I assume YES is a keyword, and it's
+        // followed by a comma, it is the text after that that is
+        // used to generate the response. See also "yes...my nose"
+        // in the_peter_g_neumann_1966_conversation.
+
+        { "Last night I dreamt my dad beat me.",
+        //"TELL ME MORE ABOUT YOUR FAMILY."
+          "REALLY, YOUR FATHER BEAT YOU" },
+
+        { "Money, that's it.",
+        //"PLEASE GO ON."
+          "I AM NOT SURE I UNDERSTAND YOU FULLY" },
+
+        { "Dad is very rich.",
+        //"DOES IT BOTHER YOU THAT YOUR FATHER IS VERY RICH?"
+          "PLEASE GO ON" },
+
+        { "You probably have lots of money too.",
+        // response not shown
+          "WE WERE DISCUSSING YOU - NOT ME" },
+
+        // --- end of the Weizenbaum segment of the film ---
+    };
+
+    elizascript::script s;
+    elizascript::read(elizascript::CACM_1966_01_DOCTOR_script, s);
+    elizalogic::eliza eliza(s.rules, s.mem_rule);
+    for (const auto & [prompt, response] : weizenbaum_the_mind_machines_1978_conversation)
         TEST_EQUAL(eliza.response(prompt), response);
 }
 
