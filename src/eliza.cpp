@@ -6777,7 +6777,11 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         //I'M A DOCTOR AND I'D LIKE VERY MUCH TO HELP YOU IF I CAN . PLEASE TELL ME WHAT YOUR PROBLEM IS . //(missing parts assumed)
 
         {
-        //"i want to wi#rite music." -- I assume the # indicates the deletion of the previous character
+        //"i want to wi#rite music."
+        // I assume the # indicates the deletion of the previous character.
+        // Note that I'm not suggesting that ELIZA sees the #; I'm suggesting
+        // that the terminal or some other part of the low-level IO system
+        // provides a backspace function and ELIZA sees only the edited text.
           "i want to write music.",                                 //  2 (= the value of LIMIT immediately after reading input)
           "WHAT WOULD IT MEAN TO YOU IF YOU GOT TO WRITE MUSIC" },
 
@@ -6792,7 +6796,11 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         //"LET'S CONTINUE"
           "YOU ARE SURE" },
 
-        { "o.k.",                                                   //  2
+        {
+        //"o,k@o.k."
+        // I assume the @ indicates the deletion of the entire input up to that point.
+        // As with # above, I think this is a low-level IO function.
+          "o.k.",                                                   //  2
           "I AM NOT SURE I UNDERSTAND YOU FULLY" },
 
         { "i hate my dog",                                          //   3
@@ -7020,7 +7028,9 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         //"TELL ME ABOUT YOUR PAINS IN GENERAL"
           "DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU" },
 
-        { "i can't sleep",                                          //  2
+        {
+        //"i cann't sleep@i can't sleep"
+          "i can't sleep",                                          //  2
           "HOW DO YOU KNOW YOU CAN'T SLEEP" },
 
         { "i am awake all night",                                   //   3
@@ -7038,7 +7048,9 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         //"I UNDERSTAND"
           "YOU ARE SURE" },
 
-        { "can you help me sleep",                                  //   3
+        {
+        //"can you help me sll#eep"
+          "can you help me sleep",                                  //   3
           "YOU BELIEVE I CAN HELP YOU SLEEP DON'T YOU" },
 
         { "yes",                                                    //    4
@@ -7087,7 +7099,9 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         { "i like sex",                                             //    4
           "THAT'S QUITE INTERESTING" },
 
-        { "do you like to stand on your head",                      // 1
+        {
+        //"do I#you i#like to stand on your head"
+          "do you like to stand on your head",                      // 1
         //"OH , I LIKE TO STAND ON MY HEAD"
           "OH, I LIKE TO STAND ON MY HEAD" },
 
@@ -7118,7 +7132,9 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         { "yes",                                                    //  2
           "I UNDERSTAND" },
 
-        { "my father hurts",                                        //   3
+        {
+        //"my father hurs#ts"
+          "my father hurts",                                        //   3
         //"TELL ME MORE ABOUT YOUR FAMILY
         // IS THERE ANYONE OF WHOME YOU ARE ESPECIALLY FOND"
           "TELL ME MORE ABOUT YOUR FAMILY" },
@@ -7183,7 +7199,9 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         { "orange sherbet especially",                              //    4
           "DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR FATER" },// recalled memory
 
-        { "my father",                                              // 1
+        {
+        //"my a#father"
+          "my father",                                              // 1
           "WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR FATHER" },
 
         { "girls",                                                  //  2
@@ -7192,7 +7210,9 @@ DEF_TEST_FUNC(test_the_peter_g_neumann_1966_convo)
         { "more girls",                                             //   3
           "WHAT DOES THAT SUGGEST TO YOU" },
 
-        { "still mpre girls",                                       //    4 ("mpre" is original typo)
+        {
+        //"m#still mpre girls"
+          "still mpre girls",                                       //    4 ("mpre" is original typo)
         //"DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR FATHER"// recalled memory
           "BUT YOUR FATHER" },                                          // "FATHER" hashed to different value?
 
@@ -7236,6 +7256,7 @@ DEF_TEST_FUNC(test_weizenbaum_1978_convo)
         /* A short clip of Joseph Weizenbaum demonstrating ELIZA
            in the documentary
 
+                                  NOVA
                             The Mind Machines
                     (c) WGBH Educational Foundation 1978
                 Publisher: Time-Life Multimedia, New York, 1979
