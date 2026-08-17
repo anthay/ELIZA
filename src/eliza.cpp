@@ -7945,6 +7945,418 @@ DEF_TEST_FUNC(test_weizenbaum_july_1977_conversation)
 }
 
 
+DEF_TEST_FUNC(test_michie_1968_convo)
+{
+    const char * weizenbaum_tape_100_1965_script =
+
+    /*  Transcript of an ELIZA script printed in a listing following the ELIZA
+        source code in MIT archive document 02-000311051.pdf. The listing was
+        found in a folder titled COMPUTER CONVERSATIONS 1965 and has the header
+
+            "PRINT,T0109,2531,.TAPE.,100      T0109 2531    1748.8     03/06"
+
+        The date the listing was printed is therefore assumed to be 6 March 1965.
+
+        This is a verbatim transcript except for whitespace, which has been
+        changed for readability. */
+
+        "(HOW DO YOU DO.  I AM THE DOCTOR.  PLEASE SIT DOWN AT THE TYPEWRITER AND TELL ME YOUR PROBLEM.)\n"
+        "\n"
+        "(IF 3\n"
+        "    ((0 IF 0)\n"
+        "        (DO YOU THINK ITS LIKELY THAT 3)\n"
+        "        (DO YOU WISH THAT 3)\n"
+        "        (WHAT DO YOU THINK ABOUT 3)\n"
+        "        (REALLY, 2 3)))\n"
+        "\n"
+        "(HOW\n"
+        "    (=WHAT))\n"
+        "\n"
+        "(WHEN\n"
+        "    (=WHAT))\n"
+        "\n"
+        "(MEMORY MY\n"
+        "    (0 YOUR 0 = LETS DISCUSS FURTHER WHY YOUR 3)\n"
+        "    (0 YOUR 0 = EARLIER YOU SAID YOUR 3)\n"
+        "    (0 YOUR 0 = BUT YOUR 3)\n"
+        "    (0 YOUR 0 = DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT YOUR 3))\n"
+        "\n"
+        "(NONE\n"
+        "    ((0)\n"
+        "        (I AM NOT SURE I UNDERSTAND YOU FULLY)\n"
+        "        (PLEASE GO ON)\n"
+        "        (WHAT DOES THAT SUGGEST TO YOU)\n"
+        "        (DO YOU FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))\n"
+        "\n"
+        "(PERHAPS\n"
+        "    ((0)\n"
+        "        (YOU DON'T SEEM QUITE CERTAIN)\n"
+        "        (WHY THE UNCERTAIN TONE)\n"
+        "        (CAN'T YOU BE MORE POSITIVE)\n"
+        "        (YOU AREN'T SURE)\n"
+        "        (DON'T YOU KNOW)))\n"
+        "\n"
+        "(MAYBE\n"
+        "    (=PERHAPS))\n"
+        "\n"
+        "(AM = ARE\n"
+        "    ((0 ARE YOU 0)\n"
+        "        (DO YOU BELIEVE YOU ARE 4)\n"
+        "        (WOULD YOU WANT TO BE 4)\n"
+        "        (YOU WISH I WOULD TELL YOU YOU ARE 4)\n"
+        "        (WHAT WOULD IT MEAN IF YOU WERE 4))\n"
+        "    ((0)\n"
+        "        (WHY DO YOU SAY 'AM')\n"
+        "        (I DON'T UNDERSTAND THAT)))\n"
+        "\n"
+        "(ARE = AM\n"
+        "    ((0 AM I 0)\n"
+        "        (WHY ARE YOU INTERESTED IN WHETHER I AM 4 OR NOT)\n"
+        "        (WOULD YOU PREFER IF I WEREN'T 4)\n"
+        "        (PERHAPS I AM 4 IN YOUR FANTASIES)\n"
+        "        (DO YOU SOMETIMES THINK I AM 4))\n"
+        "    ((0 AM 0)\n"
+        "        (DID YOU THINK THEY MIGHT NOT BE 3)\n"
+        "        (WOULD YOU LIKE IT IF THEY WERE NOT 3)\n"
+        "        (WHAT IF THEY WERE NOT 3)\n"
+        "        (POSSIBLY THEY ARE 3)))\n"
+        "\n"
+        "(YOUR = MY\n"
+        "    ((0 MY 0)\n"
+        "        (WHY ARE YOU CONCERNED OVER MY 3)\n"
+        "        (WHAT ABOUT YOUR OWN 3)\n"
+        "        (ARE YOU WORRIED ABOUT SOMEONE ELSES 3)\n"
+        "        (REALLY, MY 3)))\n"
+        "\n"
+        "(WAS = WERE)\n"
+        "(WERE = WAS)\n"
+        "(ME = YOU)\n"
+        "(YOU'RE = I'M)\n"
+        "(I'M = YOU'RE)\n"
+        "(MYSELF = YOURSELF)\n"
+        "(YOURSELF = MYSELF)\n"
+        "\n"
+        "(MOTHER DLIST(/NOUN FAMILY))\n"
+        "(FATHER DLIST(/NOUN FAMILY))\n"
+        "(SISTER DLIST(/FAMILY))\n"
+        "(BROTHER DLIST(/FAMILY))\n"
+        "(WIFE DLIST(/FAMILY))\n"
+        "(CHILDREN DLIST(/FAMILY))\n"
+        "\n"
+        "(I = YOU\n"
+        "    ((0 YOU ARE 0 I 0)\n"
+        "        (PERHAPS YOU ARE 4 SOMEONE ELSE)\n"
+        "        (ARE YOU 4 ANYONE)\n"
+        "        (ARE YOU 4 ANYONE IN YOUR FAMILY)\n"
+        "        (PERHAPS YOU WISH I WERE 4 YOU 6))\n"
+        "    ((0 YOU ARE 0)\n"
+        "        (IS IT BECAUSE YOU ARE 4 THAT YOU CAME TO ME)\n"
+        "        (HOW LONG HAVE YOU BEEN 4)\n"
+        "        (DO YOU BELIEVE IT NORMAL TO BE 4)\n"
+        "        (DO YOU ENJOY BEING 4))\n"
+        "    ((0 YOU CAN'T 0)\n"
+        "        (HOW DO YOU KNOW YOU CAN'T 4)\n"
+        "        (HAVE YOU TRIED)\n"
+        "        (PERHAPS YOU COULD 4 NOW)\n"
+        "        (DO YOU REALLY WANT TO BE ABLE TO 4))\n"
+        "    ((0 YOU DON'T 0)\n"
+        "        (DON'T YOU REALLY 4)\n"
+        "        (WHY DON'T YOU 4)\n"
+        "        (DO YOU WISH TO BE ABLE TO 4)\n"
+        "        (DOES THAT TROUBLE YOU))\n"
+        "    ((0 YOU FEEL 0)\n"
+        "        (TELL ME MORE ABOUT SUCH FEELINGS)\n"
+        "        (DO YOU OFTEN FEEL 4)\n"
+        "        (DO YOU ENJOY FEELING 4)\n"
+        "        (OF WHAT DOES FEELING 4 REMIND YOU))\n"
+        "    ((0 YOU 0 I 0)\n"
+        "        (PERHAPS IN YOUR FANTASY WE 3 EACH OTHER)\n"
+        "        (DO YOU WISH TO 3 ME)\n"
+        "        (YOU SEEM TO NEED TO 3 ME)\n"
+        "        (DO YOU 3 ANYONE ELSE))\n"
+        "    ((0)\n"
+        "        (YOU SAY 1)\n"
+        "        (CAN YOU ELABORATE ON THAT)\n"
+        "        (DO YOU SAY 1 FOR SOME SPECIAL REASON)\n"
+        "        (THAT'S QUITE INTERESTING)))\n"
+        "\n"
+        "(YOU = I\n"
+        "    ((0 I 0 YOU 0)\n"
+        "        (WHY DO YOU THINK I 3 YOU)\n"
+        "        (DID YOUR PARENTS 3 YOU))\n"
+        "    ((0 I AM 0)\n"
+        "        (WHAT MAKES YOU THINK I AM 4)\n"
+        "        (DOES IT PLEASE YOU TO BELIEVE I AM 4)\n"
+        "        (DO YOU SOMETIMES WISH YOU WERE 4)\n"
+        "        (PERHAPS YOU WOULD LIKE TO BE 4))\n"
+        "    ((0 I 0)\n"
+        "        (WE WERE DISCUSSING YOU - NOT ME)\n"
+        "        (OH, I 3)\n"
+        "        (YOU'RE NOT REALLY TALKING ABOUT ME - ARE YOU)\n"
+        "        (WHAT ARE YOUR FEELINGS NOW)))\n"
+        "\n"
+        "(YES\n"
+        "    ((0)\n"
+        "        (YOU SEEM QUITE POSITIVE)\n"
+        "        (YOU ARE SURE)\n"
+        "        (I SEE)\n"
+        "        (I UNDERSTAND)))\n"
+        "\n"
+        "(NO\n"
+        "    ((0)\n"
+        "        (ARE YOU SAYING 'NO' JUST TO BE NEGATIVE)\n"
+        "        (YOU ARE BEING A BIT NEGATIVE)\n"
+        "        (WHY NOT)\n"
+        "        (WHY 'NO')))\n"
+        "\n"
+        "(MY = YOUR\n"
+        "    ((0 YOUR 0 (/FAMILY) 0)\n"
+        "        (TELL ME MORE ABOUT YOUR FAMILY)\n"
+        "        (WHO ELSE IN YOUR FAMILY 5)\n"
+        "        (YOUR 4)\n"
+        "        (WHAT ELSE COMES TO MIND WHEN YOU THINK OF YOUR 4))\n"
+        "    ((0 YOUR 0)\n"
+        "        (YOUR 3)\n"
+        "        (WHY DO YOU SAY YOUR 3)\n"
+        "        (DOES THAT SUGGEST ANYTHING ELSE WHICH BELONGS TO YOU)\n"
+        "        (IS IT IMPORTANT TO YOU THAT 2 3)))\n"
+        "\n"
+        "(CAN\n"
+        "    ((0 CAN I 0)\n"
+        "        (YOU BELIEVE I CAN 4 DON'T YOU)\n"
+        "        (YOU WANT ME TO BE ABLE TO 4)\n"
+        "        (PERHAPS YOU WOULD LIKE TO BE ABLE TO 4 YOURSELF))\n"
+        "    ((0 CAN YOU 0)\n"
+        "        (WHETHER OR NOT YOU CAN 4 DEPENDS ON YOU MORE THAN ON ME)\n"
+        "        (DO YOU WANT TO BE ABLE TO 4)\n"
+        "        (PERHAPS YOU DON'T WANT TO 4)))\n"
+        "\n"
+        "(WHAT\n"
+        "    ((0)\n"
+        "        (WHY DO YOU ASK)\n"
+        "        (DOES THAT QUESTION INTEREST YOU)\n"
+        "        (WHAT IS IT YOU REALLY WANT TO KNOW)\n"
+        "        (ARE SUCH QUESTIONS MUCH ON YOUR MIND)\n"
+        "        (WHAT ANSWER WOULD PLEASE YOU MOST)\n"
+        "        (WHAT DO YOU THINK)\n"
+        "        (WHAT COMES TO YOUR MIND WHEN YOU ASK THAT)\n"
+        "        (HAVE YOU ASKED SUCH QUESTIONS BEFORE)\n"
+        "        (HAVE YOU ASKED ANYONE ELSE)))\n"
+        "\n"
+        "(BECAUSE\n"
+        "    ((0)\n"
+        "        (IS THAT THE REAL REASON)\n"
+        "        (DON'T ANY OTHER REASONS COME TO MIND)\n"
+        "        (DOES THAT REASON SEEM TO EXPLAIN ANYTHING ELSE)\n"
+        "        (WHAT OTHER REASONS MIGHT THERE BE)))\n"
+        "\n"
+        "(WHY\n"
+        "    ((0 WHY DON'T I 0)\n"
+        "        (DO YOU BELIEVE I DON'T 5)\n"
+        "        (PERHAPS I WILL 5 IN GOOD TIME)\n"
+        "        (SHOULD YOU 5 YOURSELF)\n"
+        "        (YOU WANT ME TO 5))\n"
+        "    ((0 WHY CAN'T YOU 0)\n"
+        "        (DO YOU THINK YOU SHOULD BE ABLE TO 5)\n"
+        "        (DO YOU WANT TO BE ABLE TO 5)\n"
+        "        (DO YOU BELIEVE THIS WILL HELP YOU TO 5)\n"
+        "        (HAVE YOU ANY IDEA WHY YOU CAN'T 5))\n"
+        "    (= WHAT))\n"
+        "\n"
+        "(EVERYONE 2\n"
+        "    ((0)\n"
+        "        (REALLY, EVERYONE)\n"
+        "        (CAN YOU THINK OF ANYONE IN PARTICULAR)\n"
+        "        (WHO, FOR EXAMPLE)\n"
+        "        (YOU ARE THINKING OF A VERY SPECIAL PERSON)\n"
+        "        (WHO, MAY I ASK)\n"
+        "        (SOMEONE SPECIAL PERHAPS)\n"
+        "        (YOU HAVE A PARTICULAR PERSON IN MIND, DON'T YOU)\n"
+        "        (WHO DO YOU THINK YOU'RE TALKING ABOUT)))\n"
+        "\n"
+        "(EVERYBODY 2\n"
+        "    (= EVERYONE))\n"
+        "\n"
+        "(NOBODY 2\n"
+        "    (=EVERYONE))\n"
+        "\n"
+        "(NOONE 2\n"
+        "    (=EVERYONE))\n"
+        "\n"
+        "(ALWAYS 1\n"
+        "    ((0)\n"
+        "        (CAN YOU THINK OF A SPECIFIC EXAMPLE)\n"
+        "        (WHEN)\n"
+        "        (WHAT INCIDENT ARE YOU THINKING OF)\n"
+        "        (REALLY, ALWAYS)))\n"
+        "\n"
+        "()\n";
+
+
+
+    const exchange michie_computer_servant_or_master_1968_conversation[] = {
+
+        /* An article titled "Computer--servant or master" by Donald Michie
+           on page 191 of the 1971 book Cybernetics, Art and Ideas edited by
+           Jasia Reichardt.
+
+           https://archive.org/details/cyberneticsartid0000reic
+           (accessed 17 August 2026)
+
+           "This article first appeared in Spectrum no 45, 1968."
+
+           Professor Michie tells us that
+
+                "[...] Turing's test in its original form has been refuted
+                by an ingenious conversational computer program called DOCTOR
+                written by Joe Weizenbaum of Massachusetts Institute of
+                Technology. I reproduce below a fragment of an actual
+                conversation with DOCTOR."
+
+           I do not know why a distinguished professor of machine intelligence
+           would believe that ELIZA had been subjected to Turing's test and
+           found to be indistinguishable from a human. He says
+
+                "Its success as measured by Turing's test is impressive. Patients in
+                Massachusetts General Infirmary were allowed to converse
+                with the program, after being warned that a computer, not a
+                doctor, was at the other end of the line. Sixty per cent of
+                them subsequently rejected this information and insisted that
+                they had been in communication with a flesh-and-blood
+                doctor-'No machine could understand me that well', was a
+                typical reaction."
+
+           This is not how Turing's test works. Also, the experiment referred to
+           is presumably the 1966 Project MAC study by McGuire, Lorch and Quarton
+           titled "MAN-MACHINE NATURAL LANGUAGE EXCHANGES BASED ON SELECTED FEATURES
+           OF UNRESTRICTED INPUT-II. THE USE OF THE TIME-SHARED COMPUTER AS A
+           RESEARCH TOOL IN STUDYING DYADIC COMMUNICATION." This was not a Turing
+           test.
+
+           We don't have the ELIZA script that was used, but weizenbaum_tape_100_1965_script
+           can easily reproduce the conversation if you assume that there are exchanges
+           that have been edited out. */
+
+
+        // --- beginning of response alignment ---
+        // Presumably there were exchanges with ELIZA that are not shown
+        // in the quoted conversation. These exchanges change the internal
+        // response counters. Here we recreate the state of those counters
+        // by simply invoking the particular responses sufficient times.
+
+        { "i",
+          "YOU SAY YOU" },
+        { "i am",
+          "IS IT BECAUSE YOU ARE THAT YOU CAME TO ME" },
+        { "i am",
+          "HOW LONG HAVE YOU BEEN" },
+        { "yes",
+          "YOU SEEM QUITE POSITIVE" },
+        { "yes",
+          "YOU ARE SURE" },
+        { "yes",
+          "I SEE" },
+        { "i feel",
+          "TELL ME MORE ABOUT SUCH FEELINGS" },
+        { "no",
+          "ARE YOU SAYING 'NO' JUST TO BE NEGATIVE" },
+        { "no",
+          "YOU ARE BEING A BIT NEGATIVE" },
+        { "because",
+          "IS THAT THE REAL REASON" },
+        { "because",
+          "DON'T ANY OTHER REASONS COME TO MIND" },
+        { "because",
+          "DOES THAT REASON SEEM TO EXPLAIN ANYTHING ELSE" },
+
+        // --- end of response alignment ---
+
+
+
+        // --- beginning of the conversation quoted in the Donald Michie article ---
+
+        // "How do you do. I am the DOCTOR. Please sit down at the
+        // typewriter and tell me your problem."
+        // This corresponds closely with the opening message in the weizenbaum_tape_100_1965_script:
+        // (HOW DO YOU DO.  I AM THE DOCTOR.  PLEASE SIT DOWN AT THE TYPEWRITER AND TELL ME YOUR PROBLEM.)
+
+        { "I wish I had my baggage.",
+        //"Can you elaborate on that?"
+          "CAN YOU ELABORATE ON THAT" },
+
+        { "I am not quite clear as to what sort of elaboration is wanted.",
+        //"Do you believe it normal to be not quite clear as to what sort of elaboration is wanted?"
+          "DO YOU BELIEVE IT NORMAL TO BE NOT QUITE CLEAR AS TO WHAT SORT OF ELABORATION IS WANTED" },
+
+        { "Yes, quite normal.",
+        //"I understand."
+          "I UNDERSTAND" },
+
+        { "I have lost my baggage.",
+        //"You say you have lost your baggage."
+          "DO YOU SAY YOU HAVE LOST YOUR BAGGAGE FOR SOME SPECIAL REASON" }, // see [1] below
+
+        { "I feel lost without it.",
+        //"Do you often feel lost without it?"
+          "DO YOU OFTEN FEEL LOST WITHOUT IT" },
+
+        { "No, this is the first time.",
+        //"Why not?"
+          "WHY NOT" },
+
+        { "Because I normally do not lose my things.",
+        //"What other reasons might there be?"
+          "WHAT OTHER REASONS MIGHT THERE BE" },
+
+        { "My mother trained me not to lose things.",
+        //"Tell me more about your family."
+          "TELL ME MORE ABOUT YOUR FAMILY" },
+
+        { "I have lost my baggage.",
+        //"Did your parents ever lose you?"
+          "THAT'S QUITE INTERESTING" }, // see [2] below
+
+        // --- end of the quoted conversation ---
+
+
+
+        // [1]
+        // With this script the input
+        //      "I have lost my baggage"
+        // can produce the response
+        //      "You say you have lost your baggage"
+        // if the alignment is correct, as it is now
+        { "I have lost my baggage.",
+          "YOU SAY YOU HAVE LOST YOUR BAGGAGE" },
+        // I assume the conversation was edited.
+
+
+        // [2]
+        // On the other hand, with this script the input
+        //      "I have lost my baggage"
+        // will never produce the response
+        //      "Did your parents ever lose you?"
+        // from 1966 ELIZA. However, the script does
+        // have a rule that can produce such a response
+        //      (DID YOUR PARENTS 3 YOU)
+        // For example,
+        { "did you ever lose me",
+          "WHY DO YOU THINK I EVER LOSE YOU" },
+        { "did you ever lose me",
+          "DID YOUR PARENTS EVER LOSE YOU" },
+        // Either the conversation was edited for publication
+        // in a way that misrepresents a true experience of
+        // talking to ELIZA, or weizenbaum_tape_100_1965_script
+        // was not the script used, or perhaps both.
+    };
+
+    elizascript::script s;
+    elizascript::read(weizenbaum_tape_100_1965_script, s);
+    elizalogic::eliza eliza(s.rules, s.mem_rule);
+    for (const auto & [prompt, response] : michie_computer_servant_or_master_1968_conversation)
+        TEST_EQUAL(eliza.response(prompt), response);
+}
+
 
 }//namespace elizatest
 
