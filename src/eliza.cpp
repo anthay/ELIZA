@@ -7263,6 +7263,8 @@ DEF_TEST_FUNC(test_weizenbaum_1978_convo)
 
            https://archive.org/details/themindmachines/themindmachinesreel1.mov
            (accessed 6 August 2026)
+           https://archive.org/details/TheMindMachines_201901
+           (accessed 19 August 2026)
 
            Weizenbaum appears to be sitting at a DEC VT50 video terminal
            of some kind. We hear typing and see text appear on the screen.
@@ -7287,7 +7289,7 @@ DEF_TEST_FUNC(test_weizenbaum_1978_convo)
         // The program startup is not shown.
 
         { "I have great trouble sleeping.",
-        //"YOU SAY YOU HAVE GREAT TROUBLE SLEEPING."                // note the fullstop
+        //"YOU SAY YOU HAVE GREAT TROUBLE SLEEPING."                // note the full stop
           "YOU SAY YOU HAVE GREAT TROUBLE SLEEPING" },
 
         { "Yes, a terrible dream always wakes me.",
@@ -7298,7 +7300,7 @@ DEF_TEST_FUNC(test_weizenbaum_1978_convo)
         // (1) The response contains a question mark.
         // 1966 ELIZA's responses don't end with punctuation.
         //
-        // (2) "wakes" is in the input becomes "WAKE" in the response.
+        // (2) "wakes" (plural) in the input becomes "WAKE" in the response.
         //
         // (3) Although I assume YES is a keyword, and it's
         // followed by a comma, it is the text after that that is
@@ -8202,6 +8204,8 @@ DEF_TEST_FUNC(test_michie_1968_convo)
 
            https://archive.org/details/cyberneticsartid0000reic
            (accessed 17 August 2026)
+           https://monoskop.org/images/7/77/Reichardt_Jasia_ed_Cybernetics_Art_and_Ideas_1971.pdf
+           (accessed 19 August 2026)
 
            "This article first appeared in Spectrum no 45, 1968."
 
